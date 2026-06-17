@@ -34,7 +34,8 @@ module.exports={
     const bench=S.coll.filter(c=>!onField.includes(c.id));
     if(!bench.length){MC.halt=false;runLoop();return false;}
     const c=bench[0];
-    MC.home.players[9]={c,role:out.role,pen:c.pos===out.role?1:0.72,x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el};
+    MC.home.players[9]={c,role:out.role,pen:c.pos===out.role?1:0.72,x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,
+      stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0}};
     recalcAuras(MC.home);MC.subs--;
     MC.halt=false;runLoop();
     return true;
