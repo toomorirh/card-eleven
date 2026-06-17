@@ -143,7 +143,21 @@ const FORMS={
  "4-4-2":[["GK",50,90],["LSB",18,76],["CB",38,77],["CB",62,77],["RSB",82,76],["LMF",16,49],["CMF",38,51],["CMF",62,51],["RMF",84,49],["ST",50,28],["CF",50,13]],
  "4-3-3":[["GK",50,90],["LSB",18,76],["CB",38,77],["CB",62,77],["RSB",82,76],["CMF",30,49],["DMF",50,60],["CMF",70,49],["LWG",18,15],["CF",50,13],["RWG",82,15]],
  "3-5-2":[["GK",50,90],["CB",26,77],["CB",50,75],["CB",74,77],["LMF",14,49],["CMF",34,51],["DMF",50,60],["CMF",66,51],["RMF",86,49],["ST",50,28],["CF",50,13]],
- "5-3-2":[["GK",50,90],["LSB",10,73],["CB",30,77],["CB",50,75],["CB",70,77],["RSB",90,73],["CMF",30,49],["DMF",50,60],["CMF",70,49],["ST",50,28],["CF",50,13]]};
+ "5-3-2":[["GK",50,90],["LSB",10,73],["CB",30,77],["CB",50,75],["CB",70,77],["RSB",90,73],["CMF",30,49],["DMF",50,60],["CMF",70,49],["CF",38,18],["CF",62,18]],
+ "4-3-1-2":[["GK",50,90],["LSB",18,76],["CB",38,77],["CB",62,77],["RSB",82,76],["CMF",35,51],["DMF",50,60],["CMF",65,51],["OMF",50,38],["CF",38,18],["CF",62,18]],
+ "4-2-3-1":[["GK",50,90],["LSB",18,76],["CB",38,77],["CB",62,77],["RSB",82,76],["DMF",38,60],["DMF",62,60],["LWG",18,30],["OMF",50,38],["RWG",82,30],["CF",50,15]]};
+// キーポジション: フォーメーションの戦術的特徴を担う枠(index→強化ステ)。該当枠の選手はそのステに係数KEY_MULがかかる。
+// 4-4-2=2トップの得点力 / 4-3-3=両ウイングの速さ / 3-5-2=両ワイドMFの技術(SB不在を技術でカバー) / 5-3-2=両WBのスタミナ(上下動)
+// 4-3-1-2=トレクァルティスタ(OMF)の技術 / 4-2-3-1=ダブルボランチ(DMF×2)の守備
+const KEYPOS={
+  "4-4-2":{9:"off",10:"off"},
+  "4-3-3":{8:"spd",10:"spd"},
+  "3-5-2":{4:"tec",8:"tec"},
+  "5-3-2":{1:"sta",5:"sta"},
+  "4-3-1-2":{8:"tec"},
+  "4-2-3-1":{5:"def",6:"def"}
+};
+const KEY_MUL=1.15;
 const CLUBS=[["FCバンビーノ",1],["コバルト水戸海",2],["レッドファング",3],["AC月光",4],["ヴェルデ皇国",5],["ガラクシア11",6],["鋼鉄オルカ",7],["王立クロノス",8]];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
@@ -307,27 +321,43 @@ function cardEl(c,mini){
 // ================= 編成 =================
 let pickSlot=null;
 function total(c){return c.off+c.def+c.pow+c.tec+c.spd+c.sta;}
+// 枠に置いた時の実効OVR(ポジション適性pen・キーポジション係数を反映した「計算後」の値)
+function slotEffOVR(c,sub,i){
+  const pen=posFit(c.sub,sub);
+  const keyStat=(KEYPOS[S.form]||{})[i];
+  const ks=["off","def","pow","tec","spd","sta"];
+  let sum=0;
+  ks.forEach(k=>{let v=c[k]*pen;if(keyStat===k)v*=KEY_MUL;sum+=v;});
+  return Math.round(sum);
+}
 function renderPitch(){
   const p=document.getElementById("pitch");
   p.querySelectorAll(".slot").forEach(e=>e.remove());
   document.getElementById("fmName").textContent=S.form;
+  const kp=KEYPOS[S.form]||{};
   FORMS[S.form].forEach((sl,i)=>{
     const [sub,x,y]=sl;
     const role=subGroup(sub);
     const d=document.createElement("div");d.className="slot";
     d.style.left=x+"%";d.style.top=y+"%";
-    const head=`<div class="slothead ${role}">${sub}</div>`;
+    const key=kp[i];
+    if(key)d.classList.add("keypos");
     const c=S.coll.find(k=>k.id===S.squad[i]);
+    let fitCls="",fitMark="";
     if(c){
       const fit=posFit(c.sub,sub);
-      let mark;
-      if(fit>=POSFIT.exact){d.classList.add("perfect");mark='<div class="fitmark ok">✓</div>';}        // 完全一致
-      else if(fit>POSFIT.group){d.classList.add("mild");mark='<div class="fitmark mild">'+c.sub+'</div>';} // 同分類・細分違い(本来の細分を表示)
-      else {d.classList.add("bad");mark='<div class="fitmark bad">'+c.sub+'</div>';}                       // 大分類違い
+      if(fit>=POSFIT.exact){fitCls="fit-ok";fitMark='<span class="fitmark">✓</span>';}                 // 完全一致
+      else if(fit>POSFIT.group){fitCls="fit-mild";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}    // 同分類・細分違い(本来の細分を表示)
+      else{fitCls="fit-bad";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}                          // 大分類違い
+    }
+    const head=`<div class="slothead ${role} ${fitCls}">${sub}${fitMark}</div>`+(key?`<div class="keytag">⭐${STAT_SHORT[key]}+${Math.round((KEY_MUL-1)*100)}%</div>`:"");
+    if(c){
       d.classList.add("filled");
-      d.innerHTML=`${head}<div class="scard ${c.rar}"><div class="f"></div><div class="nm">${c.name}</div>${mark}</div>`;
-      d.querySelector(".f").appendChild(spriteCanvas(c,34));
-    }else{d.classList.add("empty");d.innerHTML=`${head}<div class="ph">＋</div>`;}
+      const ovr=slotEffOVR(c,sub,i);
+      d.innerHTML=`${head}<div class="slotsprite"><div class="slotring ${c.rar}"></div></div>
+        <div class="slotinfo"><span class="flag">${c.flag}</span><b class="nm">${c.name}</b><span class="ovr">OVR<b>${ovr}</b></span></div>`;
+      d.querySelector(".slotsprite").appendChild(spriteCanvas(c,40));
+    }else{d.classList.add("empty");d.innerHTML=`${head}<div class="slotsprite"><div class="ph">＋</div></div>`;}
     d.onclick=()=>openPicker(i,sub);
     p.appendChild(d);
   });
@@ -363,10 +393,20 @@ function openPicker(i,sub){
   document.getElementById("picker").classList.add("on");
 }
 document.getElementById("pickClose").onclick=()=>document.getElementById("picker").classList.remove("on");
+function keyPosDesc(f){
+  const kp=KEYPOS[f]||{};
+  const idxs=Object.keys(kp).map(Number);
+  if(!idxs.length)return "";
+  const subs=idxs.map(i=>FORMS[f][i][0]);
+  const stat=kp[idxs[0]];
+  return `⭐${subs.join("/")} ${STAT_SHORT[stat]}+${Math.round((KEY_MUL-1)*100)}%`;
+}
 document.getElementById("fmBtn").onclick=()=>{
   const m=document.getElementById("fmModal"),l=document.getElementById("fmList");l.innerHTML="";
   Object.keys(FORMS).forEach(f=>{
-    const b=document.createElement("button");b.className="btn ghost";b.textContent=f;
+    const b=document.createElement("button");b.className="btn ghost";
+    const kd=keyPosDesc(f);
+    b.innerHTML=`${f}`+(kd?`<br><span style="font-size:10px;color:#8fa3b8">${kd}</span>`:"");
     b.onclick=async()=>{S.form=f;await save();m.classList.remove("on");renderPitch();};
     l.appendChild(b);
   });
@@ -547,25 +587,30 @@ function statRating(p){
 }
 function myTeam(){
   const cards=[];
+  const kp=KEYPOS[S.form]||{};
   FORMS[S.form].forEach((sl,i)=>{
     const c=S.coll.find(k=>k.id===S.squad[i]);
-    if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0});
+    if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1});
   });
   return buildTeam(cards,"H");
 }
 function oppTeam(lv){
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
-  const cards=FORMS["4-4-2"].map(sl=>{
+  const kp=KEYPOS["4-4-2"];
+  const cards=FORMS["4-4-2"].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
     const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
     scaleTo(c,a*6); // チームLvに応じて合計を微調整
-    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0};
+    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
   if(lv>=8){ // 最終ボスのエースはレジェンド
     const i=9+ri(0,1); // FWのどちらか
     const sb=cards[i].subRole;
-    cards[i]={c:makeCard(subGroup(sb),"l",null,sb),role:subGroup(sb),subRole:sb,pen:1,x:cards[i].x,y:cards[i].y,enter:0};
+    cards[i]={c:makeCard(subGroup(sb),"l",null,sb),role:subGroup(sb),subRole:sb,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
   return buildTeam(cards,"A");
 }
@@ -588,7 +633,10 @@ function situ(p,T,opT,min){
   if(f.losing&&T.score<opT.score)m*=f.losing;
   return m;
 }
-function eff(p,k,min,T,opT){return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1);}
+function eff(p,k,min,T,opT){
+  const km=p.keyStat===k?(p.keyMul||1):1;
+  return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1)*km;
+}
 function fx(p){return p.c.skill?p.c.skill.fx:{};}
 function midPower(T,opT,min){
   let m=0;
@@ -1132,7 +1180,8 @@ function renderBench(pi){
     const e=cardEl(c,true);
     e.onclick=()=>{
       const np={c,role:out.role,subRole:out.subRole,pen:posFit(c.sub,out.subRole),x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,cur:out.cur,
-        stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0}};
+        stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0},
+        keyStat:out.keyStat||null,keyMul:out.keyMul||1};
       MC.home.players[pi]=np;
       if(np.el){np.el.innerHTML="";
         const rg=document.createElement("div");rg.className="ring H";
