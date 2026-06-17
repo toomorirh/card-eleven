@@ -489,13 +489,17 @@ async function openPackById(id){
   if(_revealing)return;
   const p=packById(id);if(!p)return;
   if(!p.can()){toast(p.cost!=null?"コインが足りません!リーグ戦で稼ごう":"このパックは未所持(試合後にドロップ)");return;}
-  const cards=drawPack(id);
-  coinUI();await save();renderGacha();
-  await runReveal(p,cards);
+  _revealing=true;
+  let again=true;
+  while(again){
+    const cards=drawPack(id);
+    coinUI();await save();renderGacha();
+    again=await runReveal(p,cards);
+  }
+  _revealing=false;
 }
 function runReveal(p,cards){
   return new Promise(resolve=>{
-    _revealing=true;
     const ord={l:0,sr:1,r:2,n:3};
     const best=cards.reduce((a,c)=>ord[c.rar]<ord[a.rar]?c:a,cards[0]);
     const ov=document.getElementById("packOverlay"),stage=document.getElementById("packStage");
@@ -504,7 +508,7 @@ function runReveal(p,cards){
       +`<div class="taphint" id="tapHint">タップで開封!</div><div class="burstcards" id="burstCards"></div><div class="revresult" id="revResult"></div>`;
     const bigpack=document.getElementById("bigpack");
     let opened=false;
-    const close=()=>{ov.className="packov";stage.innerHTML="";_revealing=false;resolve();};
+    const finish=again=>{ov.className="packov";stage.innerHTML="";resolve(again);};
     const doOpen=async()=>{
       if(opened)return;opened=true;
       const hint=document.getElementById("tapHint");if(hint)hint.style.display="none";
@@ -518,7 +522,15 @@ function runReveal(p,cards){
       if(best.rar==="l"){rr.className="revresult leg";rr.innerHTML="🌈 LEGEND 出現!! 伝説の選手だ!!";}
       else if(best.rar==="sr"){rr.className="revresult sr";rr.innerHTML="✨ ★★★ SR ゲット!";}
       else{rr.className="revresult";rr.innerHTML="";}
-      const b=document.createElement("button");b.className="btn";b.textContent="とじる";b.onclick=close;rr.appendChild(b);
+      const canAgain=p.can();
+      const row=document.createElement("div");row.className="row";
+      if(canAgain){
+        const ab=document.createElement("button");ab.className="btn";ab.textContent="もう1回引く";
+        ab.onclick=()=>finish(true);row.appendChild(ab);
+      }
+      const cb=document.createElement("button");cb.className=canAgain?"btn ghost":"btn";cb.textContent="とじる";
+      cb.onclick=()=>finish(false);row.appendChild(cb);
+      rr.appendChild(row);
     };
     bigpack.addEventListener("click",doOpen);
     document.getElementById("tapHint").addEventListener("click",doOpen);
