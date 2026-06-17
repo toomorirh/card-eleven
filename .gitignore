@@ -1,0 +1,16 @@
+# テストの一時ファイル
+src/jsbundle/tests/_tmp_*.js
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
