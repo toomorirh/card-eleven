@@ -1,0 +1,116 @@
+/* ============ SFCレトロスキン ============ */
+*,*::before,*::after{border-radius:0!important}
+body{font-family:'DotGothic16',monospace;
+  background:#0a1322;
+  background-image:repeating-conic-gradient(#0d1a2e 0% 25%,#0a1322 0% 50%);
+  background-size:4px 4px}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:600;
+  background:repeating-linear-gradient(0deg,rgba(4,8,16,.18) 0 1px,transparent 1px 3px)}
+h1{text-shadow:3px 3px 0 #06301c}
+.sub{font-family:'DotGothic16'}
+/* RPGウィンドウ枠 */
+.feed,.sheet,.score,.league-card,.subrow,.toast,.fieldview,.pitch{
+  border:3px solid #e8ecf4!important;
+  box-shadow:0 0 0 3px #0a1322,inset 0 0 0 2px #0a1322!important}
+.feed{background:#0c1024;font-size:12px;font-family:'DotGothic16'}
+.banner{text-shadow:3px 3px 0 #3a2c06}
+/* ベベルボタン */
+.btn{border:2px solid #0a1322!important;background:#e8c25a!important;color:#1a1206!important;
+  font-family:'DotGothic16'!important;letter-spacing:1px;
+  box-shadow:inset -3px -3px 0 0 #9c7e2c,inset 3px 3px 0 0 #fff0bd!important}
+.btn:active{transform:none!important;box-shadow:inset 3px 3px 0 0 #9c7e2c!important}
+.btn.ghost{background:#31425e!important;color:#e8ecf4!important;
+  box-shadow:inset -3px -3px 0 0 #1a2740,inset 3px 3px 0 0 #50658c!important}
+.btn:disabled{filter:grayscale(.9)}
+/* タブ */
+.tabs{border-top:3px solid #e8ecf4;background:#10182e}
+.tabs button{font-family:'DotGothic16'}
+.tabs button.on{color:#ffe14d}
+/* カード */
+.card{border-width:3px!important}
+.card .rlab,.card .ovr,.card .sk,.card .tp{font-family:'DotGothic16'}
+.card.sr{box-shadow:inset 0 0 0 2px rgba(255,236,185,.45)!important;
+  animation:srblink 1.1s steps(2) infinite}
+@keyframes srblink{0%,100%{border-color:#f0cd6a}50%{border-color:#fff7dd}}
+.card.r{box-shadow:inset 0 0 0 1px rgba(220,235,250,.35)!important}
+.slot .scard.sr{box-shadow:none!important;animation:srblink 1.1s steps(2) infinite}
+/* スコアHUD */
+.score{background:#10142a}
+.score .t{font-family:'DotGothic16';color:#ffe14d;font-size:11px}
+.score .t.away{color:#ff8a7a}
+.clock{text-shadow:2px 2px 0 #06301c}
+/* 戦術ボタン */
+.tactics button{font-family:'DotGothic16';border:2px solid #50658c;background:#1c2944}
+.tactics button.on{background:#ffe14d!important;color:#1a1206;border-color:#fff}
+/* モーダル/パック/トースト */
+.modal{background:rgba(4,8,18,.88)}
+.sheet{background:#10142a}
+.pack{border:3px solid #cfc6ff;box-shadow:inset -4px -4px 0 #241c52,inset 4px 4px 0 #8d7df0,0 0 0 3px #0a1322}
+.toast{background:#10142a;color:#ffe14d;border:3px solid #e8ecf4;font-family:'DotGothic16'}
+/* カットイン:直角の帯 */
+.cutin .band{transform:translateY(-50%)!important;
+  border-top:3px solid #e8ecf4;border-bottom:3px solid #e8ecf4;
+  background:rgba(8,12,26,.95)}
+.vsmark,.cutword{text-shadow:3px 3px 0 #000}
+.fighter .fn{font-family:'DotGothic16'}
+/* フィールド:円・ボール・リングだけ丸を維持 */
+.fieldview .fc,.pitch .circle{border-radius:50%!important}
+.fball{border-radius:50%!important;box-shadow:none;border:2px solid #0a1322}
+.tok .ring{border-radius:50%!important;box-shadow:none!important}
+.slot .slotring{border-radius:50%!important;box-shadow:none!important}
+/* ピッチにディザ */
+.fieldview,.pitch{box-shadow:0 0 0 3px #0a1322,inset 0 0 0 2px #0a1322!important}
+.fieldview{background:
+  repeating-conic-gradient(rgba(0,0,0,.08) 0% 25%,transparent 0% 50%) 0 0/4px 4px,
+  repeating-linear-gradient(90deg,var(--pitch) 0 12.5%,var(--pitch2) 12.5% 25%)}
+.pitch{background:
+  repeating-conic-gradient(rgba(0,0,0,.08) 0% 25%,transparent 0% 50%) 0 0/4px 4px,
+  repeating-linear-gradient(0deg,var(--pitch) 0 12.5%,var(--pitch2) 12.5% 25%)}
+/* LEGEND:虹色パレットサイクル枠 */
+.card.l{border:3px solid #fff!important;background:linear-gradient(165deg,#3c2c08,#140d02);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)!important;
+  animation:lframe .9s steps(6) infinite}
+@keyframes lframe{0%,100%{border-color:#ff6a6a}17%{border-color:#ffd25e}33%{border-color:#7dff9e}
+  50%{border-color:#5ec8ff}67%{border-color:#b07dff}83%{border-color:#ff7de8}}
+.card.l .rar{color:#fff;text-shadow:2px 2px 0 #a01838;font-size:9px}
+.card.l .pnm{color:#fff3c4}
+.card.l .sk{background:linear-gradient(90deg,#7a1740,#a85e17);color:#fff3dd}
+.card.l::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(130deg,rgba(255,90,130,.26),rgba(255,212,95,.26),rgba(115,255,175,.26),rgba(95,185,255,.26),rgba(205,115,255,.26));
+  background-size:320% 320%;animation:holobg 4s ease-in-out infinite alternate}
+.card.l::after{content:"";position:absolute;inset:-60%;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.6) 44%,rgba(120,255,210,.45) 50%,rgba(255,160,220,.45) 56%,transparent 70%);
+  animation:holo 2.1s linear infinite}
+.slot .scard.l{border-color:#fff;animation:lframe .9s steps(6) infinite}
+.pack.legend{background:linear-gradient(160deg,#4a3406,#1c1202);border:3px solid #ffd25e;
+  box-shadow:inset -4px -4px 0 #3a2804,inset 4px 4px 0 #ffe9a8,0 0 0 3px #0a1322;
+  animation:lframe 1.2s steps(6) infinite;margin-top:18px}
+.pack.legend .pt{color:#ffe9a8}
+#modeRow button{font-size:12px}
+#standings{width:100%;border-collapse:collapse;font-family:'DotGothic16';font-size:11px;margin:6px 0;
+  border:3px solid #e8ecf4;box-shadow:0 0 0 3px #0a1322}
+#standings th{background:#1c2944;color:#ffe14d;padding:3px 2px}
+#standings td{padding:3px 2px;text-align:center;border-top:1px solid #2a3d56}
+#standings tr.me td{background:#2a3a18;color:#fff}
+#standings tr.me td b{color:#ffe14d}
+.statTbl{width:100%;border-collapse:collapse;font-family:'DotGothic16';font-size:11px;margin:6px 0;
+  border:3px solid #e8ecf4;box-shadow:0 0 0 3px #0a1322}
+.statTbl th{background:#1c2944;color:#ffe14d;padding:3px 2px}
+.statTbl td{padding:3px 2px;text-align:center;border-top:1px solid #2a3d56}
+.statTbl td:nth-child(2){text-align:left}
+.statTbl tr.mom td{background:#3a2c06;color:var(--gold)}
+.statTbl tr.mom td:first-child{background:#3a2c06}
+.statTbl tr.lowform td{color:#ff8a7a}
+.fieldwrap{position:relative;width:100%}
+.statOverlay{display:none;position:absolute;left:0;right:0;top:0;bottom:0;z-index:20;background:rgba(8,14,26,.94);
+  overflow-y:auto;padding:10px 8px}
+.statOverlay.on{display:block}
+.statTabs{display:flex;gap:6px;margin:2px 0 8px}
+.statTabs button{flex:1;padding:7px 0;font-family:'DotGothic16';font-size:12px;border:1px solid #2a3d56;
+  background:#0f1c2f;color:#8fa3b8;cursor:pointer}
+.statTabs button.on{background:var(--gold);color:#11202f;border-color:var(--gold)}
+.fixrow{display:flex;align-items:center;justify-content:space-between;font-family:'DotGothic16';
+  font-size:12px;padding:7px 10px;margin:5px 0;background:#10142a;border:2px solid #2a3d56}
+.fixrow.mine{border-color:#ffe14d;background:#1c2410}
+.fixrow .vs{color:#ff8a7a;font-size:10px}
+@media (prefers-reduced-motion: reduce){.card.sr,.slot .scard.sr,.card.l,.card.l::before,.card.l::after,.slot .scard.l,.pack.legend{animation:none}}

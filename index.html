@@ -1135,6 +1135,142 @@ function renderLeague(){
   }
 }
 
+// ================= リーグ戦モード =================
+const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c[0])]; // 自分+8クラブ=9チーム
+function lgLevel(name){const c=CLUBS.find(x=>x[0]===name);return c?c[1]:0;}
+// ラウンドロビン(円卓法)で全8節の対戦表を生成
+function makeFixtures(){
+  const real=LG_CLUBS.length;          // 9チーム(奇数)
+  const BYE=-1;
+  let idx=[...Array(real).keys(),BYE];  // ダミーを足して偶数化(10)
+  const n=idx.length, rounds=[];
+  for(let r=0;r<n-1;r++){               // n-1=9節
+    const games=[];
+    for(let i=0;i<n/2;i++){
+      const a=idx[i],b=idx[n-1-i];
+      if(a!==BYE&&b!==BYE)games.push([a,b]); // ダミー戦=休み
+    }
+    rounds.push(games);
+    idx=[idx[0],idx[n-1],...idx.slice(1,n-1)]; // 0番固定で時計回り回転
+  }
+  return rounds; // 9節・各チーム8試合
+}
+function blankTable(){
+  const t={};LG_CLUBS.forEach((nm,i)=>t[i]={p:0,w:0,d:0,l:0,gf:0,ga:0,pt:0});return t;
+}
+// CPU同士の試合結果を高速算出(戦力Lvベースのポアソン風)
+function simCpu(aLv,bLv){
+  const exp=l=>0.6+l*0.18;
+  const pois=m=>{let L=Math.exp(-m),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
+  let ga=pois(exp(aLv)*(1+(aLv-bLv)*0.08));
+  let gb=pois(exp(bLv)*(1+(bLv-aLv)*0.08));
+  return [Math.max(0,ga),Math.max(0,gb)];
+}
+function applyResult(T,hi,ai,hs,as){
+  T[hi].p++;T[ai].p++;T[hi].gf+=hs;T[hi].ga+=as;T[ai].gf+=as;T[ai].ga+=hs;
+  if(hs>as){T[hi].w++;T[hi].pt+=3;T[ai].l++;}
+  else if(hs<as){T[ai].w++;T[ai].pt+=3;T[hi].l++;}
+  else{T[hi].d++;T[ai].d++;T[hi].pt++;T[ai].pt++;}
+}
+function rankList(T){
+  return Object.keys(T).map(i=>({i:+i,...T[i]}))
+    .sort((a,b)=>b.pt-a.pt||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf||a.i-b.i);
+}
+function startSeason(){
+  S.league={fixtures:makeFixtures(),round:0,table:blankTable()};
+  save();renderLeagueMode();
+}
+function renderLeagueMode(){
+  const lg=S.league;
+  const head=document.getElementById("leagueHead");
+  const fb=document.getElementById("fixtureBox");
+  const tbl=document.getElementById("standings");
+  if(!lg){
+    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ―</div><div class="lg">全9チームの総当たり(8節)。優勝で🏆+チャンピオンパック!</div>';
+    fb.innerHTML="";tbl.innerHTML="";
+    const b=document.createElement("button");b.className="btn";b.textContent="シーズン開始";
+    b.onclick=startSeason;fb.appendChild(b);
+    return;
+  }
+  // 順位表
+  const rk=rankList(lg.table);
+  let h='<tr><th>順位</th><th>クラブ</th><th>試</th><th>勝</th><th>分</th><th>敗</th><th>得失</th><th>点</th></tr>';
+  rk.forEach((r,n)=>{
+    const me=r.i===0?' class="me"':'';
+    h+=`<tr${me}><td>${n+1}</td><td style="text-align:left">${LG_CLUBS[r.i]}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${(r.gf-r.ga>=0?"+":"")+(r.gf-r.ga)}</td><td><b>${r.pt}</b></td></tr>`;
+  });
+  tbl.innerHTML=h;
+  const done=lg.round>=lg.fixtures.length;
+  head.innerHTML=`<div class="banner" style="font-size:15px">― リーグ戦 第${Math.min(lg.round+1,lg.fixtures.length)}節${done?"終了":""} ―</div>`;
+  fb.innerHTML="";
+  if(done){
+    const champ=rk[0];
+    const meRank=rk.findIndex(r=>r.i===0)+1;
+    const w=document.createElement("div");w.className="banner";
+    w.textContent=champ.i===0?"🏆 優勝!!":`シーズン終了 ${meRank}位`;
+    fb.appendChild(w);
+    const b=document.createElement("button");b.className="btn";b.textContent="新シーズンを開始";
+    b.onclick=()=>{claimSeason(meRank);startSeason();};
+    fb.appendChild(b);
+    if(!lg.claimed){claimSeason(meRank);lg.claimed=true;save();}
+    return;
+  }
+  // 今節の対戦カード
+  const games=lg.fixtures[lg.round];
+  const myGame=games.find(g=>g[0]===0||g[1]===0);
+  games.forEach(g=>{
+    const [hi,ai]=g;const mine=hi===0||ai===0;
+    const row=document.createElement("div");row.className="fixrow"+(mine?" mine":"");
+    row.innerHTML=`<span>${LG_CLUBS[hi]}</span><span class="vs">vs</span><span>${LG_CLUBS[ai]}</span>`;
+    fb.appendChild(row);
+  });
+  const b=document.createElement("button");b.className="btn";
+  b.textContent=myGame?"自分の試合を行う":"この節を消化(自分は休み)";
+  b.onclick=()=>playLeagueRound();
+  fb.appendChild(b);
+}
+function claimSeason(rank){
+  let reward=0,champ=false,msg="";
+  if(rank===1){reward=500;champ=true;msg="優勝賞金🪙500+チャンピオンパック!";}
+  else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
+  else{reward=100;msg=`${rank}位 参加賞🪙100`;}
+  S.coins+=reward;if(champ)S.championPacks=(S.championPacks||0)+1;
+  coinUI();toast(msg);
+}
+function playLeagueRound(){
+  const lg=S.league;
+  const games=lg.fixtures[lg.round];
+  const myGame=games.find(g=>g[0]===0||g[1]===0);
+  if(myGame){
+    // 他カードを先にCPU処理し、自分の試合は実プレイ
+    lg._pending=games.filter(g=>g!==myGame);
+    const oppName=LG_CLUBS[myGame[0]===0?myGame[1]:myGame[0]];
+    const idx=CLUBS.findIndex(c=>c[0]===oppName);
+    lg._myHome=(myGame[0]===0);
+    startLeagueMatch(idx,oppName);
+  }else{
+    games.forEach(([hi,ai])=>{const[hs,as]=simCpu(lgLevel(LG_CLUBS[hi]),lgLevel(LG_CLUBS[ai]));applyResult(lg.table,hi,ai,hs,as);});
+    lg.round++;save();renderLeagueMode();
+  }
+}
+function finishLeagueRound(myHS,myAS){
+  const lg=S.league;
+  const games=lg.fixtures[lg.round];
+  const myGame=games.find(g=>g[0]===0||g[1]===0);
+  if(lg._myHome)applyResult(lg.table,myGame[0],myGame[1],myHS,myAS);
+  else applyResult(lg.table,myGame[0],myGame[1],myAS,myHS); // 自分がawayなら入替
+  (lg._pending||[]).forEach(([hi,ai])=>{const[hs,as]=simCpu(lgLevel(LG_CLUBS[hi]),lgLevel(LG_CLUBS[ai]));applyResult(lg.table,hi,ai,hs,as);});
+  lg._pending=null;lg.round++;save();
+}
+// モード切替
+document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
+  const lg=b.dataset.m==="league";
+  document.getElementById("stageMode").style.display=lg?"none":"block";
+  document.getElementById("leagueMode").style.display=lg?"block":"none";
+  if(lg)renderLeagueMode();else renderLeague();
+});
+
 // ================= 試合エンジン =================
 // マッチアップの基本は据え置き(バランス検証済みの数値):
 //  支配=中盤の技/速/持、中央=得意勝負、サイド=速技→クロス→力、ロング=技→速の駆けっこ、ショート=技の連携
@@ -1259,136 +1395,6 @@ function feed(msg,cls){
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
 function skillFeed(p){if(p.c.skill)feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");}
-
-// ================= 俯瞰フィールド(動的シミュレーション) =================
-function fieldPos(p){ // フォーメーション定位置(横ピッチ座標)
-  if(p.fside==="H")return {x:8+(100-p.y)*0.40, y:10+p.x*0.80};
-  return {x:92-(100-p.y)*0.40, y:90-p.x*0.80};
-}
-const clX=x=>Math.max(3,Math.min(97,x)), clY=y=>Math.max(7,Math.min(93,y));
-function toScreen(x,y){ // 内部(攻撃軸x,横y) → 画面(縦ピッチ left,top)
-  return {sx:6+y*0.88, sy:97-x*0.94};
-}
-function setPos(el,x,y,dur){
-  const s=toScreen(x,y);
-  el.style.transition=`left ${dur}s steps(7,end), top ${dur}s steps(7,end)`;
-  el.style.left=s.sx+"%";el.style.top=s.sy+"%";
-}
-function curP(p){return p.cur||(p.cur=fieldPos(p));}
-function movePlayer(p,x,y,dur){
-  if(!p.el)return;
-  x=clX(x);y=clY(y);p.cur={x,y};setPos(p.el,x,y,dur);
-}
-async function ballTo(x,y,dur,ease){ // ボールを実際に移動(待ち合わせ可能)
-  const fb=document.getElementById("fball");
-  x=clX(x);y=clY(y);
-  const tm=ease==="linear"?"steps(4,end)":"steps(6,end)";
-  const s=toScreen(x,y);
-  fb.style.transition=`left ${dur}s ${tm}, top ${dur}s ${tm}`;
-  fb.style.left=s.sx+"%";fb.style.top=s.sy+"%";
-  if(MC){MC.bx=x;MC.by=y;MC.ball=x;}
-  await sleep(dur*1000);
-}
-const dirOf=T=>T.side==="H"?1:-1;       // 攻める方向
-const goalXOf=T=>T.side==="H"?94:6;     // 攻め込む先のゴールx
-function buildField(){
-  const fv=document.getElementById("fieldview");
-  fv.querySelectorAll(".tok").forEach(e=>e.remove());
-  const mk=p=>{
-    const t=document.createElement("div");t.className="tok";
-    const ring=document.createElement("div");ring.className="ring "+p.fside;
-    t.appendChild(ring);
-    t.appendChild(spriteCanvas(p.c,26));
-    fv.appendChild(t);p.el=t;
-    p.cur=fieldPos(p);
-    setPos(t,p.cur.x,p.cur.y,0);
-  };
-  MC.home.players.forEach(mk);
-  MC.away.players.forEach(mk);
-  const fb=document.getElementById("fball");
-  const s0=toScreen(50,50);
-  fb.style.transition="none";fb.style.left=s0.sx+"%";fb.style.top=s0.sy+"%";
-  MC.bx=50;MC.by=50;
-}
-function laneY(p){return p.fside==="H"?10+p.x*0.80:90-p.x*0.80;}
-function updateField(){ // 陣形ブロックがボールに追従して全員が敵陣⇔自陣をスライド
-  const M=MC;if(!M)return;
-  [...M.home.players,...M.away.players].forEach(p=>{
-    if(!p.el)return;
-    const ty=typeOf(p.c);
-    const ballT=p.fside==="H"?M.bx:100-M.bx;        // チーム座標系のボール位置
-    const front=Math.min(90,Math.max(45,ballT+16)); // 最前線
-    const back=Math.min(58,Math.max(10,ballT-34));  // 最終ライン
-    let xT,y;
-    if(p.role==="GK"){
-      xT=Math.min(26,Math.max(5,back-6+ty.adv*0.7)); // スイーパーは高め
-      y=50+(M.by-50)*0.3;
-    }else{
-      const depth=Math.min(1,Math.max(0,(91-p.y)/73)); // GK=0..FW=1
-      xT=back+depth*(front-back)+ty.adv;
-      y=laneY(p)+(laneY(p)<50?-1:1)*(ty.wide||0)*0.6;
-      y+=(M.by-y)*0.12;                                // コンパクトネス
-    }
-    let x=p.fside==="H"?xT:100-xT;
-    if(p.role!=="GK"){
-      const dx=M.bx-x,dy=M.by-y,dist=Math.hypot(dx,dy);
-      if(dist<26){const k=(26-dist)/26*ty.chase;x+=dx*k;y+=dy*k;}
-      x+=(Math.random()*2-1)*ty.roam;
-      y+=(Math.random()*2-1)*ty.roam*1.3;
-    }
-    movePlayer(p,x,y,0.7);
-  });
-  // オフザボールの飛び出し
-  const all=[...M.home.players,...M.away.players].filter(p=>p.el&&p.role!=="GK");
-  for(let k=0;k<2;k++){
-    const p=pickW(all,q=>typeOf(q.c).run||0.2);
-    if(!p)continue;
-    const dir=p.fside==="H"?1:-1;
-    movePlayer(p,curP(p).x+dir*ri(4,9),curP(p).y+ri(-7,7),0.55);
-  }
-}
-async function kickoffReset(){ // ゴール後:全員定位置→センターサークルへ
-  if(!MC)return;
-  [...MC.home.players,...MC.away.players].forEach(p=>{
-    const b=fieldPos(p);movePlayer(p,b.x,b.y,0.8);
-  });
-  await ballTo(50,50,0.7);
-}
-function hot(p,ms){
-  if(!p||!p.el)return;
-  p.el.classList.add("hot");
-  setTimeout(()=>p.el&&p.el.classList.remove("hot"),ms||1600);
-}
-// ================= カットイン =================
-async function vsCutin(a,A,d,D,label){
-  const o=document.createElement("div");o.className="cutin";
-  o.innerHTML=`<div class="band"></div>
-   <div class="inner">
-    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
-    <div class="vsmark">VS</div>
-    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.name}</div><div class="fst">${d.c.skill?"✦"+d.c.skill.name:""}</div></div>
-   </div><div class="cutlabel">${label}</div>`;
-  const ph=o.querySelectorAll(".fph");
-  ph[0].appendChild(spriteCanvas(a.c,92));
-  ph[1].appendChild(spriteCanvas(d.c,92));
-  document.body.appendChild(o);
-  await sleep(1000);o.remove();
-}
-async function wordCutin(p,T,word,gold,ms){
-  const o=document.createElement("div");o.className="cutin";
-  o.innerHTML=`<div class="band"></div>
-   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.name}</div></div>
-   <div class="cutword${gold?" gold":""}">${word}</div></div>`;
-  o.querySelector(".fph").appendChild(spriteCanvas(p.c,gold?100:84));
-  if(gold){
-    const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);
-    setTimeout(()=>r.remove(),1450);
-    document.querySelector(".wrap").classList.add("shake");
-    setTimeout(()=>document.querySelector(".wrap").classList.remove("shake"),550);
-  }
-  document.body.appendChild(o);
-  await sleep(ms);o.remove();
-}
 
 // ================= 攻撃シーケンス =================
 async function maybeVs(a,A,d,D,label){
@@ -1573,6 +1579,136 @@ async function duel(A,D,min,tfA,tfD,who,bonus){
     if(fx(df).duelD)skillFeed(df);
     await ballTo(ex+dir*9,ey+ri(-8,8),0.5);          // 奪ってクリア
   }
+}
+
+// ================= 俯瞰フィールド(動的シミュレーション) =================
+function fieldPos(p){ // フォーメーション定位置(横ピッチ座標)
+  if(p.fside==="H")return {x:8+(100-p.y)*0.40, y:10+p.x*0.80};
+  return {x:92-(100-p.y)*0.40, y:90-p.x*0.80};
+}
+const clX=x=>Math.max(3,Math.min(97,x)), clY=y=>Math.max(7,Math.min(93,y));
+function toScreen(x,y){ // 内部(攻撃軸x,横y) → 画面(縦ピッチ left,top)
+  return {sx:6+y*0.88, sy:97-x*0.94};
+}
+function setPos(el,x,y,dur){
+  const s=toScreen(x,y);
+  el.style.transition=`left ${dur}s steps(7,end), top ${dur}s steps(7,end)`;
+  el.style.left=s.sx+"%";el.style.top=s.sy+"%";
+}
+function curP(p){return p.cur||(p.cur=fieldPos(p));}
+function movePlayer(p,x,y,dur){
+  if(!p.el)return;
+  x=clX(x);y=clY(y);p.cur={x,y};setPos(p.el,x,y,dur);
+}
+async function ballTo(x,y,dur,ease){ // ボールを実際に移動(待ち合わせ可能)
+  const fb=document.getElementById("fball");
+  x=clX(x);y=clY(y);
+  const tm=ease==="linear"?"steps(4,end)":"steps(6,end)";
+  const s=toScreen(x,y);
+  fb.style.transition=`left ${dur}s ${tm}, top ${dur}s ${tm}`;
+  fb.style.left=s.sx+"%";fb.style.top=s.sy+"%";
+  if(MC){MC.bx=x;MC.by=y;MC.ball=x;}
+  await sleep(dur*1000);
+}
+const dirOf=T=>T.side==="H"?1:-1;       // 攻める方向
+const goalXOf=T=>T.side==="H"?94:6;     // 攻め込む先のゴールx
+function buildField(){
+  const fv=document.getElementById("fieldview");
+  fv.querySelectorAll(".tok").forEach(e=>e.remove());
+  const mk=p=>{
+    const t=document.createElement("div");t.className="tok";
+    const ring=document.createElement("div");ring.className="ring "+p.fside;
+    t.appendChild(ring);
+    t.appendChild(spriteCanvas(p.c,26));
+    fv.appendChild(t);p.el=t;
+    p.cur=fieldPos(p);
+    setPos(t,p.cur.x,p.cur.y,0);
+  };
+  MC.home.players.forEach(mk);
+  MC.away.players.forEach(mk);
+  const fb=document.getElementById("fball");
+  const s0=toScreen(50,50);
+  fb.style.transition="none";fb.style.left=s0.sx+"%";fb.style.top=s0.sy+"%";
+  MC.bx=50;MC.by=50;
+}
+function laneY(p){return p.fside==="H"?10+p.x*0.80:90-p.x*0.80;}
+function updateField(){ // 陣形ブロックがボールに追従して全員が敵陣⇔自陣をスライド
+  const M=MC;if(!M)return;
+  [...M.home.players,...M.away.players].forEach(p=>{
+    if(!p.el)return;
+    const ty=typeOf(p.c);
+    const ballT=p.fside==="H"?M.bx:100-M.bx;        // チーム座標系のボール位置
+    const front=Math.min(90,Math.max(45,ballT+16)); // 最前線
+    const back=Math.min(58,Math.max(10,ballT-34));  // 最終ライン
+    let xT,y;
+    if(p.role==="GK"){
+      xT=Math.min(26,Math.max(5,back-6+ty.adv*0.7)); // スイーパーは高め
+      y=50+(M.by-50)*0.3;
+    }else{
+      const depth=Math.min(1,Math.max(0,(91-p.y)/73)); // GK=0..FW=1
+      xT=back+depth*(front-back)+ty.adv;
+      y=laneY(p)+(laneY(p)<50?-1:1)*(ty.wide||0)*0.6;
+      y+=(M.by-y)*0.12;                                // コンパクトネス
+    }
+    let x=p.fside==="H"?xT:100-xT;
+    if(p.role!=="GK"){
+      const dx=M.bx-x,dy=M.by-y,dist=Math.hypot(dx,dy);
+      if(dist<26){const k=(26-dist)/26*ty.chase;x+=dx*k;y+=dy*k;}
+      x+=(Math.random()*2-1)*ty.roam;
+      y+=(Math.random()*2-1)*ty.roam*1.3;
+    }
+    movePlayer(p,x,y,0.7);
+  });
+  // オフザボールの飛び出し
+  const all=[...M.home.players,...M.away.players].filter(p=>p.el&&p.role!=="GK");
+  for(let k=0;k<2;k++){
+    const p=pickW(all,q=>typeOf(q.c).run||0.2);
+    if(!p)continue;
+    const dir=p.fside==="H"?1:-1;
+    movePlayer(p,curP(p).x+dir*ri(4,9),curP(p).y+ri(-7,7),0.55);
+  }
+}
+async function kickoffReset(){ // ゴール後:全員定位置→センターサークルへ
+  if(!MC)return;
+  [...MC.home.players,...MC.away.players].forEach(p=>{
+    const b=fieldPos(p);movePlayer(p,b.x,b.y,0.8);
+  });
+  await ballTo(50,50,0.7);
+}
+function hot(p,ms){
+  if(!p||!p.el)return;
+  p.el.classList.add("hot");
+  setTimeout(()=>p.el&&p.el.classList.remove("hot"),ms||1600);
+}
+// ================= カットイン =================
+async function vsCutin(a,A,d,D,label){
+  const o=document.createElement("div");o.className="cutin";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner">
+    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
+    <div class="vsmark">VS</div>
+    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.name}</div><div class="fst">${d.c.skill?"✦"+d.c.skill.name:""}</div></div>
+   </div><div class="cutlabel">${label}</div>`;
+  const ph=o.querySelectorAll(".fph");
+  ph[0].appendChild(spriteCanvas(a.c,92));
+  ph[1].appendChild(spriteCanvas(d.c,92));
+  document.body.appendChild(o);
+  await sleep(1000);o.remove();
+}
+async function wordCutin(p,T,word,gold,ms){
+  const o=document.createElement("div");o.className="cutin";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.name}</div></div>
+   <div class="cutword${gold?" gold":""}">${word}</div></div>`;
+  o.querySelector(".fph").appendChild(spriteCanvas(p.c,gold?100:84));
+  if(gold){
+    const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);
+    setTimeout(()=>r.remove(),1450);
+    document.querySelector(".wrap").classList.add("shake");
+    setTimeout(()=>document.querySelector(".wrap").classList.remove("shake"),550);
+  }
+  document.body.appendChild(o);
+  await sleep(ms);o.remove();
 }
 
 // ================= 試合進行(非同期ループ) =================
@@ -1788,143 +1924,6 @@ function closeSub(){
   if(MC&&MC.halt){MC.halt=false;runLoop();}
 }
 document.getElementById("subClose").onclick=closeSub;
-
-
-// ================= リーグ戦モード =================
-const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c[0])]; // 自分+8クラブ=9チーム
-function lgLevel(name){const c=CLUBS.find(x=>x[0]===name);return c?c[1]:0;}
-// ラウンドロビン(円卓法)で全8節の対戦表を生成
-function makeFixtures(){
-  const real=LG_CLUBS.length;          // 9チーム(奇数)
-  const BYE=-1;
-  let idx=[...Array(real).keys(),BYE];  // ダミーを足して偶数化(10)
-  const n=idx.length, rounds=[];
-  for(let r=0;r<n-1;r++){               // n-1=9節
-    const games=[];
-    for(let i=0;i<n/2;i++){
-      const a=idx[i],b=idx[n-1-i];
-      if(a!==BYE&&b!==BYE)games.push([a,b]); // ダミー戦=休み
-    }
-    rounds.push(games);
-    idx=[idx[0],idx[n-1],...idx.slice(1,n-1)]; // 0番固定で時計回り回転
-  }
-  return rounds; // 9節・各チーム8試合
-}
-function blankTable(){
-  const t={};LG_CLUBS.forEach((nm,i)=>t[i]={p:0,w:0,d:0,l:0,gf:0,ga:0,pt:0});return t;
-}
-// CPU同士の試合結果を高速算出(戦力Lvベースのポアソン風)
-function simCpu(aLv,bLv){
-  const exp=l=>0.6+l*0.18;
-  const pois=m=>{let L=Math.exp(-m),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
-  let ga=pois(exp(aLv)*(1+(aLv-bLv)*0.08));
-  let gb=pois(exp(bLv)*(1+(bLv-aLv)*0.08));
-  return [Math.max(0,ga),Math.max(0,gb)];
-}
-function applyResult(T,hi,ai,hs,as){
-  T[hi].p++;T[ai].p++;T[hi].gf+=hs;T[hi].ga+=as;T[ai].gf+=as;T[ai].ga+=hs;
-  if(hs>as){T[hi].w++;T[hi].pt+=3;T[ai].l++;}
-  else if(hs<as){T[ai].w++;T[ai].pt+=3;T[hi].l++;}
-  else{T[hi].d++;T[ai].d++;T[hi].pt++;T[ai].pt++;}
-}
-function rankList(T){
-  return Object.keys(T).map(i=>({i:+i,...T[i]}))
-    .sort((a,b)=>b.pt-a.pt||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf||a.i-b.i);
-}
-function startSeason(){
-  S.league={fixtures:makeFixtures(),round:0,table:blankTable()};
-  save();renderLeagueMode();
-}
-function renderLeagueMode(){
-  const lg=S.league;
-  const head=document.getElementById("leagueHead");
-  const fb=document.getElementById("fixtureBox");
-  const tbl=document.getElementById("standings");
-  if(!lg){
-    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ―</div><div class="lg">全9チームの総当たり(8節)。優勝で🏆+チャンピオンパック!</div>';
-    fb.innerHTML="";tbl.innerHTML="";
-    const b=document.createElement("button");b.className="btn";b.textContent="シーズン開始";
-    b.onclick=startSeason;fb.appendChild(b);
-    return;
-  }
-  // 順位表
-  const rk=rankList(lg.table);
-  let h='<tr><th>順位</th><th>クラブ</th><th>試</th><th>勝</th><th>分</th><th>敗</th><th>得失</th><th>点</th></tr>';
-  rk.forEach((r,n)=>{
-    const me=r.i===0?' class="me"':'';
-    h+=`<tr${me}><td>${n+1}</td><td style="text-align:left">${LG_CLUBS[r.i]}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${(r.gf-r.ga>=0?"+":"")+(r.gf-r.ga)}</td><td><b>${r.pt}</b></td></tr>`;
-  });
-  tbl.innerHTML=h;
-  const done=lg.round>=lg.fixtures.length;
-  head.innerHTML=`<div class="banner" style="font-size:15px">― リーグ戦 第${Math.min(lg.round+1,lg.fixtures.length)}節${done?"終了":""} ―</div>`;
-  fb.innerHTML="";
-  if(done){
-    const champ=rk[0];
-    const meRank=rk.findIndex(r=>r.i===0)+1;
-    const w=document.createElement("div");w.className="banner";
-    w.textContent=champ.i===0?"🏆 優勝!!":`シーズン終了 ${meRank}位`;
-    fb.appendChild(w);
-    const b=document.createElement("button");b.className="btn";b.textContent="新シーズンを開始";
-    b.onclick=()=>{claimSeason(meRank);startSeason();};
-    fb.appendChild(b);
-    if(!lg.claimed){claimSeason(meRank);lg.claimed=true;save();}
-    return;
-  }
-  // 今節の対戦カード
-  const games=lg.fixtures[lg.round];
-  const myGame=games.find(g=>g[0]===0||g[1]===0);
-  games.forEach(g=>{
-    const [hi,ai]=g;const mine=hi===0||ai===0;
-    const row=document.createElement("div");row.className="fixrow"+(mine?" mine":"");
-    row.innerHTML=`<span>${LG_CLUBS[hi]}</span><span class="vs">vs</span><span>${LG_CLUBS[ai]}</span>`;
-    fb.appendChild(row);
-  });
-  const b=document.createElement("button");b.className="btn";
-  b.textContent=myGame?"自分の試合を行う":"この節を消化(自分は休み)";
-  b.onclick=()=>playLeagueRound();
-  fb.appendChild(b);
-}
-function claimSeason(rank){
-  let reward=0,champ=false,msg="";
-  if(rank===1){reward=500;champ=true;msg="優勝賞金🪙500+チャンピオンパック!";}
-  else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
-  else{reward=100;msg=`${rank}位 参加賞🪙100`;}
-  S.coins+=reward;if(champ)S.championPacks=(S.championPacks||0)+1;
-  coinUI();toast(msg);
-}
-function playLeagueRound(){
-  const lg=S.league;
-  const games=lg.fixtures[lg.round];
-  const myGame=games.find(g=>g[0]===0||g[1]===0);
-  if(myGame){
-    // 他カードを先にCPU処理し、自分の試合は実プレイ
-    lg._pending=games.filter(g=>g!==myGame);
-    const oppName=LG_CLUBS[myGame[0]===0?myGame[1]:myGame[0]];
-    const idx=CLUBS.findIndex(c=>c[0]===oppName);
-    lg._myHome=(myGame[0]===0);
-    startLeagueMatch(idx,oppName);
-  }else{
-    games.forEach(([hi,ai])=>{const[hs,as]=simCpu(lgLevel(LG_CLUBS[hi]),lgLevel(LG_CLUBS[ai]));applyResult(lg.table,hi,ai,hs,as);});
-    lg.round++;save();renderLeagueMode();
-  }
-}
-function finishLeagueRound(myHS,myAS){
-  const lg=S.league;
-  const games=lg.fixtures[lg.round];
-  const myGame=games.find(g=>g[0]===0||g[1]===0);
-  if(lg._myHome)applyResult(lg.table,myGame[0],myGame[1],myHS,myAS);
-  else applyResult(lg.table,myGame[0],myGame[1],myAS,myHS); // 自分がawayなら入替
-  (lg._pending||[]).forEach(([hi,ai])=>{const[hs,as]=simCpu(lgLevel(LG_CLUBS[hi]),lgLevel(LG_CLUBS[ai]));applyResult(lg.table,hi,ai,hs,as);});
-  lg._pending=null;lg.round++;save();
-}
-// モード切替
-document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
-  document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
-  const lg=b.dataset.m==="league";
-  document.getElementById("stageMode").style.display=lg?"none":"block";
-  document.getElementById("leagueMode").style.display=lg?"block":"none";
-  if(lg)renderLeagueMode();else renderLeague();
-});
 
 // ================= 起動 =================
 function showErr(m){
