@@ -19,7 +19,7 @@ function cardEl(c,mini){
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b${c[k]>=20?' class="mx"':''}>${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
+  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
   if(c.rar==="sr"||c.rar==="l"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";

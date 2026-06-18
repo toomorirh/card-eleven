@@ -36,6 +36,7 @@ async function load(){
       const r=await withTimeout(window.storage.get("ci-save"),3000);
       if(r&&r.value){S=JSON.parse(r.value);uid=S.nextId||1000;
         if(S.v!==9){migrate();await save();}
+        if(grantSignatureTest())await save();
         return;}
     }
   }catch(e){/* 初回は未保存 */}
@@ -43,7 +44,15 @@ async function load(){
     const sub=sl[0],c=makeCard(subGroup(sub),i===9?"r":"n",null,sub);
     S.coll.push(c);S.squad[i]=c.id;});
   S.coll.push(makeCard("MF","r"),makeCard("FW","n"),makeCard("DF","n"));
+  grantSignatureTest();
   await save();
+}
+// テスト用: 固有選手を1回だけコレクションに付与(入手動線は将来差し替え予定)
+function grantSignatureTest(){
+  if(S.sigTest)return false;
+  S.coll.push(makeSignature("messi"));
+  S.sigTest=1;
+  return true;
 }
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}

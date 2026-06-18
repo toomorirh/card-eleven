@@ -17,7 +17,11 @@ function imgReady(img){ // Android Chromeのdecode()ハング対策
     setTimeout(res,4000);
   });
 }
-const SPR_READY=Promise.all([imgReady(HEAD_IMG),imgReady(BODY_IMG)]);
+// 固有選手のモチーフ画像。build.py が src/assets/signatures/<id>.png を base64 化して
+// window.SIG_IMG={id:dataURI,...} を注入する(テスト時は未定義=プレースホルダ描画)。
+const SIG_IMG_EL={};
+if(typeof window!=="undefined"&&window.SIG_IMG){for(const k in window.SIG_IMG){const im=new Image();im.src=window.SIG_IMG[k];SIG_IMG_EL[k]=im;}}
+const SPR_READY=Promise.all([imgReady(HEAD_IMG),imgReady(BODY_IMG),...Object.values(SIG_IMG_EL).map(imgReady)]);
 const withTimeout=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(r,ms))]);
 const BODY_ANCHOR=[[71, 22], [68, 21], [69, 27], [55, 31], [58, 22], [67, 24], [66, 30], [65, 24], [63, 15], [64, 20], [69, 18], [64, 17], [60, 24], [81, 25], [67, 25], [65, 17]]; // 各ボディの首位置(肌色検出で算出)
 const HCW=100,HCH=96,BCW=132,BCH=88,POSCOL={FW:0,MF:1,DF:2,GK:3};
@@ -40,6 +44,20 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
   const cv=document.createElement("canvas");cv.width=W;cv.height=H;
   cv.className="sprite";cv.style.height=hgt+"px";cv.style.width=(hgt*W/H)+"px";
   const ctx=cv.getContext("2d");ctx.imageSmoothingEnabled=true;
+  if(c.sig){ // 固有選手: 頭部+ボディ合成ではなくモチーフ画像1枚を描画
+    const im=SIG_IMG_EL[c.sig];
+    if(im&&im.naturalWidth>0){
+      const sc=Math.min(W/im.naturalWidth,H/im.naturalHeight);
+      const dw=im.naturalWidth*sc,dh=im.naturalHeight*sc;
+      ctx.drawImage(im,(W-dw)/2,H-dh,dw,dh); // 下端そろえで中央配置
+      return cv;
+    }
+    // 画像未配置/未ロード: ★エンブレムのプレースホルダ
+    ctx.fillStyle="#13203a";ctx.fillRect(20,18,W-40,H-36);
+    ctx.fillStyle="#e8c25a";ctx.font="bold 54px serif";ctx.textAlign="center";ctx.fillText("★",W/2,H/2+4);
+    ctx.fillStyle="#cfdcea";ctx.font="bold 16px sans-serif";ctx.fillText((c.name||"").slice(0,4),W/2,H-30);
+    return cv;
+  }
   const L=c.look||(c.look=makeLook(c.pos,c.rar));
   if(L.headIdx==null){L.headIdx=ri(0,31);L.bodyVar=ri(0,3);}
   const bi=L.bodyVar*4+POSCOL[c.pos];
@@ -235,5 +253,24 @@ function makeCard(forcePos,forceRar,forceBase,forceSub){
   if(pos==="MF"){c.tec=cl(c.tec+2);c.sta=cl(c.sta+1);}
   if(pos==="FW"){c.off=cl(c.off+2);c.spd=cl(c.spd+1);c.def=cl(c.def-2);}
   return c;
+}
+
+// ================= 固有選手(シグネチャー) =================
+// スペシャルな実在モチーフ選手。固定ステータス(合計100=レジェンド級・いずれか20)+ユニークスキル+
+// モチーフ画像(src/assets/signatures/<id>.png → build.pyがbase64化)。追加はこの配列に1要素足すだけ。
+// 不変条件: 6ステ合計=100 / いずれか1つ以上が20 / subGroup(sub)===pos。
+const SIGNATURES=[
+  {id:"messi", name:"リオネル・メッシ", flag:"🇦🇷", pos:"FW", sub:"RWG", type:"dribbler",
+   stats:{off:20,def:15,pow:13,tec:20,spd:18,sta:14}, // 合計100
+   skill:{name:"ラ・プルガ", desc:"ドリブルで切り裂き決め切る稀代の天才。技・速の勝負とシュートを大幅強化", fx:{duelTec:1.5,duelSpd:1.3,shoot:1.4}}},
+];
+function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
+function makeSignature(id){
+  const s=signatureById(id);if(!s)return null;
+  const st=s.stats;
+  return {id:uid++, sig:s.id, name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"l", type:s.type,
+    look:makeLook(s.pos,"l"), // 画像が無い端末向けのフォールバック用
+    off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
+    skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
 }
 
