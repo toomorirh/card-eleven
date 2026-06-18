@@ -734,7 +734,32 @@ const KEYPOS={
   "4-2-3-1":{5:"def",6:"def"}
 };
 const KEY_MUL=1.15;
-const CLUBS=[["FCバンビーノ",1],["コバルト水戸海",2],["レッドファング",3],["AC月光",4],["ヴェルデ皇国",5],["ガラクシア11",6],["鋼鉄オルカ",7],["王立クロノス",8]];
+// フォーメーション相性: 守備側の陣形に対し、攻撃側スタイルの有利(best)/不利(worst)を定義。
+// 攻撃側の主要判定(tfA経由)に best=+15% / worst=−12% を乗算。両チームの攻撃に対称適用。
+// ※best/worstは試合エンジンの実測(各陣形相手のスタイル別得点。同強度クローン2880試合で計測)に
+//   一致させてある。係数は「自然な傾向の増幅」であり、ヒント表示と実挙動が食い違わないようにする。
+//   4-4-2/4-3-3/3-5-2=サイドが通る一方ロング/ショートが詰まる / 5-3-2=5バック低ブロックはショート連携で崩れ
+//   ロングは跳ね返す / 4-3-1-2=ナロー菱形は背後とワイドが空きロングが刺さる / 4-2-3-1=ダブルボランチ裏で中央突破が伸びる
+const FORM_COUNTER={
+  "4-4-2":{best:"side",worst:"short"},
+  "4-3-3":{best:"side",worst:"long"},
+  "3-5-2":{best:"side",worst:"short"},
+  "5-3-2":{best:"short",worst:"long"},
+  "4-3-1-2":{best:"long",worst:"short"},
+  "4-2-3-1":{best:"center",worst:"short"}
+};
+const COUNTER_BONUS=1.15, COUNTER_PENALTY=0.88;
+// 攻撃スタイル style が、守備側フォーメーション form に対して持つ相性係数
+function counterFactor(style,form){
+  const c=FORM_COUNTER[form];
+  if(!c)return 1;                       // form未設定(クローン対戦など)は等倍=バランス不変
+  if(c.best===style)return COUNTER_BONUS;
+  if(c.worst===style)return COUNTER_PENALTY;
+  return 1;
+}
+// [クラブ名, 強さLv, 得意フォーメーション]。相手はこの陣形で実際に布陣する。
+// 各スタイル(side/short/long/center)が有効になるクラブが2つずつ&Lv1〜4で全4種を学べる配置にしている。
+const CLUBS=[["FCバンビーノ",1,"4-4-2"],["コバルト水戸海",2,"5-3-2"],["レッドファング",3,"4-3-1-2"],["AC月光",4,"4-2-3-1"],["ヴェルデ皇国",5,"4-3-3"],["ガラクシア11",6,"5-3-2"],["鋼鉄オルカ",7,"4-3-1-2"],["王立クロノス",8,"4-2-3-1"]];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const cl=v=>Math.min(20,Math.max(1,v));
@@ -1117,11 +1142,14 @@ function runReveal(p,cards){
 // ================= リーグ =================
 function renderLeague(){
   const l=document.getElementById("leagueList");l.innerHTML="";
-  CLUBS.forEach(([name,lv],i)=>{
+  CLUBS.forEach(([name,lv,form],i)=>{
     const d=document.createElement("div");d.className="league-card"+(i<S.cleared?" done":"");
     const locked=i>S.cleared;
+    const ctr=FORM_COUNTER[form];
+    const hint=locked?'<div class="lv">🔒 攻略すると相性が判明</div>'
+      :`<div class="lv">陣形【${form}】 / 💡有効:${STYLE_LABEL[ctr.best]}</div>`;
     d.innerHTML=`<div><div class="ln">${i<S.cleared?"✅ ":""}${locked?"🔒 ":""}${name}</div>
-      <div class="lv">強さ Lv.${lv} / 勝利報酬 🪙${100+lv*40}</div></div>`;
+      <div class="lv">強さ Lv.${lv} / 勝利報酬 🪙${100+lv*40}</div>${hint}</div>`;
     const b=document.createElement("button");b.className="btn";b.style.cssText="width:auto;padding:8px 16px;margin:0";
     b.textContent=i<S.cleared?"再戦":"挑戦";
     b.disabled=locked;
@@ -1297,8 +1325,8 @@ function recalcAuras(t){
   t.chemN=mx;t.chemNat=nat;
   t.chem=1+Math.min(0.06,Math.max(0,mx-2)*0.012); // 3人で+1.2% … 7人以上で+6%(上限)
 }
-function buildTeam(cards,side){
-  const t={players:cards,tactic:"bal",style:"center",score:0,side};
+function buildTeam(cards,side,form){
+  const t={players:cards,tactic:"bal",style:"center",score:0,side,form};
   cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0};});
   recalcAuras(t);
   return t;
@@ -1317,12 +1345,13 @@ function myTeam(){
     if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1});
   });
-  return buildTeam(cards,"H");
+  return buildTeam(cards,"H",S.form);
 }
-function oppTeam(lv){
+function oppTeam(lv,form){
+  form=form||"4-4-2"; // 省略時は従来通り4-4-2(テスト互換)
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
-  const kp=KEYPOS["4-4-2"];
-  const cards=FORMS["4-4-2"].map((sl,i)=>{
+  const kp=KEYPOS[form]||{};
+  const cards=FORMS[form].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
     const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
@@ -1330,13 +1359,14 @@ function oppTeam(lv){
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
-  if(lv>=8){ // 最終ボスのエースはレジェンド
-    const i=9+ri(0,1); // FWのどちらか
+  if(lv>=8){ // 最終ボスのエースはレジェンド(陣形のFW枠からランダムに1名)
+    const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
+    const i=fwIdx.length?rnd(fwIdx):FORMS[form].length-1;
     const sb=cards[i].subRole;
     cards[i]={c:makeCard(subGroup(sb),"l",null,sb),role:subGroup(sb),subRole:sb,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
-  return buildTeam(cards,"A");
+  return buildTeam(cards,"A",form);
 }
 function oppPickStyle(t){
   const wide=t.players.filter(p=>p.role!=="GK"&&(p.x<=30||p.x>=70));
@@ -1446,7 +1476,8 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
   }
 }
 async function attackEvent(A,D,min){
-  const tfA=A.tactic==="atk"?1.15:A.tactic==="def"?0.85:1;
+  // tfAに「攻撃スタイル × 相手フォーメーション」の相性係数を畳み込む(全スタイルの主判定に一律適用)
+  const tfA=(A.tactic==="atk"?1.15:A.tactic==="def"?0.85:1)*counterFactor(A.style,D.form);
   const tfD=D.tactic==="def"?1.15:D.tactic==="atk"?0.85:1;
   const who=A.side==="A"?"🔴 ":"";
   const st=A.style;
@@ -1761,7 +1792,7 @@ function startMatch(idx){
   const filled=FORMS[S.form].filter((_,i)=>S.squad[i]!=null).length;
   if(filled<11){toast(`スタメンが${filled}/11人です!編成画面で揃えよう`);
     document.querySelector('[data-s="team"]').click();return;}
-  const [name,lv]=CLUBS[idx];
+  const [name,lv,form]=CLUBS[idx];
   S.tactic="bal";S.style="center";
   document.querySelectorAll(".tactics [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t==="bal"));
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
@@ -1772,13 +1803,16 @@ function startMatch(idx){
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
 
-  const home=myTeam(),away=oppTeam(lv);
+  const home=myTeam(),away=oppTeam(lv,form);
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false};
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}(Lv.${lv})`);
+  feed(`相手のフォーメーション:【${form}】`);
   feed(`相手の戦術:${STYLE_LABEL[away.style]}`);
+  const ctr=FORM_COUNTER[form];
+  if(ctr)feed(`💡 この陣形には ${STYLE_LABEL[ctr.best]} が有効(+${Math.round((COUNTER_BONUS-1)*100)}%) / ${STYLE_LABEL[ctr.worst]} は通じにくい(−${Math.round((1-COUNTER_PENALTY)*100)}%)`,"chance");
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.rar==="sr"||p.c.rar==="l");
   if(srs.length)feed(`⚠ 要注意:相手の${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);

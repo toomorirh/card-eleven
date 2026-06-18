@@ -24,8 +24,8 @@ function recalcAuras(t){
   t.chemN=mx;t.chemNat=nat;
   t.chem=1+Math.min(0.06,Math.max(0,mx-2)*0.012); // 3人で+1.2% … 7人以上で+6%(上限)
 }
-function buildTeam(cards,side){
-  const t={players:cards,tactic:"bal",style:"center",score:0,side};
+function buildTeam(cards,side,form){
+  const t={players:cards,tactic:"bal",style:"center",score:0,side,form};
   cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0};});
   recalcAuras(t);
   return t;
@@ -44,12 +44,13 @@ function myTeam(){
     if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1});
   });
-  return buildTeam(cards,"H");
+  return buildTeam(cards,"H",S.form);
 }
-function oppTeam(lv){
+function oppTeam(lv,form){
+  form=form||"4-4-2"; // 省略時は従来通り4-4-2(テスト互換)
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
-  const kp=KEYPOS["4-4-2"];
-  const cards=FORMS["4-4-2"].map((sl,i)=>{
+  const kp=KEYPOS[form]||{};
+  const cards=FORMS[form].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
     const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
@@ -57,13 +58,14 @@ function oppTeam(lv){
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
-  if(lv>=8){ // 最終ボスのエースはレジェンド
-    const i=9+ri(0,1); // FWのどちらか
+  if(lv>=8){ // 最終ボスのエースはレジェンド(陣形のFW枠からランダムに1名)
+    const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
+    const i=fwIdx.length?rnd(fwIdx):FORMS[form].length-1;
     const sb=cards[i].subRole;
     cards[i]={c:makeCard(subGroup(sb),"l",null,sb),role:subGroup(sb),subRole:sb,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
-  return buildTeam(cards,"A");
+  return buildTeam(cards,"A",form);
 }
 function oppPickStyle(t){
   const wide=t.players.filter(p=>p.role!=="GK"&&(p.x<=30||p.x>=70));
@@ -173,7 +175,8 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
   }
 }
 async function attackEvent(A,D,min){
-  const tfA=A.tactic==="atk"?1.15:A.tactic==="def"?0.85:1;
+  // tfAに「攻撃スタイル × 相手フォーメーション」の相性係数を畳み込む(全スタイルの主判定に一律適用)
+  const tfA=(A.tactic==="atk"?1.15:A.tactic==="def"?0.85:1)*counterFactor(A.style,D.form);
   const tfD=D.tactic==="def"?1.15:D.tactic==="atk"?0.85:1;
   const who=A.side==="A"?"🔴 ":"";
   const st=A.style;

@@ -1,11 +1,14 @@
 // ================= リーグ =================
 function renderLeague(){
   const l=document.getElementById("leagueList");l.innerHTML="";
-  CLUBS.forEach(([name,lv],i)=>{
+  CLUBS.forEach(([name,lv,form],i)=>{
     const d=document.createElement("div");d.className="league-card"+(i<S.cleared?" done":"");
     const locked=i>S.cleared;
+    const ctr=FORM_COUNTER[form];
+    const hint=locked?'<div class="lv">🔒 攻略すると相性が判明</div>'
+      :`<div class="lv">陣形【${form}】 / 💡有効:${STYLE_LABEL[ctr.best]}</div>`;
     d.innerHTML=`<div><div class="ln">${i<S.cleared?"✅ ":""}${locked?"🔒 ":""}${name}</div>
-      <div class="lv">強さ Lv.${lv} / 勝利報酬 🪙${100+lv*40}</div></div>`;
+      <div class="lv">強さ Lv.${lv} / 勝利報酬 🪙${100+lv*40}</div>${hint}</div>`;
     const b=document.createElement("button");b.className="btn";b.style.cssText="width:auto;padding:8px 16px;margin:0";
     b.textContent=i<S.cleared?"再戦":"挑戦";
     b.disabled=locked;

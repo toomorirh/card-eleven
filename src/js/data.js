@@ -158,7 +158,32 @@ const KEYPOS={
   "4-2-3-1":{5:"def",6:"def"}
 };
 const KEY_MUL=1.15;
-const CLUBS=[["FCバンビーノ",1],["コバルト水戸海",2],["レッドファング",3],["AC月光",4],["ヴェルデ皇国",5],["ガラクシア11",6],["鋼鉄オルカ",7],["王立クロノス",8]];
+// フォーメーション相性: 守備側の陣形に対し、攻撃側スタイルの有利(best)/不利(worst)を定義。
+// 攻撃側の主要判定(tfA経由)に best=+15% / worst=−12% を乗算。両チームの攻撃に対称適用。
+// ※best/worstは試合エンジンの実測(各陣形相手のスタイル別得点。同強度クローン2880試合で計測)に
+//   一致させてある。係数は「自然な傾向の増幅」であり、ヒント表示と実挙動が食い違わないようにする。
+//   4-4-2/4-3-3/3-5-2=サイドが通る一方ロング/ショートが詰まる / 5-3-2=5バック低ブロックはショート連携で崩れ
+//   ロングは跳ね返す / 4-3-1-2=ナロー菱形は背後とワイドが空きロングが刺さる / 4-2-3-1=ダブルボランチ裏で中央突破が伸びる
+const FORM_COUNTER={
+  "4-4-2":{best:"side",worst:"short"},
+  "4-3-3":{best:"side",worst:"long"},
+  "3-5-2":{best:"side",worst:"short"},
+  "5-3-2":{best:"short",worst:"long"},
+  "4-3-1-2":{best:"long",worst:"short"},
+  "4-2-3-1":{best:"center",worst:"short"}
+};
+const COUNTER_BONUS=1.15, COUNTER_PENALTY=0.88;
+// 攻撃スタイル style が、守備側フォーメーション form に対して持つ相性係数
+function counterFactor(style,form){
+  const c=FORM_COUNTER[form];
+  if(!c)return 1;                       // form未設定(クローン対戦など)は等倍=バランス不変
+  if(c.best===style)return COUNTER_BONUS;
+  if(c.worst===style)return COUNTER_PENALTY;
+  return 1;
+}
+// [クラブ名, 強さLv, 得意フォーメーション]。相手はこの陣形で実際に布陣する。
+// 各スタイル(side/short/long/center)が有効になるクラブが2つずつ&Lv1〜4で全4種を学べる配置にしている。
+const CLUBS=[["FCバンビーノ",1,"4-4-2"],["コバルト水戸海",2,"5-3-2"],["レッドファング",3,"4-3-1-2"],["AC月光",4,"4-2-3-1"],["ヴェルデ皇国",5,"4-3-3"],["ガラクシア11",6,"5-3-2"],["鋼鉄オルカ",7,"4-3-1-2"],["王立クロノス",8,"4-2-3-1"]];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const cl=v=>Math.min(20,Math.max(1,v));
