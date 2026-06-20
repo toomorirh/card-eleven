@@ -13,9 +13,12 @@
 - 目安サイズ: 高さ 200〜400px 程度。`.webp` / `.jpg` も可(透過が必要なら png/webp)。
 
 ## 仕組み
-- `build.py` の `_sig_block()` が `src/assets/signatures/*.png` を走査して
-  `window.SIG_IMG={ "messi": "data:image/png;base64,..." }` を生成し、JSバンドル先頭
+- `build.py` の `_sig_block()` が `src/assets/signatures/*.png` を走査し、
+  **`data.js` の `SIGNATURES` に登録済みの id とファイル名(stem)が一致するものだけ**を
+  `window.SIG_IMG={ "messi": "data:image/png;base64,..." }` として生成し、JSバンドル先頭
   (`"use strict";` 直後)に注入します。
+- 登録前の生ソース画像(例: 複数ポーズが入った `ce_py5_messi.png` など)はここに置いても
+  **埋め込まれません**(バンドル肥大化防止)。切り出して `<登録id>.png` にした時点で初めて反映されます。
 - `data.js` がこれを `SIG_IMG_EL`(Imageオブジェクト)としてプリロードし、
   `spriteCanvas` が `c.sig` のカードでこのモチーフ画像を描画します。
 - 画像が未配置でも動作します(★エンブレムのプレースホルダ表示)。

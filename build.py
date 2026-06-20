@@ -44,14 +44,25 @@ def _join(dirpath, names):
 _MIME = {".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 
+def _registered_sig_ids():
+    """src/js/data.js の SIGNATURES 配列に登録済みの id を抽出。
+    各エントリは `{id:"messi", ...}` の形(idが文字列)。data.js内で id:"..." は
+    SIGNATURES だけ(カードは id:uid++ で数値)なので、この正規表現で過不足なく拾える。"""
+    data_js = (ROOT / "src" / "js" / "data.js").read_text(encoding="utf-8")
+    block = re.search(r"const SIGNATURES\s*=\s*\[(.*?)\];", data_js, re.S)
+    scope = block.group(1) if block else data_js
+    return set(re.findall(r'\{\s*id:"([^"]+)"', scope))
+
+
 def _sig_block():
     """src/assets/signatures/<id>.(png|webp|jpg) を base64 データURI化し
-    `window.SIG_IMG={id:dataURI,...};` を生成。ファイルが無ければ空オブジェクト。
-    id順にソートして決定的に出力(--check の安定のため)。"""
+    `window.SIG_IMG={id:dataURI,...};` を生成。**SIGNATURESに登録済みのidだけ**を埋め込む
+    (生ソース等の未登録画像でバンドルが肥大化しないように)。id順で決定的に出力(--check安定)。"""
+    ids = _registered_sig_ids()
     entries = {}
     if SIG_DIR.is_dir():
         for f in sorted(SIG_DIR.iterdir()):
-            if f.suffix.lower() in _MIME:
+            if f.suffix.lower() in _MIME and f.stem in ids:
                 b64 = base64.b64encode(f.read_bytes()).decode("ascii")
                 entries[f.stem] = "data:%s;base64,%s" % (_MIME[f.suffix.lower()], b64)
     items = ",".join('"%s":"%s"' % (k, entries[k]) for k in sorted(entries))
