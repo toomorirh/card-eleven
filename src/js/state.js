@@ -1,5 +1,5 @@
 // ================= 状態と保存 =================
-let S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,league:null};
+let S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,league:null};
 async function save(){
   S.nextId=uid;
   try{if(window.storage)await withTimeout(window.storage.set("ci-save",JSON.stringify(S)),2500);}catch(e){}
@@ -47,11 +47,12 @@ async function load(){
   grantSignatureTest();
   await save();
 }
-// テスト用: 固有選手を1回だけコレクションに付与(入手動線は将来差し替え予定)
+// テスト用: スタート時にシグネチャーパックを1枚だけ付与(1回限り)。
+// 本来の入手条件は後でゲーム内に実装予定。それまではこのチケットでガチャを試せる。
 function grantSignatureTest(){
-  if(S.sigTest)return false;
-  S.coll.push(makeSignature("messi"));
-  S.sigTest=1;
+  if(S.sigTicketTest)return false;
+  S.sigPacks=(S.sigPacks||0)+1;
+  S.sigTicketTest=1;
   return true;
 }
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";

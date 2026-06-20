@@ -13,6 +13,10 @@ const PACKS=[
    desc:"5枚入り / SR以上1枚確定+高排出・リーグ優勝報酬",
    can:()=>(S.championPacks||0)>0, pay:()=>{S.championPacks=(S.championPacks||0)-1;}, owned:()=>S.championPacks||0,
    get:()=>championDraw()},
+  {id:"signature",name:"シグネチャーパック",emoji:"🌟",color:"#ff5ea0",cost:null,
+   desc:"1枚入り / 固有選手(★★★★)確定",
+   can:()=>(S.sigPacks||0)>0, pay:()=>{S.sigPacks=(S.sigPacks||0)-1;}, owned:()=>S.sigPacks||0,
+   get:()=>[makeSignature(rnd(SIGNATURES).id)]},
 ];
 // チャンピオンパック: 5枚。高排出4枚 + SR以上1枚確定(うち18%でLEGEND)
 function championDraw(){
@@ -75,7 +79,9 @@ function runReveal(p,cards){
       cards.forEach((c,i)=>{const el=cardEl(c);el.classList.add("flyin");el.style.animationDelay=(i*0.14)+"s";bc.appendChild(el);});
       await sleep(360+cards.length*140);
       const rr=document.getElementById("revResult");
-      if(best.rar==="l"){rr.className="revresult leg";rr.innerHTML="🌈 LEGEND 出現!! 伝説の選手だ!!";}
+      const sig=cards.find(c=>c.sig);
+      if(sig){rr.className="revresult leg";rr.innerHTML=`🌟 シグネチャー選手 登場!! ${sig.flag} ${sig.name}!!`;}
+      else if(best.rar==="l"){rr.className="revresult leg";rr.innerHTML="🌈 LEGEND 出現!! 伝説の選手だ!!";}
       else if(best.rar==="sr"){rr.className="revresult sr";rr.innerHTML="✨ ★★★ SR ゲット!";}
       else{rr.className="revresult";rr.innerHTML="";}
       const canAgain=p.can();
