@@ -199,11 +199,39 @@ function counterFactor(style,form){
   if(c.worst===style)return COUNTER_PENALTY;
   return 1;
 }
-// [クラブ名, 強さLv, 得意フォーメーション]。相手はこの陣形で実際に布陣する。
-// 各スタイル(side/short/long/center)が有効になるクラブが2つずつ&Lv1〜4で全4種を学べる配置にしている。
-const CLUBS=[["FCバンビーノ",1,"4-4-2"],["コバルト水戸海",2,"5-3-2"],["レッドファング",3,"4-3-1-2"],["AC月光",4,"4-2-3-1"],["ヴェルデ皇国",5,"4-3-3"],["ガラクシア11",6,"5-3-2"],["鋼鉄オルカ",7,"4-3-1-2"],["王立クロノス",8,"4-2-3-1"]];
+// クラブ定義(データ駆動)。相手は seed で決定的に生成されるため、毎回同じ11人が出る(=ロスター固定)。
+// 強さは lv 駆動のままで現行と同一。各スタイル(side/short/long/center)が有効なクラブを2つずつ、
+// Lv1〜4で全4種を学べる配置。
+// 必須: name / lv / form / seed。
+// 任意(ワールドツアー拡張用・未指定なら従来通り):
+//   region : ステージ分類ラベル(例 "ワールドツアー:南米")
+//   flags  : [国旗,...] テーマ国籍プール(相手選手の国籍をここから抽選。演出+ケミストリー)
+//   ace    : 固有選手id。指定するとFW枠の1名をその固有選手にする(=意図的な難度UP。現行クラブは未使用)
+// seed は「ランダム平均=現状の強さ」に近い代表編成になるよう較正済み(偏差大のLv1/6/7/8のみ調整)。
+const CLUBS=[
+  {name:"FCバンビーノ",   lv:1, form:"4-4-2",   seed:1013},
+  {name:"コバルト水戸海", lv:2, form:"5-3-2",   seed:1002},
+  {name:"レッドファング", lv:3, form:"4-3-1-2", seed:1003},
+  {name:"AC月光",         lv:4, form:"4-2-3-1", seed:1004},
+  {name:"ヴェルデ皇国",   lv:5, form:"4-3-3",   seed:1005},
+  {name:"ガラクシア11",   lv:6, form:"5-3-2",   seed:1008},
+  {name:"鋼鉄オルカ",     lv:7, form:"4-3-1-2", seed:1003},
+  {name:"王立クロノス",   lv:8, form:"4-2-3-1", seed:1003},
+];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+// 決定的PRNG(mulberry32)で Math.random を一時的に差し替え、restore() で元に戻す。
+// oppTeam の生成中だけ使うことで「同じ seed → 同じロスター」を実現(生成ロジックは不変=強さ不変)。
+function seedRandom(seed){
+  const orig=Math.random; let s=seed>>>0;
+  Math.random=function(){
+    s=s+0x6D2B79F5|0;
+    let t=Math.imul(s^s>>>15,1|s);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+  return ()=>{Math.random=orig;};
+}
 const cl=v=>Math.min(20,Math.max(1,v));
 const RAR_TOTAL={l:98,sr:88,r:68,n:53}; // 6ステータス合計の目標(丸め上振れ込みで実測≒100/90/70/55)
 // 目標合計付近になるよう6値を生成(分散を持たせてから正規化し1-20にクランプ)

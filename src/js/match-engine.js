@@ -65,26 +65,37 @@ function myTeam(){
   });
   return buildTeam(cards,"H",S.form);
 }
-function oppTeam(lv,form){
-  form=form||"4-4-2"; // 省略時は従来通り4-4-2(テスト互換)
+function oppTeam(lv,club){
+  if(typeof club==="string")club={form:club}; // 後方互換(form文字列)
+  club=club||{};
+  const form=club.form||"4-4-2"; // 省略時は従来通り4-4-2(テスト互換)
+  const restore=(club.seed!=null)?seedRandom(club.seed):null; // seed指定でロスター固定(生成ロジックは不変=強さ不変)
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
   const kp=KEYPOS[form]||{};
   const cards=FORMS[form].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
     const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
+    if(club.flags)c.flag=rnd(club.flags); // テーマ国籍(任意・ワールドツアー用)
     scaleTo(c,a*6); // チームLvに応じて合計を微調整
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
-  if(lv>=8){ // 最終ボスのエースはレジェンド(陣形のFW枠からランダムに1名)
-    const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
+  const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
+  if(club.ace&&typeof makeSignature==="function"){ // エース固有選手(任意・意図的な難度UP。現行クラブ未使用)
+    const i=fwIdx.length?rnd(fwIdx):FORMS[form].length-1;
+    const sig=makeSignature(club.ace);
+    if(sig)cards[i]={c:sig,role:subGroup(cards[i].subRole),subRole:cards[i].subRole,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
+  }else if(lv>=8){ // 最終ボスのエースはレジェンド(陣形のFW枠からランダムに1名)
     const i=fwIdx.length?rnd(fwIdx):FORMS[form].length-1;
     const sb=cards[i].subRole;
     cards[i]={c:makeCard(subGroup(sb),"l",null,sb),role:subGroup(sb),subRole:sb,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
-  return buildTeam(cards,"A",form);
+  const t=buildTeam(cards,"A",form);
+  if(restore)restore();
+  return t;
 }
 function oppPickStyle(t){
   const wide=t.players.filter(p=>p.role!=="GK"&&(p.x<=30||p.x>=70));

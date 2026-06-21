@@ -1,7 +1,8 @@
 // ================= リーグ =================
 function renderLeague(){
   const l=document.getElementById("leagueList");l.innerHTML="";
-  CLUBS.forEach(([name,lv,form],i)=>{
+  CLUBS.forEach((club,i)=>{
+    const {name,lv,form}=club;
     const d=document.createElement("div");d.className="league-card"+(i<S.cleared?" done":"");
     const locked=i>S.cleared;
     const ctr=FORM_COUNTER[form];
@@ -12,7 +13,7 @@ function renderLeague(){
     const b=document.createElement("button");b.className="btn";b.style.cssText="width:auto;padding:8px 16px;margin:0";
     b.textContent=i<S.cleared?"再戦":"挑戦";
     b.disabled=locked;
-    b.onclick=()=>startMatch(i);
+    b.onclick=()=>openScout(i);   // タップ→相手プレビュー→試合開始
     d.appendChild(b);
     l.appendChild(d);
   });
@@ -21,10 +22,38 @@ function renderLeague(){
     l.prepend(w);
   }
 }
+// 対戦相手プレビュー(スカウト): クラブの固定ロスターを「フォーメーション」で可視化(数値はOVRのみ)
+function openScout(idx){
+  const club=CLUBS[idx], ctr=FORM_COUNTER[club.form];
+  const away=oppTeam(club.lv,club);            // seed固定なのでプレビュー=本番と同一の11人
+  document.getElementById("scoutTitle").textContent=`偵察:${club.name} (Lv.${club.lv})`;
+  document.getElementById("scoutInfo").innerHTML=
+    `陣形【${club.form}】 / 💡有効:${STYLE_LABEL[ctr.best]}・通じにくい:${STYLE_LABEL[ctr.worst]}`;
+  const wrap=document.getElementById("scoutList");wrap.innerHTML="";
+  const pitch=document.createElement("div");pitch.className="pitch scoutpitch";
+  pitch.innerHTML='<div class="circle"></div>';
+  away.players.forEach(p=>{
+    const ovr=p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta;
+    const s=document.createElement("div");s.className="sslot";
+    s.style.left=p.x+"%";s.style.top=p.y+"%";
+    s.innerHTML=`<span class="pos ${p.role}">${p.subRole||p.role}</span>
+      <div class="ssp"></div><span class="sovr">${ovr}</span>`;
+    s.querySelector(".ssp").appendChild(spriteCanvas(p.c,32));
+    s.onclick=()=>{const base=`${p.c.flag} ${p.c.name}(${p.c.sub})`;toast(p.c.skill?`${base}|【${p.c.skill.name}】${p.c.skill.desc}`:base);};
+    pitch.appendChild(s);
+  });
+  wrap.appendChild(pitch);
+  document.getElementById("scoutStart").onclick=()=>{
+    document.getElementById("scoutModal").classList.remove("on");
+    startMatch(idx);
+  };
+  document.getElementById("scoutModal").classList.add("on");
+}
+document.getElementById("scoutClose").onclick=()=>document.getElementById("scoutModal").classList.remove("on");
 
 // ================= リーグ戦モード =================
-const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c[0])]; // 自分+8クラブ=9チーム
-function lgLevel(name){const c=CLUBS.find(x=>x[0]===name);return c?c[1]:0;}
+const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c.name)]; // 自分+8クラブ=9チーム
+function lgLevel(name){const c=CLUBS.find(x=>x.name===name);return c?c.lv:0;}
 // ラウンドロビン(円卓法)で全8節の対戦表を生成
 function makeFixtures(){
   const real=LG_CLUBS.length;          // 9チーム(奇数)
@@ -132,7 +161,7 @@ function playLeagueRound(){
     // 他カードを先にCPU処理し、自分の試合は実プレイ
     lg._pending=games.filter(g=>g!==myGame);
     const oppName=LG_CLUBS[myGame[0]===0?myGame[1]:myGame[0]];
-    const idx=CLUBS.findIndex(c=>c[0]===oppName);
+    const idx=CLUBS.findIndex(c=>c.name===oppName);
     lg._myHome=(myGame[0]===0);
     startLeagueMatch(idx,oppName);
   }else{

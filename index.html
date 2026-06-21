@@ -131,6 +131,13 @@ canvas.sprite{image-rendering:auto}
 .pitch::after{content:"";position:absolute;left:4%;right:4%;top:50%;border-top:2px solid var(--line)}
 .pitch .circle{position:absolute;left:50%;top:50%;width:24%;aspect-ratio:1;border:2px solid var(--line);
   border-radius:50%;transform:translate(-50%,-50%)}
+/* スカウト(対戦相手プレビュー)のフォーメーション表示 */
+.scoutpitch{max-width:260px;margin:0 auto}
+#scoutModal .sheet{max-height:88vh}
+.sslot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;z-index:2}
+.sslot .pos{font-size:8px;font-weight:900;padding:0 4px;border-radius:4px;color:#0c1626;line-height:1.45}
+.sslot .ssp{display:flex;justify-content:center}
+.sslot .sovr{font-size:10px;font-weight:900;color:var(--gold);background:rgba(10,19,34,.75);border-radius:5px;padding:0 5px;line-height:1.4}
 .slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:2}
 .slot .slothead{font-size:9px;font-weight:900;letter-spacing:.5px;color:#0c1626;border-radius:5px;padding:0 6px;line-height:1.55;min-width:38px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .slot.empty .slothead{opacity:.85}
@@ -572,6 +579,15 @@ h1{text-shadow:3px 3px 0 #06301c}
     <div class="grid" id="subBench" style="display:none"></div>
   </div>
 </div>
+<div class="modal" id="scoutModal">
+  <div class="sheet">
+    <button class="close-btn" id="scoutClose">☒</button>
+    <h3 id="scoutTitle">偵察</h3>
+    <div id="scoutInfo" class="lg" style="margin-bottom:6px"></div>
+    <div id="scoutList"></div>
+    <button class="btn" id="scoutStart" style="margin-top:8px">⚽ 試合開始</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <div class="packov" id="packOverlay"><div class="packstage" id="packStage"></div></div>
 
@@ -784,11 +800,39 @@ function counterFactor(style,form){
   if(c.worst===style)return COUNTER_PENALTY;
   return 1;
 }
-// [クラブ名, 強さLv, 得意フォーメーション]。相手はこの陣形で実際に布陣する。
-// 各スタイル(side/short/long/center)が有効になるクラブが2つずつ&Lv1〜4で全4種を学べる配置にしている。
-const CLUBS=[["FCバンビーノ",1,"4-4-2"],["コバルト水戸海",2,"5-3-2"],["レッドファング",3,"4-3-1-2"],["AC月光",4,"4-2-3-1"],["ヴェルデ皇国",5,"4-3-3"],["ガラクシア11",6,"5-3-2"],["鋼鉄オルカ",7,"4-3-1-2"],["王立クロノス",8,"4-2-3-1"]];
+// クラブ定義(データ駆動)。相手は seed で決定的に生成されるため、毎回同じ11人が出る(=ロスター固定)。
+// 強さは lv 駆動のままで現行と同一。各スタイル(side/short/long/center)が有効なクラブを2つずつ、
+// Lv1〜4で全4種を学べる配置。
+// 必須: name / lv / form / seed。
+// 任意(ワールドツアー拡張用・未指定なら従来通り):
+//   region : ステージ分類ラベル(例 "ワールドツアー:南米")
+//   flags  : [国旗,...] テーマ国籍プール(相手選手の国籍をここから抽選。演出+ケミストリー)
+//   ace    : 固有選手id。指定するとFW枠の1名をその固有選手にする(=意図的な難度UP。現行クラブは未使用)
+// seed は「ランダム平均=現状の強さ」に近い代表編成になるよう較正済み(偏差大のLv1/6/7/8のみ調整)。
+const CLUBS=[
+  {name:"FCバンビーノ",   lv:1, form:"4-4-2",   seed:1013},
+  {name:"コバルト水戸海", lv:2, form:"5-3-2",   seed:1002},
+  {name:"レッドファング", lv:3, form:"4-3-1-2", seed:1003},
+  {name:"AC月光",         lv:4, form:"4-2-3-1", seed:1004},
+  {name:"ヴェルデ皇国",   lv:5, form:"4-3-3",   seed:1005},
+  {name:"ガラクシア11",   lv:6, form:"5-3-2",   seed:1008},
+  {name:"鋼鉄オルカ",     lv:7, form:"4-3-1-2", seed:1003},
+  {name:"王立クロノス",   lv:8, form:"4-2-3-1", seed:1003},
+];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+// 決定的PRNG(mulberry32)で Math.random を一時的に差し替え、restore() で元に戻す。
+// oppTeam の生成中だけ使うことで「同じ seed → 同じロスター」を実現(生成ロジックは不変=強さ不変)。
+function seedRandom(seed){
+  const orig=Math.random; let s=seed>>>0;
+  Math.random=function(){
+    s=s+0x6D2B79F5|0;
+    let t=Math.imul(s^s>>>15,1|s);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+  return ()=>{Math.random=orig;};
+}
 const cl=v=>Math.min(20,Math.max(1,v));
 const RAR_TOTAL={l:98,sr:88,r:68,n:53}; // 6ステータス合計の目標(丸め上振れ込みで実測≒100/90/70/55)
 // 目標合計付近になるよう6値を生成(分散を持たせてから正規化し1-20にクランプ)
@@ -1222,7 +1266,8 @@ function runReveal(p,cards){
 // ================= リーグ =================
 function renderLeague(){
   const l=document.getElementById("leagueList");l.innerHTML="";
-  CLUBS.forEach(([name,lv,form],i)=>{
+  CLUBS.forEach((club,i)=>{
+    const {name,lv,form}=club;
     const d=document.createElement("div");d.className="league-card"+(i<S.cleared?" done":"");
     const locked=i>S.cleared;
     const ctr=FORM_COUNTER[form];
@@ -1233,7 +1278,7 @@ function renderLeague(){
     const b=document.createElement("button");b.className="btn";b.style.cssText="width:auto;padding:8px 16px;margin:0";
     b.textContent=i<S.cleared?"再戦":"挑戦";
     b.disabled=locked;
-    b.onclick=()=>startMatch(i);
+    b.onclick=()=>openScout(i);   // タップ→相手プレビュー→試合開始
     d.appendChild(b);
     l.appendChild(d);
   });
@@ -1242,10 +1287,38 @@ function renderLeague(){
     l.prepend(w);
   }
 }
+// 対戦相手プレビュー(スカウト): クラブの固定ロスターを「フォーメーション」で可視化(数値はOVRのみ)
+function openScout(idx){
+  const club=CLUBS[idx], ctr=FORM_COUNTER[club.form];
+  const away=oppTeam(club.lv,club);            // seed固定なのでプレビュー=本番と同一の11人
+  document.getElementById("scoutTitle").textContent=`偵察:${club.name} (Lv.${club.lv})`;
+  document.getElementById("scoutInfo").innerHTML=
+    `陣形【${club.form}】 / 💡有効:${STYLE_LABEL[ctr.best]}・通じにくい:${STYLE_LABEL[ctr.worst]}`;
+  const wrap=document.getElementById("scoutList");wrap.innerHTML="";
+  const pitch=document.createElement("div");pitch.className="pitch scoutpitch";
+  pitch.innerHTML='<div class="circle"></div>';
+  away.players.forEach(p=>{
+    const ovr=p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta;
+    const s=document.createElement("div");s.className="sslot";
+    s.style.left=p.x+"%";s.style.top=p.y+"%";
+    s.innerHTML=`<span class="pos ${p.role}">${p.subRole||p.role}</span>
+      <div class="ssp"></div><span class="sovr">${ovr}</span>`;
+    s.querySelector(".ssp").appendChild(spriteCanvas(p.c,32));
+    s.onclick=()=>{const base=`${p.c.flag} ${p.c.name}(${p.c.sub})`;toast(p.c.skill?`${base}|【${p.c.skill.name}】${p.c.skill.desc}`:base);};
+    pitch.appendChild(s);
+  });
+  wrap.appendChild(pitch);
+  document.getElementById("scoutStart").onclick=()=>{
+    document.getElementById("scoutModal").classList.remove("on");
+    startMatch(idx);
+  };
+  document.getElementById("scoutModal").classList.add("on");
+}
+document.getElementById("scoutClose").onclick=()=>document.getElementById("scoutModal").classList.remove("on");
 
 // ================= リーグ戦モード =================
-const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c[0])]; // 自分+8クラブ=9チーム
-function lgLevel(name){const c=CLUBS.find(x=>x[0]===name);return c?c[1]:0;}
+const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c.name)]; // 自分+8クラブ=9チーム
+function lgLevel(name){const c=CLUBS.find(x=>x.name===name);return c?c.lv:0;}
 // ラウンドロビン(円卓法)で全8節の対戦表を生成
 function makeFixtures(){
   const real=LG_CLUBS.length;          // 9チーム(奇数)
@@ -1353,7 +1426,7 @@ function playLeagueRound(){
     // 他カードを先にCPU処理し、自分の試合は実プレイ
     lg._pending=games.filter(g=>g!==myGame);
     const oppName=LG_CLUBS[myGame[0]===0?myGame[1]:myGame[0]];
-    const idx=CLUBS.findIndex(c=>c[0]===oppName);
+    const idx=CLUBS.findIndex(c=>c.name===oppName);
     lg._myHome=(myGame[0]===0);
     startLeagueMatch(idx,oppName);
   }else{
@@ -1446,26 +1519,37 @@ function myTeam(){
   });
   return buildTeam(cards,"H",S.form);
 }
-function oppTeam(lv,form){
-  form=form||"4-4-2"; // 省略時は従来通り4-4-2(テスト互換)
+function oppTeam(lv,club){
+  if(typeof club==="string")club={form:club}; // 後方互換(form文字列)
+  club=club||{};
+  const form=club.form||"4-4-2"; // 省略時は従来通り4-4-2(テスト互換)
+  const restore=(club.seed!=null)?seedRandom(club.seed):null; // seed指定でロスター固定(生成ロジックは不変=強さ不変)
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
   const kp=KEYPOS[form]||{};
   const cards=FORMS[form].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
     const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
+    if(club.flags)c.flag=rnd(club.flags); // テーマ国籍(任意・ワールドツアー用)
     scaleTo(c,a*6); // チームLvに応じて合計を微調整
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
-  if(lv>=8){ // 最終ボスのエースはレジェンド(陣形のFW枠からランダムに1名)
-    const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
+  const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
+  if(club.ace&&typeof makeSignature==="function"){ // エース固有選手(任意・意図的な難度UP。現行クラブ未使用)
+    const i=fwIdx.length?rnd(fwIdx):FORMS[form].length-1;
+    const sig=makeSignature(club.ace);
+    if(sig)cards[i]={c:sig,role:subGroup(cards[i].subRole),subRole:cards[i].subRole,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
+  }else if(lv>=8){ // 最終ボスのエースはレジェンド(陣形のFW枠からランダムに1名)
     const i=fwIdx.length?rnd(fwIdx):FORMS[form].length-1;
     const sb=cards[i].subRole;
     cards[i]={c:makeCard(subGroup(sb),"l",null,sb),role:subGroup(sb),subRole:sb,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
-  return buildTeam(cards,"A",form);
+  const t=buildTeam(cards,"A",form);
+  if(restore)restore();
+  return t;
 }
 function oppPickStyle(t){
   const wide=t.players.filter(p=>p.role!=="GK"&&(p.x<=30||p.x>=70));
@@ -1940,7 +2024,7 @@ function startMatch(idx){
   const filled=FORMS[S.form].filter((_,i)=>S.squad[i]!=null).length;
   if(filled<11){toast(`スタメンが${filled}/11人です!編成画面で揃えよう`);
     document.querySelector('[data-s="team"]').click();return;}
-  const [name,lv,form]=CLUBS[idx];
+  const club=CLUBS[idx], name=club.name, lv=club.lv, form=club.form;
   S.tactic="bal";S.style="center";
   document.querySelectorAll(".tactics [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t==="bal"));
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
@@ -1951,7 +2035,7 @@ function startMatch(idx){
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
 
-  const home=myTeam(),away=oppTeam(lv,form);
+  const home=myTeam(),away=oppTeam(lv,club);
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false};
   document.getElementById("subN").textContent=3;

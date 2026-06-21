@@ -202,7 +202,7 @@ function startMatch(idx){
   const filled=FORMS[S.form].filter((_,i)=>S.squad[i]!=null).length;
   if(filled<11){toast(`スタメンが${filled}/11人です!編成画面で揃えよう`);
     document.querySelector('[data-s="team"]').click();return;}
-  const [name,lv,form]=CLUBS[idx];
+  const club=CLUBS[idx], name=club.name, lv=club.lv, form=club.form;
   S.tactic="bal";S.style="center";
   document.querySelectorAll(".tactics [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t==="bal"));
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
@@ -213,7 +213,7 @@ function startMatch(idx){
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
 
-  const home=myTeam(),away=oppTeam(lv,form);
+  const home=myTeam(),away=oppTeam(lv,club);
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false};
   document.getElementById("subN").textContent=3;
