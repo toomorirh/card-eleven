@@ -146,6 +146,7 @@ async function tickAsync(){
   const dir=dirOf(T);
   // ビルドアップ:保持側の選手へパス
   const c1=pickW(T.players.filter(p=>p.role!=="GK"),p=>p.role==="MF"?2:p.role==="DF"?1:1.4);
+  c1.stat.inv++;
   await ballTo(curP(c1).x+dir*2,curP(c1).y,0.4);
   updateField();
   if(Math.random()<0.5){
@@ -153,6 +154,7 @@ async function tickAsync(){
   }else{
     const mates=T.players.filter(p=>p!==c1&&p.role!=="GK");
     const c2=pickW(mates,p=>1+(dir>0?curP(p).x:100-curP(p).x)/50); // 前の選手ほど受けやすい
+    c2.stat.inv++;
     await ballTo(curP(c2).x+dir*2,curP(c2).y,0.45);
     if(Math.random()<0.45)feed(["中盤で激しいボールの奪い合い","じっくりとパスを回す","ラインを押し上げていく","セカンドボールを拾った"][ri(0,3)]);
   }
@@ -205,29 +207,31 @@ function startMatch(idx){
   runLoop();
 }
 let _statTeams=null;
-function renderStatRows(team){
-  const rows=team.players.map(p=>({p,r:statRating(p)})).sort((a,b)=>b.r-a.r);
+function renderStatRows(team,opp){
+  const rows=team.players.map(p=>({p,r:statRating(p,opp)})).sort((a,b)=>b.r-a.r);
   const mom=rows[0];
-  let h='<table class="statTbl"><tr><th>枠</th><th>選手</th><th>評価</th><th>G</th><th>A</th><th>デュエル</th><th>SV</th></tr>';
+  let h='<table class="statTbl"><tr><th>枠</th><th>選手</th><th>評価</th><th>関与</th><th>G</th><th>A</th><th>デュエル</th><th>SV</th></tr>';
   rows.forEach(({p,r})=>{
-    const s=p.stat,isMom=p===mom.p,low=r<5.5;
+    const s=p.stat,isMom=p===mom.p,low=r<5.0;
     h+=`<tr class="${isMom?"mom":""}${low?" lowform":""}">
       <td><span class="pos ${p.role}">${p.subRole||p.role}</span></td>
       <td>${isMom?"★":""}${p.c.name}</td>
       <td>${r.toFixed(1)}</td>
+      <td>${s.inv||0}</td>
       <td>${s.goals}</td>
       <td>${s.assists}</td>
       <td>${s.duelW}-${s.duelL}</td>
       <td>${p.role==="GK"?s.saves:"-"}</td>
     </tr>`;
   });
-  h+='</table><div class="lg" style="margin-top:4px">★MOM(最優秀選手) / 評価が低い選手は次戦の入れ替えを検討しよう</div>';
+  h+='</table><div class="lg" style="margin-top:4px">★MOM(最優秀選手) / 関与=試合への絡んだ回数 / 評価5.0未満は次戦の入れ替え候補</div>';
   return h;
 }
 function renderStatTab(which){
   if(!_statTeams)return;
   document.querySelectorAll("#statOverlay .statTabs button").forEach(b=>b.classList.toggle("on",b.dataset.team===which));
-  document.getElementById("statOverlayBody").innerHTML=renderStatRows(_statTeams[which]);
+  const team=_statTeams[which], opp=_statTeams[which==="home"?"away":"home"];
+  document.getElementById("statOverlayBody").innerHTML=renderStatRows(team,opp);
 }
 function showStatOverlay(home,away){
   _statTeams={home,away};

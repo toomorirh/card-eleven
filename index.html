@@ -1399,15 +1399,34 @@ function recalcAuras(t){
 }
 function buildTeam(cards,side,form){
   const t={players:cards,tactic:"bal",style:"center",score:0,side,form};
-  cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0};});
+  cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0};});
   recalcAuras(t);
   return t;
 }
-function statRating(p){
+// 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
+//  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)
+//  ・離散イベント(ゴール/アシスト/デュエル/タックル/セーブ)をスパイクとして加減
+//  ・守備陣は無失点/失点のチーム文脈を反映
+//  平常は概ね 4.0〜7.5 に散り、MOMは8〜9.5、不出来は3.5前後まで落ちる設計。
+function statRating(p,opp){
   const s=p.stat||{};
-  const r=6.0+(s.goals||0)*1.1+(s.assists||0)*0.55+(s.duelW||0)*0.13-(s.duelL||0)*0.07
-    +(s.tkl||0)*0.12+(s.saves||0)*0.22-((s.shots||0)-(s.goals||0))*0.05;
-  return Math.max(3,Math.min(10,Math.round(r*10)/10));
+  // GKは構造的に関与回数が少ないため、セーブ+無失点/失点で評価する専用スケール
+  if(p.role==="GK"){
+    let g=5.5+(s.saves||0)*0.35;
+    if(opp){ if(opp.score===0)g+=0.7; else g-=Math.min(1.2,opp.score*0.30); }
+    return Math.max(3.0,Math.min(10,Math.round(g*10)/10));
+  }
+  const inv=s.inv||0;
+  let r=4.0+2.05*Math.log10(1+inv);                      // 関与ベース: inv0→4.0 / 3→5.2 / 8→5.9 / 20→6.7 / 45→7.4
+  r+=(s.goals||0)*0.9+(s.assists||0)*0.55                // 攻撃の決定的関与
+    +(s.duelW||0)*0.12-(s.duelL||0)*0.12                 // 1対1の明暗
+    +(s.tkl||0)*0.14+(s.saves||0)*0.30                   // 守備の貢献
+    -((s.shots||0)-(s.goals||0))*0.06;                   // 決め切れない非効率は微減
+  if(opp&&p.role==="DF"){                                 // DFのチーム文脈
+    if(opp.score===0)r+=0.5;                             // 無失点ボーナス
+    else r-=Math.min(0.8,opp.score*0.18);               // 失点ペナルティ(上限)
+  }
+  return Math.max(3.0,Math.min(10,Math.round(r*10)/10));
 }
 function myTeam(){
   const cards=[];
@@ -1505,6 +1524,7 @@ async function maybeVs(a,A,d,D,label){
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
   atk.stat.shots++;
   const gk=pickGK(D);
+  atk.stat.inv++;gk.stat.inv++;
   const fxA=fx(atk),fxG=fx(gk);
   const dir=dirOf(A),gx=goalXOf(A);
   const sx=fx0!=null?fx0:curP(atk).x, sy=fy0!=null?fy0:curP(atk).y;
@@ -1557,6 +1577,7 @@ async function attackEvent(A,D,min){
 
   if(st==="side"){ // ウイングがタッチライン際を駆け上がる
     const w=pickWide(A), d=pickWideDef(D);
+    w.stat.inv++;d.stat.inv++;
     const wy=curP(w).y<50?12:88;
     movePlayer(w,50+dir*16,wy,0.5);
     movePlayer(d,50+dir*24,wy+(wy<50?5:-5),0.5);
@@ -1572,6 +1593,7 @@ async function attackEvent(A,D,min){
       feed(`${who}🏃 サイド突破!<b>${w.c.name}</b>(速${w.c.spd}・技${w.c.tec})が${d.c.name}を振り切った!`,"chance");
       if(fx(w).duelSpd)skillFeed(w);
       const t=pickTarget(A), m=pickDefender(D);
+      t.stat.inv++;m.stat.inv++;
       const cx2=gx-dir*7, cy2=42+ri(0,16);
       movePlayer(t,cx2-dir*2,cy2,0.4);
       movePlayer(m,cx2+dir*2,cy2+ri(-4,4),0.4);
@@ -1599,6 +1621,7 @@ async function attackEvent(A,D,min){
 
   else if(st==="long"){ // 後方からのロブが前線へ
     const p=pickPasser(A), r=pickTarget(A), cut=pickPress(D);
+    p.stat.inv++;r.stat.inv++;cut.stat.inv++;
     await ballTo(curP(p).x,curP(p).y,0.35);          // 後方の起点へ
     const pSc=eff(p,"tec",min,A,D)*tfA*rr();
     const cSc=(eff(cut,"spd",min,D,A)*0.5+eff(cut,"def",min,D,A)*0.5)*tfD*rr();
@@ -1606,6 +1629,7 @@ async function attackEvent(A,D,min){
     if(pSc>cSc*TH.longPass){
       feed(`${who}🚀 <b>${p.c.name}</b>(技${p.c.tec})が最前線へロングフィード!`,"chance");
       const d=pickDefender(D);
+      d.stat.inv++;
       const lx=gx-dir*18, ly=20+ri(0,60);
       movePlayer(r,lx-dir*2,ly,0.5);
       movePlayer(d,lx+dir*2,ly+ri(-5,5),0.5);
@@ -1638,6 +1662,7 @@ async function attackEvent(A,D,min){
     const m1=mfs.length?rnd(mfs):pickAttacker(A);
     let m2=mfs.filter(p=>p!==m1);m2=m2.length?rnd(m2):m1;
     const pr=pickPress(D);
+    m1.stat.inv++;m2.stat.inv++;pr.stat.inv++;
     hot(m1);hot(m2);
     await ballTo(curP(m1).x,curP(m1).y,0.3);
     await ballTo(curP(m2).x+dir*3,curP(m2).y,0.3);   // ワンツー
@@ -1657,6 +1682,7 @@ async function attackEvent(A,D,min){
 }
 async function duel(A,D,min,tfA,tfD,who,bonus){
   const atk=pickAttacker(A), df=pickDefender(D);
+  atk.stat.inv++;df.stat.inv++;
   const dir=dirOf(A),gx=goalXOf(A);
   const ex=gx-dir*16, ey=30+ri(0,40);   // ペナルティエリア手前で勝負
   movePlayer(atk,ex-dir*3,ey,0.45);
@@ -1832,6 +1858,7 @@ async function tickAsync(){
   const dir=dirOf(T);
   // ビルドアップ:保持側の選手へパス
   const c1=pickW(T.players.filter(p=>p.role!=="GK"),p=>p.role==="MF"?2:p.role==="DF"?1:1.4);
+  c1.stat.inv++;
   await ballTo(curP(c1).x+dir*2,curP(c1).y,0.4);
   updateField();
   if(Math.random()<0.5){
@@ -1839,6 +1866,7 @@ async function tickAsync(){
   }else{
     const mates=T.players.filter(p=>p!==c1&&p.role!=="GK");
     const c2=pickW(mates,p=>1+(dir>0?curP(p).x:100-curP(p).x)/50); // 前の選手ほど受けやすい
+    c2.stat.inv++;
     await ballTo(curP(c2).x+dir*2,curP(c2).y,0.45);
     if(Math.random()<0.45)feed(["中盤で激しいボールの奪い合い","じっくりとパスを回す","ラインを押し上げていく","セカンドボールを拾った"][ri(0,3)]);
   }
@@ -1891,29 +1919,31 @@ function startMatch(idx){
   runLoop();
 }
 let _statTeams=null;
-function renderStatRows(team){
-  const rows=team.players.map(p=>({p,r:statRating(p)})).sort((a,b)=>b.r-a.r);
+function renderStatRows(team,opp){
+  const rows=team.players.map(p=>({p,r:statRating(p,opp)})).sort((a,b)=>b.r-a.r);
   const mom=rows[0];
-  let h='<table class="statTbl"><tr><th>枠</th><th>選手</th><th>評価</th><th>G</th><th>A</th><th>デュエル</th><th>SV</th></tr>';
+  let h='<table class="statTbl"><tr><th>枠</th><th>選手</th><th>評価</th><th>関与</th><th>G</th><th>A</th><th>デュエル</th><th>SV</th></tr>';
   rows.forEach(({p,r})=>{
-    const s=p.stat,isMom=p===mom.p,low=r<5.5;
+    const s=p.stat,isMom=p===mom.p,low=r<5.0;
     h+=`<tr class="${isMom?"mom":""}${low?" lowform":""}">
       <td><span class="pos ${p.role}">${p.subRole||p.role}</span></td>
       <td>${isMom?"★":""}${p.c.name}</td>
       <td>${r.toFixed(1)}</td>
+      <td>${s.inv||0}</td>
       <td>${s.goals}</td>
       <td>${s.assists}</td>
       <td>${s.duelW}-${s.duelL}</td>
       <td>${p.role==="GK"?s.saves:"-"}</td>
     </tr>`;
   });
-  h+='</table><div class="lg" style="margin-top:4px">★MOM(最優秀選手) / 評価が低い選手は次戦の入れ替えを検討しよう</div>';
+  h+='</table><div class="lg" style="margin-top:4px">★MOM(最優秀選手) / 関与=試合への絡んだ回数 / 評価5.0未満は次戦の入れ替え候補</div>';
   return h;
 }
 function renderStatTab(which){
   if(!_statTeams)return;
   document.querySelectorAll("#statOverlay .statTabs button").forEach(b=>b.classList.toggle("on",b.dataset.team===which));
-  document.getElementById("statOverlayBody").innerHTML=renderStatRows(_statTeams[which]);
+  const team=_statTeams[which], opp=_statTeams[which==="home"?"away":"home"];
+  document.getElementById("statOverlayBody").innerHTML=renderStatRows(team,opp);
 }
 function showStatOverlay(home,away){
   _statTeams={home,away};
