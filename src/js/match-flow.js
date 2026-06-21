@@ -112,6 +112,27 @@ async function vsCutin(a,A,d,D,label){
   document.body.appendChild(o);
   await sleep(1000);o.remove();
 }
+// 固有選手のスキル発動カットイン。awaitで順次再生し、後続(シュート/GOAL等)の演出へ繋げる。
+async function sigCutin(p){
+  if(!p||!p.c||!p.c.skill)return;
+  const o=document.createElement("div");o.className="cutin sig";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner"><div class="fighter fromL"><div class="fph"></div>
+     <div class="fn">${p.c.flag} ${p.c.name}</div></div>
+   <div class="cutskill">✦ ${p.c.skill.name} ✦</div></div>
+   <div class="cutlabel">シグネチャースキル発動!</div>`;
+  o.querySelector(".fph").appendChild(spriteCanvas(p.c,118));
+  const r=document.createElement("div");r.className="goalrays sig";document.body.appendChild(r);
+  setTimeout(()=>r.remove(),1300);
+  const wrap=document.querySelector(".wrap");
+  if(wrap){wrap.classList.add("shake");setTimeout(()=>wrap.classList.remove("shake"),500);}
+  document.body.appendChild(o);
+  await sleep(1150);o.remove();
+}
+// 固有選手の初回スキル発動でカットインを1回だけ再生(awaitで待つ)。非固有/再発動はno-op。
+async function sigCut(p){
+  if(p&&p.c&&p.c.skill&&p.c.sig&&!p._sigCut){p._sigCut=true;await sigCutin(p);}
+}
 async function wordCutin(p,T,word,gold,ms){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
@@ -144,6 +165,7 @@ async function tickAsync(){
   if(homeAtt&&M.away.style==="long"&&Math.random()<0.22){homeAtt=false;feed("🔴 相手のロングカウンター!","chance");}
   const T=homeAtt?M.home:M.away;
   const dir=dirOf(T);
+  await auraSkill(T,"mid",0.12); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   // ビルドアップ:保持側の選手へパス
   const c1=pickW(T.players.filter(p=>p.role!=="GK"),p=>p.role==="MF"?2:p.role==="DF"?1:1.4);
   c1.stat.inv++;

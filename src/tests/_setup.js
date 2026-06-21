@@ -21,7 +21,14 @@ function mkEl() {
 }
 function mockCanvas() {
   const c = mkEl(); c.width = 0; c.height = 0;
-  c.getContext = () => ({ fillStyle: "", imageSmoothingEnabled: false, fillRect(){}, drawImage(){} });
+  c.getContext = () => ({
+    fillStyle: "", strokeStyle: "", font: "", textAlign: "", textBaseline: "",
+    lineWidth: 1, globalAlpha: 1, imageSmoothingEnabled: false,
+    fillRect(){}, strokeRect(){}, clearRect(){}, drawImage(){},
+    fillText(){}, strokeText(){}, beginPath(){}, closePath(){},
+    moveTo(){}, lineTo(){}, arc(){}, fill(){}, stroke(){}, save(){}, restore(){},
+    translate(){}, rotate(){}, scale(){},
+  });
   return c;
 }
 

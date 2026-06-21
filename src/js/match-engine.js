@@ -142,7 +142,21 @@ function feed(msg,cls){
   const d=document.createElement("div");if(cls)d.className=cls;d.innerHTML=msg;
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
-function skillFeed(p){if(p.c.skill)feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");}
+function skillFeed(p){ // 実況テキストのみ(カットインは sigCut が担当)
+  if(!p.c.skill)return;
+  feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");
+}
+// 固有選手のスキル発動を実況+カットインで明示(カットインは await で順次再生)
+async function skillHit(p){if(p){skillFeed(p);if(typeof sigCut==="function")await sigCut(p);}}
+// チーム系スキル(teamChance/teamDef/mid)を、意味的に妥当な局面で「発動」として明示する。
+// 勝敗ロジックには影響しない演出専用(係数自体は eff/recalcAuras 側で常時掛かっている)。
+async function auraSkill(T,key,prob){
+  if(!T||Math.random()>=prob)return;
+  const hs=T.players.filter(p=>fx(p)[key]);
+  if(hs.length)await skillHit(rnd(hs));
+}
+// 指定fxキーのいずれかを持つ選手のスキルを明示(MFのtec/mid系をビルドアップ/連携で出す)
+async function skillAny(p,keys){if(p&&p.c.skill&&keys.some(k=>fx(p)[k]))await skillHit(p);}
 
 // ================= 攻撃シーケンス =================
 async function maybeVs(a,A,d,D,label){
@@ -152,6 +166,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
   atk.stat.shots++;
   const gk=pickGK(D);
   atk.stat.inv++;gk.stat.inv++;
+  await auraSkill(A,"teamChance",0.28); // 決定機を演出した司令塔役(teamChance)の発動を明示
   const fxA=fx(atk),fxG=fx(gk);
   const dir=dirOf(A),gx=goalXOf(A);
   const sx=fx0!=null?fx0:curP(atk).x, sy=fy0!=null?fy0:curP(atk).y;
@@ -181,7 +196,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
     if(assist)assist.stat.assists++;
     document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
     feed(`⚽ ゴーーール!!<b>${atk.c.name}</b>が${header?"ヘディングで":""}決めた!(${header?"力"+atk.c.pow:"攻"+atk.c.off})`,"goal");
-    if(fxA.shoot)skillFeed(atk);
+    if(fxA.shoot)await skillHit(atk); // スキルカットイン → GOAL演出へ繋ぐ
     await wordCutin(atk,A,"GOAL!!!",true,1450);
     await kickoffReset();                          // 全員定位置→キックオフ
   }else{
@@ -189,7 +204,8 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
     await ballTo(gx-dir*1,gy,0.22,"linear");
     movePlayer(gk,gx-dir*1,gy,0.18);               // GKが触る
     feed(`GK ${gk.c.name}(守${gk.c.def})がストップ!`);
-    if(fxG.save)skillFeed(gk);
+    if(fxG.save)await skillHit(gk);
+    await auraSkill(D,"teamDef",0.42);              // 守備陣を統率する teamDef の発動を明示
     await wordCutin(gk,D,"SAVE!!",false,720);
     await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
   }
@@ -218,7 +234,7 @@ async function attackEvent(A,D,min){
       movePlayer(w,gx-dir*10,wy,0.45);
       await ballTo(gx-dir*11,wy,0.45);              // 縦に突破
       feed(`${who}🏃 サイド突破!<b>${w.c.name}</b>(速${w.c.spd}・技${w.c.tec})が${d.c.name}を振り切った!`,"chance");
-      if(fx(w).duelSpd)skillFeed(w);
+      if(fx(w).duelSpd)await skillHit(w);
       const t=pickTarget(A), m=pickDefender(D);
       t.stat.inv++;m.stat.inv++;
       const cx2=gx-dir*7, cy2=42+ri(0,16);
@@ -232,16 +248,16 @@ async function attackEvent(A,D,min){
       if(tSc>mSc*TH.cross){
         t.stat.duelW++;
         feed(`クロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が${m.c.name}(力${m.c.pow})に競り勝った!`,"chance");
-        if(fx(t).duelPow)skillFeed(t);
+        if(fx(t).duelPow)await skillHit(t);
         await tryShot(t,A,D,min,true,cx2,cy2,w);
       }else{
         t.stat.duelL++;m.stat.duelW++;
-        feed(`クロスは${m.c.name}(力${m.c.pow})が跳ね返した!`);if(fx(m).duelD)skillFeed(m);
+        feed(`クロスは${m.c.name}(力${m.c.pow})が跳ね返した!`);if(fx(m).duelD)await skillHit(m);
         await ballTo(50+dir*6,cy2+ri(-18,18),0.55); // クリア
       }
     }else{
       w.stat.duelL++;d.stat.duelW++;
-      feed(`${who}🏃 ${w.c.name}のサイド突破 → ${d.c.name}(守${d.c.def}・速${d.c.spd})が対応!`);if(fx(d).duelD)skillFeed(d);
+      feed(`${who}🏃 ${w.c.name}のサイド突破 → ${d.c.name}(守${d.c.def}・速${d.c.spd})が対応!`);if(fx(d).duelD)await skillHit(d);
       await ballTo(50,wy+(wy<50?14:-14),0.5);
     }
   }
@@ -255,6 +271,7 @@ async function attackEvent(A,D,min){
     hot(p);
     if(pSc>cSc*TH.longPass){
       feed(`${who}🚀 <b>${p.c.name}</b>(技${p.c.tec})が最前線へロングフィード!`,"chance");
+      await skillAny(p,["duelTec","mid"]);            // 正確なフィードを通したMFのtec/mid系を明示
       const d=pickDefender(D);
       d.stat.inv++;
       const lx=gx-dir*18, ly=20+ri(0,60);
@@ -270,11 +287,11 @@ async function attackEvent(A,D,min){
         movePlayer(r,gx-dir*8,ly+(50-ly)*0.3,0.35);
         await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);   // 裏に抜けた
         feed(`<b>${r.c.name}</b>(速${r.c.spd})が${d.c.name}(速${d.c.spd})を出し抜いて裏へ抜けた!GKと1対1!`,"chance");
-        if(fx(r).duelSpd)skillFeed(r);
+        if(fx(r).duelSpd)await skillHit(r);
         await tryShot(r,A,D,min,false,null,null,p);
       }else{
         r.stat.duelL++;d.stat.duelW++;
-        feed(`${d.c.name}(速${d.c.spd})が先回りしてクリア!`);if(fx(d).duelD)skillFeed(d);
+        feed(`${d.c.name}(速${d.c.spd})が先回りしてクリア!`);if(fx(d).duelD)await skillHit(d);
         await ballTo(50,ly+ri(-12,12),0.55);
       }
     }else{
@@ -297,6 +314,7 @@ async function attackEvent(A,D,min){
     const prSc=(eff(pr,"def",min,D,A)*0.5+eff(pr,"spd",min,D,A)*0.5)*tfD*rr();
     if(chain>prSc*TH.chain){
       feed(`${who}🔄 <b>${m1.c.name}</b>→<b>${m2.c.name}</b>(技${m1.c.tec}・${m2.c.tec})、細かいパスワークで崩す!`,"chance");
+      await skillAny(m1,["duelTec","mid"]);await skillAny(m2,["duelTec","mid"]); // 連携を司るMFのtec/mid系を明示
       await duel(A,D,min,tfA,tfD,who,TH.shortBonus);
     }else{
       pr.stat.tkl++;
@@ -327,12 +345,12 @@ async function duel(A,D,min,tfA,tfD,who,bonus){
     movePlayer(atk,gx-dir*8,ey+(50-ey)*0.25,0.35);
     await ballTo(gx-dir*9,ey+(50-ey)*0.25,0.3);     // 抜き去る
     feed(`${who}${dt.icon} ${dt.label}! <b>${atk.c.name}</b>(${STAT_LABEL[type]}${atk.c[type]}) vs ${df.c.name}(守${df.c.def})…突破!`,"chance");
-    if(fx(atk)[duelKey])skillFeed(atk);
+    if(fx(atk)[duelKey])await skillHit(atk);
     await tryShot(atk,A,D,min,false);
   }else{
     atk.stat.duelL++;df.stat.duelW++;
     feed(`${who}${dt.icon} ${atk.c.name}の${dt.label} → ${df.c.name}(守${df.c.def})が止めた!`);
-    if(fx(df).duelD)skillFeed(df);
+    if(fx(df).duelD)await skillHit(df);
     await ballTo(ex+dir*9,ey+ri(-8,8),0.5);          // 奪ってクリア
   }
 }
