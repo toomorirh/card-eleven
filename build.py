@@ -69,6 +69,17 @@ def _sig_block():
     return "window.SIG_IMG={%s};" % items
 
 
+def _check_signature_assets():
+    """登録済み signature id に対応する画像ファイルの有無を点検し、未配置を警告する
+    (未配置でも★プレースホルダで動くためビルドは止めない)。"""
+    ids = _registered_sig_ids()
+    have = {f.stem for f in SIG_DIR.iterdir() if f.suffix.lower() in _MIME} if SIG_DIR.is_dir() else set()
+    missing = sorted(ids - have)
+    if missing:
+        print("⚠ 画像未配置のシグネチャー(★プレースホルダ表示):", ", ".join(missing))
+        print("  → tools/crop_signature.py で <id>.png を作成してください。")
+
+
 def _assemble_js():
     """JS本体を結合し、先頭の "use strict"; 直後に SIG_IMG ブロックを差し込む
     (strictモードを保ちつつ、data.js のプリロードより前に SIG_IMG を定義する)。"""
@@ -91,6 +102,7 @@ def _replace_block(html, pattern, new_inner, label):
 
 def main():
     check_only = "--check" in sys.argv
+    _check_signature_assets()
     html = HTML.read_text(encoding="utf-8")
     js_src = _assemble_js()
     css_src = _join("css", CSS_FILES)

@@ -68,9 +68,16 @@ headless Node で動作する検証ハーネス。試合の完走・無限ルー
 実行する任意項目です(数百試合シミュレートするため数分かかります)。
 ```bash
 cd src/tests
-for t in integration hangtest scaletest progtest2 curvetest leaguetest legendtest; do
+for t in integration hangtest scaletest progtest2 curvetest leaguetest legendtest signaturetest; do
   echo -n "$t: "; node $t.js >/dev/null 2>&1 && echo OK || echo FAIL
 done
+```
+`signaturetest` は固有選手(§3.6)の不変条件(6ステ合計100/いずれか20/ポジション整合/type妥当/id重複)を検証します。
+
+### 固有選手(シグネチャー)の追加
+モチーフ画像のクロップツールと手順は [src/assets/signatures/README.md](src/assets/signatures/README.md) を参照。
+```bash
+python tools/crop_signature.py <生ソース.png> <id>   # 中央の1体を切り出して <id>.png 保存
 ```
 
 ## GitHub Pages での公開手順

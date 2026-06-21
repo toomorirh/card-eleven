@@ -24,7 +24,24 @@
 - 画像が未配置でも動作します(★エンブレムのプレースホルダ表示)。
 
 ## 新しい固有選手を追加する手順
-1. `src/js/data.js` の `SIGNATURES` に1要素追加(id/名前/国籍/ポジション/固定ステ/スキル)。
-   - 6ステ合計=100・いずれか1つ以上を20に。
-2. このフォルダに `<id>.png` を置く。
-3. `python build.py` を実行 → ブラウザで確認。
+1. **画像を切り出す**: 生ソース(複数ポーズ)をこのフォルダに置き、クロップツールで1体を抽出。
+   ```bash
+   python tools/crop_signature.py <生ソース.png> <id>            # 中央を切り出して <id>.png 保存
+   python tools/crop_signature.py <生ソース.png> <id> --seg left # 左/右/番号指定も可
+   python tools/crop_signature.py <生ソース.png> <id> --dry-run  # 検出だけ確認(保存なし)
+   ```
+   (手元で切り出し済みなら、そのまま `<id>.png` を置くだけでも可。背景透過推奨。)
+2. **`src/js/data.js` の `SIGNATURES` にエントリ追加**(下のテンプレ参照)。
+   - 不変条件: 6ステ合計=**100** / いずれか1つ以上を**20** / `subGroup(sub)===pos` / `type` はそのposの有効値。
+3. **検証**: `node src/tests/signaturetest.js` で不変条件を機械チェック(合計/20/ポジション/type/id重複)。
+4. **ビルド**: `python build.py`(登録済みidに画像が無ければ警告が出る) → ブラウザで確認。
+
+### SIGNATURES エントリのテンプレート
+```js
+{id:"<id>", name:"<表示名>", flag:"🇽🇽", pos:"FW", sub:"CF", type:"striker",
+ stats:{off:20,def:14,pow:18,tec:14,spd:18,sta:16}, // 合計100・いずれか20
+ skill:{name:"<スキル名>", desc:"<説明>", fx:{shoot:1.4,duelPow:1.3}}},
+```
+- `pos`/`sub`/`type` の対応: pos=GK/DF/MF/FW、sub=§3.4の細分pos、type=§4の各posのタイプ。
+- `fx` の効果キーは §5.1 を参照(shoot/duelSpd/duelPow/duelTec/duelD/save/mid/teamChance/teamDef/iron/clutch/losing/miracle)。
+- 国旗が `NATIONS` に無い国は `data.js` の `NATIONS` に `"🇽🇽":"国名"` を追加(国名表示・ケミストリー用)。
