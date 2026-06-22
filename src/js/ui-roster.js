@@ -1,4 +1,16 @@
 // ================= カード描画 =================
+// タイトル画面のヒーロー: 固有選手をランダムに1名、大きく表示して魅力を見せる
+function renderTitleHero(){
+  const el=document.getElementById("titleHero");if(!el)return;
+  const list=(typeof SIGNATURES!=="undefined")?SIGNATURES:[];
+  if(!list.length){el.textContent="🎴";return;}
+  const c=makeSignature(rnd(list).id);
+  el.innerHTML="";
+  el.appendChild(spriteCanvas(c,150));
+  const cap=document.createElement("div");cap.className="thero-cap";
+  cap.innerHTML=`${c.flag} <b>${c.name}</b>`;
+  el.appendChild(cap);
+}
 // 6ステの六角レーダー(背景)。頂点順: OF(上)→DF→PO→TE→SP→ST(時計回り)
 function radarSVG(c){
   const order=["off","def","pow","tec","spd","sta"],R=42,C=50;
@@ -89,6 +101,16 @@ function renderPitch(){
     el.innerHTML=mx>=3
       ?`🤝 ケミストリー: ${nat} ${natName(nat)}勢 ${mx}人 → チーム能力 <b style="color:var(--gold)">+${pct}%</b>`
       :`🤝 ケミストリー: 同じ国籍を3人以上揃えるとチーム能力アップ(現在 最多${mx}人)`;
+  }
+  // 自チームの戦力(平均OVR / TOTAL OVR)。配置済みカードの6ステ合計で算出。
+  const ov=document.getElementById("teamOvr");
+  if(ov){
+    const placed=FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);
+    if(placed.length){
+      const tot=placed.reduce((s,c)=>s+total(c),0);
+      const avg=Math.round(tot/placed.length);
+      ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
+    }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
 }
 function openPicker(i,sub){

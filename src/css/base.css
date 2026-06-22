@@ -123,9 +123,18 @@ canvas.sprite{image-rendering:auto}
 .pitch::after{content:"";position:absolute;left:4%;right:4%;top:50%;border-top:2px solid var(--line)}
 .pitch .circle{position:absolute;left:50%;top:50%;width:24%;aspect-ratio:1;border:2px solid var(--line);
   border-radius:50%;transform:translate(-50%,-50%)}
-/* スカウト(対戦相手プレビュー)のフォーメーション表示 */
-.scoutpitch{max-width:260px;margin:0 auto}
-#scoutModal .sheet{max-height:88vh}
+/* 偵察(対戦相手プレビュー): 画面高に合わせたフルサイズのフォーメーション表示(スクロールなし) */
+#scoutModal .sheet{max-width:520px;max-height:92vh;overflow:hidden}
+.scoutpitch{width:min(90vw,51vh);aspect-ratio:3/4;margin:4px auto}
+/* ステージカード: 情報(タップで偵察) + KickOffボタン1つ */
+.lc-info{flex:1;min-width:0;cursor:pointer}
+.lc-desc{font-size:10px;color:#8fa3b8;margin-top:3px;line-height:1.5}
+.scout-hint{font-size:9px;color:var(--cyan);border:1px solid #2a5a66;padding:0 4px;margin-left:4px;vertical-align:middle}
+.ko-btn{width:auto!important;margin:0 0 0 8px!important;padding:9px 16px!important;flex:0 0 auto;font-size:14px}
+/* 自チーム戦力(編成画面) */
+.teamovr{font-size:13px;color:var(--ink);text-align:center;margin:2px 0 4px;font-weight:700}
+.teamovr b{color:var(--gold)}
+.teamovr .ovsub{font-size:10px;color:#8fa3b8;font-weight:400}
 .sslot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;z-index:2}
 .sslot .pos{font-size:8px;font-weight:900;padding:0 4px;border-radius:4px;color:#0c1626;line-height:1.45}
 .sslot .ssp{display:flex;justify-content:center}

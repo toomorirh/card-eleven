@@ -1,20 +1,30 @@
-// ================= リーグ =================
+// ================= リーグ(ステージ攻略) =================
+// クラブの平均OVR(固定ロスターの6ステ合計平均)。seed固定なので毎回同じ=偵察=本番と一致。
+function clubAvgOVR(club){
+  const t=oppTeam(club.lv,club);
+  const tot=t.players.reduce((s,p)=>s+p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta,0);
+  return Math.round(tot/t.players.length);
+}
 function renderLeague(){
   const l=document.getElementById("leagueList");l.innerHTML="";
   CLUBS.forEach((club,i)=>{
     const {name,lv,form}=club;
-    const d=document.createElement("div");d.className="league-card"+(i<S.cleared?" done":"");
     const locked=i>S.cleared;
-    const ctr=FORM_COUNTER[form];
-    const hint=locked?'<div class="lv">🔒 攻略すると相性が判明</div>'
-      :`<div class="lv">陣形【${form}】 / 💡有効:${STYLE_LABEL[ctr.best]}</div>`;
-    d.innerHTML=`<div><div class="ln">${i<S.cleared?"✅ ":""}${locked?"🔒 ":""}${name}</div>
-      <div class="lv">強さ Lv.${lv} / 勝利報酬 🪙${100+lv*40}</div>${hint}</div>`;
-    const b=document.createElement("button");b.className="btn";b.style.cssText="width:auto;padding:8px 16px;margin:0";
-    b.textContent=i<S.cleared?"再戦":"挑戦";
-    b.disabled=locked;
-    b.onclick=()=>openScout(i);   // タップ→相手プレビュー→試合開始
-    d.appendChild(b);
+    const d=document.createElement("div");d.className="league-card"+(i<S.cleared?" done":"");
+    if(locked){
+      d.innerHTML=`<div class="lc-info"><div class="ln">🔒 ${name}</div>
+        <div class="lv">前のクラブを攻略するとデータ開放</div></div>`;
+    }else{
+      const avg=clubAvgOVR(club), reward=TUNING.reward.base+lv*TUNING.reward.perLv;
+      d.innerHTML=`<div class="lc-info">
+        <div class="ln">${i<S.cleared?"✅ ":""}${name} <span class="scout-hint">🔍偵察</span></div>
+        <div class="lv">平均OVR <b style="color:var(--gold)">${avg}</b> ／ 陣形 <b>${form}</b> ／ 報酬 🪙${reward}</div>
+        <div class="lc-desc">${FORM_DESC[form]||""}</div></div>`;
+      const info=d.querySelector(".lc-info");info.onclick=()=>openScout(i); // チーム名(情報)タップで偵察
+      const ko=document.createElement("button");ko.className="btn ko-btn";ko.textContent="KickOff";
+      ko.onclick=()=>startMatch(i);
+      d.appendChild(ko);
+    }
     l.appendChild(d);
   });
   if(S.cleared>=CLUBS.length){
@@ -22,13 +32,15 @@ function renderLeague(){
     l.prepend(w);
   }
 }
-// 対戦相手プレビュー(スカウト): クラブの固定ロスターを「フォーメーション」で可視化(数値はOVRのみ)
+// 偵察(事前調査): 相手の固定ロスターをフルサイズのフォーメーション図で表示(数値はOVRのみ)。
+// 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。
 function openScout(idx){
-  const club=CLUBS[idx], ctr=FORM_COUNTER[club.form];
+  const club=CLUBS[idx];
   const away=oppTeam(club.lv,club);            // seed固定なのでプレビュー=本番と同一の11人
-  document.getElementById("scoutTitle").textContent=`偵察:${club.name} (Lv.${club.lv})`;
+  const avg=clubAvgOVR(club);
+  document.getElementById("scoutTitle").textContent=`偵察: ${club.name}`;
   document.getElementById("scoutInfo").innerHTML=
-    `陣形【${club.form}】 / 💡有効:${STYLE_LABEL[ctr.best]}・通じにくい:${STYLE_LABEL[ctr.worst]}`;
+    `平均OVR <b style="color:var(--gold)">${avg}</b> ／ 陣形 <b>${club.form}</b><br><span class="lc-desc">${FORM_DESC[club.form]||""}</span>`;
   const wrap=document.getElementById("scoutList");wrap.innerHTML="";
   const pitch=document.createElement("div");pitch.className="pitch scoutpitch";
   pitch.innerHTML='<div class="circle"></div>';
@@ -38,16 +50,12 @@ function openScout(idx){
     s.style.left=p.x+"%";s.style.top=p.y+"%";
     s.innerHTML=`<span class="pos ${p.role}">${p.subRole||p.role}</span>
       <div class="ssp"></div><span class="sovr">${ovr}</span>`;
-    s.querySelector(".ssp").appendChild(spriteCanvas(p.c,32));
+    s.querySelector(".ssp").appendChild(spriteCanvas(p.c,38));
     s.onclick=()=>{const base=`${p.c.flag} ${p.c.name}(${p.c.sub})`;toast(p.c.skill?`${base}|【${p.c.skill.name}】${p.c.skill.desc}`:base);};
     pitch.appendChild(s);
   });
   wrap.appendChild(pitch);
-  document.getElementById("scoutStart").onclick=()=>{
-    document.getElementById("scoutModal").classList.remove("on");
-    startMatch(idx);
-  };
-  document.getElementById("scoutModal").classList.add("on");
+  document.getElementById("scoutModal").classList.add("on"); // 情報専用(試合開始はステージのKickOffから)
 }
 document.getElementById("scoutClose").onclick=()=>document.getElementById("scoutModal").classList.remove("on");
 

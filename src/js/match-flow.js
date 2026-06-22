@@ -268,9 +268,8 @@ function startMatch(idx){
   buildField();
   feed(`⚽ キックオフ! vs ${name}(Lv.${lv})`);
   feed(`相手のフォーメーション:【${form}】`);
-  feed(`相手の戦術:${STYLE_LABEL[away.style]}`);
-  const ctr=FORM_COUNTER[form];
-  if(ctr)feed(`💡 この陣形には ${STYLE_LABEL[ctr.best]} が有効(+${Math.round((COUNTER_BONUS-1)*100)}%) / ${STYLE_LABEL[ctr.worst]} は通じにくい(−${Math.round((1-COUNTER_PENALTY)*100)}%)`,"chance");
+  if(FORM_DESC[form])feed(`📋 ${FORM_DESC[form]}`,"chance");
+  feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.rar==="sr"||p.c.rar==="l");
   if(srs.length)feed(`⚠ 要注意:相手の${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);

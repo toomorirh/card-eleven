@@ -71,6 +71,8 @@ function show(s){
   const wrap=document.querySelector(".wrap");
   if(s==="title"){wrap.classList.remove("no-title");}
   else{wrap.classList.add("no-title");}
+  document.body.classList.toggle("on-title",s==="title"); // タイトル中は下部メニュー/コインを隠す
+  if(s==="title")renderTitleHero();
   if(s==="team")renderPitch();if(s==="coll")renderColl();if(s==="home")renderLeague();
   if(s==="gacha")renderGacha();
 }
