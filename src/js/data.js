@@ -234,15 +234,16 @@ function counterFactor(style,form){
 //   flags  : [国旗,...] テーマ国籍プール(相手選手の国籍をここから抽選。演出+ケミストリー)
 //   ace    : 固有選手id。指定するとFW枠の1名をその固有選手にする(=意図的な難度UP。現行クラブは未使用)
 // seed は「ランダム平均=現状の強さ」に近い代表編成になるよう較正済み(偏差大のLv1/6/7/8のみ調整)。
+// クラブ名は架空のユーロクラブ風(実在クラブ名は使用しない)。lv/form/seedは据え置き=強さ・ロスター不変。
 const CLUBS=[
-  {name:"FCバンビーノ",   lv:1, form:"4-4-2",   seed:1013},
-  {name:"コバルト水戸海", lv:2, form:"5-3-2",   seed:1002},
-  {name:"レッドファング", lv:3, form:"4-3-1-2", seed:1003},
-  {name:"AC月光",         lv:4, form:"4-2-3-1", seed:1004},
-  {name:"ヴェルデ皇国",   lv:5, form:"4-3-3",   seed:1005},
-  {name:"ガラクシア11",   lv:6, form:"5-3-2",   seed:1008},
-  {name:"鋼鉄オルカ",     lv:7, form:"4-3-1-2", seed:1003},
-  {name:"王立クロノス",   lv:8, form:"4-2-3-1", seed:1003},
+  {name:"FCアウレリア",          lv:1, form:"4-4-2",   seed:1013},
+  {name:"レアル・モンクラロ",     lv:2, form:"5-3-2",   seed:1002},
+  {name:"ACヴェントス",          lv:3, form:"4-3-1-2", seed:1003},
+  {name:"アスレティック・ブルン", lv:4, form:"4-2-3-1", seed:1004},
+  {name:"オランピック・サニエ",   lv:5, form:"4-3-3",   seed:1005},
+  {name:"ボルシア・ハーフェン",   lv:6, form:"5-3-2",   seed:1008},
+  {name:"スポルティング・ヴァルデス", lv:7, form:"4-3-1-2", seed:1003},
+  {name:"レアーレ・カステロ",     lv:8, form:"4-2-3-1", seed:1003},
 ];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
@@ -335,6 +336,21 @@ const SIGNATURES=[
   {id:"modric", name:"ルカ・モドリッチ", flag:"🇭🇷", pos:"MF", sub:"CMF", type:"maker",
    stats:{off:15,def:16,pow:15,tec:20,spd:16,sta:18},
    skill:{name:"中盤の指揮者", desc:"支配率とテクニックを掌握。支配率とテクニック勝負を大幅強化", fx:{mid:1.5,duelTec:1.35}}},
+  {id:"neymar", name:"ネイマール", flag:"🇧🇷", pos:"FW", sub:"LWG", type:"dribbler",
+   stats:{off:17,def:16,pow:14,tec:20,spd:18,sta:15},
+   skill:{name:"マジック・ドリブル", desc:"華麗なフェイントで複数を抜き去る。技・速の勝負を大幅強化", fx:{duelTec:1.45,duelSpd:1.3}}},
+  {id:"vandijk", name:"ファン・ダイク", flag:"🇳🇱", pos:"DF", sub:"CB", type:"stopper",
+   stats:{off:14,def:20,pow:18,tec:16,spd:16,sta:16},
+   skill:{name:"不落の壁", desc:"対人守備が極めて強固。守備マッチアップを大幅強化", fx:{duelD:1.55,teamDef:1.12}}},
+  {id:"maldini", name:"パオロ・マルディーニ", flag:"🇮🇹", pos:"DF", sub:"CB", type:"cover",
+   stats:{off:14,def:20,pow:16,tec:17,spd:16,sta:17},
+   skill:{name:"イル・カピターノ", desc:"統率と読みで最終ラインを支配。チーム守備と対人守備を強化", fx:{teamDef:1.3,duelD:1.3}}},
+  {id:"neuer", name:"ノイアー", flag:"🇩🇪", pos:"GK", sub:"GK", type:"sweeper",
+   stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
+   skill:{name:"世界の門番", desc:"驚異的なセービングと統率。セーブとチーム守備を強化", fx:{save:1.6,teamDef:1.12}}},
+  {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler",
+   stats:{off:17,def:15,pow:15,tec:20,spd:18,sta:15},
+   skill:{name:"和製の天才", desc:"技術とスピードで違いを生むアタッカー。技・速の勝負を大幅強化", fx:{duelTec:1.4,duelSpd:1.3}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){

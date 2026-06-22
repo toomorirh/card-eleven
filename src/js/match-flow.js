@@ -345,9 +345,14 @@ async function endMatch(){
   const e=document.getElementById("matchEnd");
   e.innerHTML=`<div class="banner">${msg}</div>`+dropMsg;
   showStatOverlay(M.home,M.away);
-  const b=document.createElement("button");b.className="btn";b.textContent="リーグに戻る";
-  b.onclick=()=>{document.querySelector('[data-s="home"]').click();};
-  e.appendChild(b);
+  const idx=M.idx;
+  const row=document.createElement("div");row.className="row";
+  const rt=document.createElement("button");rt.className="btn";rt.textContent="🔄 リトライ";
+  rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
+  const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="ステージへ戻る";
+  bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
+  row.appendChild(rt);row.appendChild(bk);
+  e.appendChild(row);
   MC=null;
   await save();
 }
