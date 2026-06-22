@@ -1,0 +1,182 @@
+// ================= 試合の描画・演出(DOM/アニメ) =================
+// 俯瞰フィールドの座標変換・選手/ボール移動・カットイン・実況フィード・スキル発動演出。
+// 「何が起きるか(match-core)」と「進行(match-flow)」から呼ばれる表示層。
+const HOME_KIT=["#1565c0","#ffffff"],AWAY_KIT=["#d32f2f","#ffffff"];
+
+function feed(msg,cls){
+  const f=document.getElementById("feed");
+  const d=document.createElement("div");if(cls)d.className=cls;d.innerHTML=msg;
+  f.appendChild(d);f.scrollTop=f.scrollHeight;
+}
+
+// ===== 俯瞰フィールド(動的シミュレーションの可視化) =====
+function fieldPos(p){ // フォーメーション定位置(横ピッチ座標)
+  if(p.fside==="H")return {x:8+(100-p.y)*0.40, y:10+p.x*0.80};
+  return {x:92-(100-p.y)*0.40, y:90-p.x*0.80};
+}
+const clX=x=>Math.max(3,Math.min(97,x)), clY=y=>Math.max(7,Math.min(93,y));
+function toScreen(x,y){ // 内部(攻撃軸x,横y) → 画面(縦ピッチ left,top)
+  return {sx:6+y*0.88, sy:97-x*0.94};
+}
+function setPos(el,x,y,dur){
+  const s=toScreen(x,y);
+  el.style.transition=`left ${dur}s steps(7,end), top ${dur}s steps(7,end)`;
+  el.style.left=s.sx+"%";el.style.top=s.sy+"%";
+}
+function curP(p){return p.cur||(p.cur=fieldPos(p));}
+function movePlayer(p,x,y,dur){
+  if(!p.el)return;
+  x=clX(x);y=clY(y);p.cur={x,y};setPos(p.el,x,y,dur);
+}
+async function ballTo(x,y,dur,ease){ // ボールを実際に移動(待ち合わせ可能)
+  const fb=document.getElementById("fball");
+  x=clX(x);y=clY(y);
+  const tm=ease==="linear"?"steps(4,end)":"steps(6,end)";
+  const s=toScreen(x,y);
+  fb.style.transition=`left ${dur}s ${tm}, top ${dur}s ${tm}`;
+  fb.style.left=s.sx+"%";fb.style.top=s.sy+"%";
+  if(MC){MC.bx=x;MC.by=y;MC.ball=x;}
+  await sleep(dur*1000);
+}
+const dirOf=T=>T.side==="H"?1:-1;       // 攻める方向
+const goalXOf=T=>T.side==="H"?94:6;     // 攻め込む先のゴールx
+function buildField(){
+  const fv=document.getElementById("fieldview");
+  fv.querySelectorAll(".tok").forEach(e=>e.remove());
+  const mk=p=>{
+    const t=document.createElement("div");t.className="tok";
+    const ring=document.createElement("div");ring.className="ring "+p.fside;
+    t.appendChild(ring);
+    t.appendChild(spriteCanvas(p.c,26));
+    fv.appendChild(t);p.el=t;
+    p.cur=fieldPos(p);
+    setPos(t,p.cur.x,p.cur.y,0);
+  };
+  MC.home.players.forEach(mk);
+  MC.away.players.forEach(mk);
+  const fb=document.getElementById("fball");
+  const s0=toScreen(50,50);
+  fb.style.transition="none";fb.style.left=s0.sx+"%";fb.style.top=s0.sy+"%";
+  MC.bx=50;MC.by=50;
+}
+function laneY(p){return p.fside==="H"?10+p.x*0.80:90-p.x*0.80;}
+function updateField(){ // 陣形ブロックがボールに追従して全員が敵陣⇔自陣をスライド
+  const M=MC;if(!M)return;
+  [...M.home.players,...M.away.players].forEach(p=>{
+    if(!p.el)return;
+    const ty=typeOf(p.c);
+    const ballT=p.fside==="H"?M.bx:100-M.bx;        // チーム座標系のボール位置
+    const front=Math.min(90,Math.max(45,ballT+16)); // 最前線
+    const back=Math.min(58,Math.max(10,ballT-34));  // 最終ライン
+    let xT,y;
+    if(p.role==="GK"){
+      xT=Math.min(26,Math.max(5,back-6+ty.adv*0.7)); // スイーパーは高め
+      y=50+(M.by-50)*0.3;
+    }else{
+      const depth=Math.min(1,Math.max(0,(91-p.y)/73)); // GK=0..FW=1
+      xT=back+depth*(front-back)+ty.adv;
+      y=laneY(p)+(laneY(p)<50?-1:1)*(ty.wide||0)*0.6;
+      y+=(M.by-y)*0.12;                                // コンパクトネス
+    }
+    let x=p.fside==="H"?xT:100-xT;
+    if(p.role!=="GK"){
+      const dx=M.bx-x,dy=M.by-y,dist=Math.hypot(dx,dy);
+      if(dist<26){const k=(26-dist)/26*ty.chase;x+=dx*k;y+=dy*k;}
+      x+=(Math.random()*2-1)*ty.roam;
+      y+=(Math.random()*2-1)*ty.roam*1.3;
+    }
+    movePlayer(p,x,y,0.7);
+  });
+  // オフザボールの飛び出し
+  const all=[...M.home.players,...M.away.players].filter(p=>p.el&&p.role!=="GK");
+  for(let k=0;k<2;k++){
+    const p=pickW(all,q=>typeOf(q.c).run||0.2);
+    if(!p)continue;
+    const dir=p.fside==="H"?1:-1;
+    movePlayer(p,curP(p).x+dir*ri(4,9),curP(p).y+ri(-7,7),0.55);
+  }
+}
+async function kickoffReset(){ // ゴール後:全員定位置→センターサークルへ
+  if(!MC)return;
+  [...MC.home.players,...MC.away.players].forEach(p=>{
+    const b=fieldPos(p);movePlayer(p,b.x,b.y,0.8);
+  });
+  await ballTo(50,50,0.7);
+}
+function hot(p,ms){
+  if(!p||!p.el)return;
+  p.el.classList.add("hot");
+  setTimeout(()=>p.el&&p.el.classList.remove("hot"),ms||1600);
+}
+
+// ===== カットイン =====
+async function vsCutin(a,A,d,D,label){
+  const o=document.createElement("div");o.className="cutin";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner">
+    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
+    <div class="vsmark">VS</div>
+    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.name}</div><div class="fst">${d.c.skill?"✦"+d.c.skill.name:""}</div></div>
+   </div><div class="cutlabel">${label}</div>`;
+  const ph=o.querySelectorAll(".fph");
+  ph[0].appendChild(spriteCanvas(a.c,92));
+  ph[1].appendChild(spriteCanvas(d.c,92));
+  document.body.appendChild(o);
+  await sleep(1000);o.remove();
+}
+// 固有選手のスキル発動カットイン。awaitで順次再生し、後続(シュート/GOAL等)の演出へ繋げる。
+async function sigCutin(p){
+  if(!p||!p.c||!p.c.skill)return;
+  const o=document.createElement("div");o.className="cutin sig";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner"><div class="fighter fromL"><div class="fph"></div>
+     <div class="fn">${p.c.flag} ${p.c.name}</div></div>
+   <div class="cutskill">✦ ${p.c.skill.name} ✦</div></div>
+   <div class="cutlabel">シグネチャースキル発動!</div>`;
+  o.querySelector(".fph").appendChild(spriteCanvas(p.c,118));
+  const r=document.createElement("div");r.className="goalrays sig";document.body.appendChild(r);
+  setTimeout(()=>r.remove(),1300);
+  const wrap=document.querySelector(".wrap");
+  if(wrap){wrap.classList.add("shake");setTimeout(()=>wrap.classList.remove("shake"),500);}
+  document.body.appendChild(o);
+  await sleep(1150);o.remove();
+}
+// 固有選手の初回スキル発動でカットインを1回だけ再生(awaitで待つ)。非固有/再発動はno-op。
+async function sigCut(p){
+  if(p&&p.c&&p.c.skill&&p.c.sig&&!p._sigCut){p._sigCut=true;await sigCutin(p);}
+}
+async function wordCutin(p,T,word,gold,ms){
+  const o=document.createElement("div");o.className="cutin";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.name}</div></div>
+   <div class="cutword${gold?" gold":""}">${word}</div></div>`;
+  o.querySelector(".fph").appendChild(spriteCanvas(p.c,gold?100:84));
+  if(gold){
+    const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);
+    setTimeout(()=>r.remove(),1450);
+    document.querySelector(".wrap").classList.add("shake");
+    setTimeout(()=>document.querySelector(".wrap").classList.remove("shake"),550);
+  }
+  document.body.appendChild(o);
+  await sleep(ms);o.remove();
+}
+async function maybeVs(a,A,d,D,label){
+  if(["sr","l"].includes(a.c.rar)||["sr","l"].includes(d.c.rar)||Math.random()<0.18)await vsCutin(a,A,d,D,label);
+}
+
+// ===== スキル発動の明示(実況テキスト + 固有カットイン) =====
+function skillFeed(p){ // 実況テキストのみ(カットインは sigCut が担当)
+  if(!p.c.skill)return;
+  feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");
+}
+// 固有選手のスキル発動を実況+カットインで明示(カットインは await で順次再生)
+async function skillHit(p){if(p){skillFeed(p);if(typeof sigCut==="function")await sigCut(p);}}
+// チーム系スキル(teamChance/teamDef/mid)を、意味的に妥当な局面で「発動」として明示する。
+// 勝敗ロジックには影響しない演出専用(係数自体は eff/recalcAuras 側で常時掛かっている)。
+async function auraSkill(T,key,prob){
+  if(!T||Math.random()>=prob)return;
+  const hs=T.players.filter(p=>fx(p)[key]);
+  if(hs.length)await skillHit(rnd(hs));
+}
+// 指定fxキーのいずれかを持つ選手のスキルを明示(MFのtec/mid系をビルドアップ/連携で出す)
+async function skillAny(p,keys){if(p&&p.c.skill&&keys.some(k=>fx(p)[k]))await skillHit(p);}

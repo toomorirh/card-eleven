@@ -84,6 +84,22 @@ const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};
 const STAT_COL={off:"#ff6b6b",def:"#5db4ff",pow:"#ffae57",tec:"#7fdb8e",spd:"#4fd6e0",sta:"#c79bff"}; // ステータス別ゲージ色
 const STAT_SHORT={off:"OF",def:"DF",pow:"PO",tec:"TE",spd:"SP",sta:"ST"}; // カード表示用の略称(視認性重視)
 const DUEL_TYPES={spd:{icon:"⚡",label:"スピード勝負"},pow:{icon:"💪",label:"パワー勝負"},tec:{icon:"🎯",label:"テクニック勝負"}};
+const STYLE_LABEL={center:"🎯中央突破",side:"🏃サイドアタック",long:"🚀ロングパス",short:"🔄ショートパス"};
+// ===== 試合エンジンの横断的バランスダイヤル(値の意味はSPEC §6参照) =====
+// バランス調整はまずここを見る。スタイル別の式内ステ配合は各 STYLES シーケンス側に記載。
+// (相性係数 COUNTER_BONUS/PENALTY・キーポジ KEY_MUL・ケミストリーは個別定数のまま)
+const TUNING={
+  rng:{min:0.6,span:0.8},                          // rr()=min+random*span (各スコアに乗る揺らぎ)
+  fatigueMax:0.35,                                 // 90分・sta1での最大消耗率
+  tactic:{atk:1.15,def:0.85},                      // 攻撃シーケンスの戦術補正(攻撃的/守備的)
+  midTactic:{atk:1.05,def:0.92},                   // 支配率の戦術補正
+  midStyle:{short:1.06,long:0.94},                 // 支配率のスタイル補正
+  mid:{tec:0.45,spd:0.3,sta:0.25,mf:1,other:0.32}, // 支配率の能力重み/ポジション重み
+  th:{duel:1.1,gk:0.88,side:0.9,cross:0.78,longPass:0.95,longRace:1.08,chain:0.92,shortBonus:1.12}, // 各判定の閾値
+  aura:{teamChance:0.28,teamDef:0.42,mid:0.12},    // チーム系スキルの発動演出確率
+  reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
+  drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
+};
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性
 const TYPES={

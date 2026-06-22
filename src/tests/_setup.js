@@ -6,8 +6,8 @@ const path = require("path");
 
 const SRC_DIR = path.join(__dirname, "..", "js");
 const JS_FILES = [
-  "data.js", "state.js", "ui-roster.js", "ui-gacha.js",
-  "ui-competition.js", "match-engine.js", "match-flow.js",
+  "data.js", "state.js", "ui-roster.js", "ui-gacha.js", "ui-competition.js",
+  "match-core.js", "match-render.js", "match-flow.js",
 ]; // boot.js は含めない(load().then(...)の自動実行を避け、各テストがE.boot()で明示的に呼ぶ)
 
 function mkEl() {

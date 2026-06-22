@@ -685,6 +685,22 @@ const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};
 const STAT_COL={off:"#ff6b6b",def:"#5db4ff",pow:"#ffae57",tec:"#7fdb8e",spd:"#4fd6e0",sta:"#c79bff"}; // ステータス別ゲージ色
 const STAT_SHORT={off:"OF",def:"DF",pow:"PO",tec:"TE",spd:"SP",sta:"ST"}; // カード表示用の略称(視認性重視)
 const DUEL_TYPES={spd:{icon:"⚡",label:"スピード勝負"},pow:{icon:"💪",label:"パワー勝負"},tec:{icon:"🎯",label:"テクニック勝負"}};
+const STYLE_LABEL={center:"🎯中央突破",side:"🏃サイドアタック",long:"🚀ロングパス",short:"🔄ショートパス"};
+// ===== 試合エンジンの横断的バランスダイヤル(値の意味はSPEC §6参照) =====
+// バランス調整はまずここを見る。スタイル別の式内ステ配合は各 STYLES シーケンス側に記載。
+// (相性係数 COUNTER_BONUS/PENALTY・キーポジ KEY_MUL・ケミストリーは個別定数のまま)
+const TUNING={
+  rng:{min:0.6,span:0.8},                          // rr()=min+random*span (各スコアに乗る揺らぎ)
+  fatigueMax:0.35,                                 // 90分・sta1での最大消耗率
+  tactic:{atk:1.15,def:0.85},                      // 攻撃シーケンスの戦術補正(攻撃的/守備的)
+  midTactic:{atk:1.05,def:0.92},                   // 支配率の戦術補正
+  midStyle:{short:1.06,long:0.94},                 // 支配率のスタイル補正
+  mid:{tec:0.45,spd:0.3,sta:0.25,mf:1,other:0.32}, // 支配率の能力重み/ポジション重み
+  th:{duel:1.1,gk:0.88,side:0.9,cross:0.78,longPass:0.95,longRace:1.08,chain:0.92,shortBonus:1.12}, // 各判定の閾値
+  aura:{teamChance:0.28,teamDef:0.42,mid:0.12},    // チーム系スキルの発動演出確率
+  reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
+  drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
+};
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性
 const TYPES={
@@ -1452,18 +1468,17 @@ document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   if(lg)renderLeagueMode();else renderLeague();
 });
 
-// ================= 試合エンジン =================
+// ================= 試合コア(純粋シミュレーション&バランス・DOM非依存) =================
 // マッチアップの基本は据え置き(バランス検証済みの数値):
 //  支配=中盤の技/速/持、中央=得意勝負、サイド=速技→クロス→力、ロング=技→速の駆けっこ、ショート=技の連携
-const TH={duel:1.1,gk:0.88,side:0.9,cross:0.78,longPass:0.95,longRace:1.08,chain:0.92,shortBonus:1.12};
-const STYLE_LABEL={center:"🎯中央突破",side:"🏃サイドアタック",long:"🚀ロングパス",short:"🔄ショートパス"};
-const HOME_KIT=["#1565c0","#ffffff"],AWAY_KIT=["#d32f2f","#ffffff"];
-let MC=null; // 進行中の試合コンテキスト
+// バランス調整値は data.js の TUNING に集約。ここは「式・選手選出・勝敗判定」の純粋ロジック。
+const TH=TUNING.th;
+let MC=null; // 進行中の試合コンテキスト(描画/進行から参照・更新)
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function fatigue(c,played){
   if(c.skill&&c.skill.fx.iron)return 1;
-  return 1-(Math.min(Math.max(played,0),90)/90)*0.35*(1-(c.sta-1)/19);
+  return 1-(Math.min(Math.max(played,0),90)/90)*TUNING.fatigueMax*(1-(c.sta-1)/19);
 }
 function recalcAuras(t){
   t.teamChance=1;t.teamDef=1;
@@ -1570,6 +1585,7 @@ function situ(p,T,opT,min){
   if(f.losing&&T.score<opT.score)m*=f.losing;
   return m;
 }
+// 有効値: 全マッチアップ・シュート・GK守備の単一集約点(pen×疲労×状況×ケミ×キーポジ)
 function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
   return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1)*km;
@@ -1578,11 +1594,11 @@ function fx(p){return p.c.skill?p.c.skill.fx:{};}
 function midPower(T,opT,min){
   let m=0;
   T.players.forEach(p=>{
-    const w=(p.role==="MF"?1:0.32)*(fx(p).mid||1)*typeOf(p.c).poss;
-    m+=(eff(p,"tec",min,T,opT)*0.45+eff(p,"spd",min,T,opT)*0.3+eff(p,"sta",min,T,opT)*0.25)*w;
+    const w=(p.role==="MF"?TUNING.mid.mf:TUNING.mid.other)*(fx(p).mid||1)*typeOf(p.c).poss;
+    m+=(eff(p,"tec",min,T,opT)*TUNING.mid.tec+eff(p,"spd",min,T,opT)*TUNING.mid.spd+eff(p,"sta",min,T,opT)*TUNING.mid.sta)*w;
   });
-  const tf=T.tactic==="atk"?1.05:T.tactic==="def"?0.92:1;
-  const sf=T.style==="short"?1.06:T.style==="long"?0.94:1;
+  const tf=T.tactic==="atk"?TUNING.midTactic.atk:T.tactic==="def"?TUNING.midTactic.def:1;
+  const sf=T.style==="short"?TUNING.midStyle.short:T.style==="long"?TUNING.midStyle.long:1;
   return m*tf*sf;
 }
 function pickW(list,wfn){
@@ -1600,227 +1616,38 @@ function pickTarget(T){return pickW(T.players.filter(p=>p.role==="FW"||p.role===
 function pickPasser(T){return pickW(T.players.filter(p=>p.role!=="FW"),p=>(p.role==="MF"?2:1)*p.c.tec*(typeOf(p.c).pas||1));}
 function pickPress(T){return pickW(T.players.filter(p=>p.role==="MF"||p.role==="DF"),p=>p.c.spd+p.c.def);}
 function pickGK(T){return T.players.find(p=>p.role==="GK")||T.players[0];}
-const rr=()=>0.6+Math.random()*0.8;
+const rr=()=>TUNING.rng.min+Math.random()*TUNING.rng.span;
+
+// ===== 勝敗判定(純粋関数・DOM/演出/stat更新を持たない) =====
+// 中央1対1の勝敗。攻撃側スコア > 守備側スコア×TH.duel で突破。rr()消費順は aSc→dSc(乱数列を保持)。
+function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){
+  const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
+  const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*rr();
+  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*tfD*rr();
+  return aSc>dSc*TH.duel;
+}
+// シュート vs GK。得点なら true。rr()消費順は sSc→gSc。
+function resolveShot(atk,gk,header,A,D,min){
+  const sBase=header
+    ?eff(atk,"off",min,A,D)*0.45+eff(atk,"pow",min,A,D)*0.55
+    :eff(atk,"off",min,A,D)*0.7+eff(atk,"pow",min,A,D)*0.3;
+  const sSc=sBase*(fx(atk).shoot||1)*rr();
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*rr();
+  return sSc>gSc*TH.gk;
+}
+
+// ================= 試合の描画・演出(DOM/アニメ) =================
+// 俯瞰フィールドの座標変換・選手/ボール移動・カットイン・実況フィード・スキル発動演出。
+// 「何が起きるか(match-core)」と「進行(match-flow)」から呼ばれる表示層。
+const HOME_KIT=["#1565c0","#ffffff"],AWAY_KIT=["#d32f2f","#ffffff"];
 
 function feed(msg,cls){
   const f=document.getElementById("feed");
   const d=document.createElement("div");if(cls)d.className=cls;d.innerHTML=msg;
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
-function skillFeed(p){ // 実況テキストのみ(カットインは sigCut が担当)
-  if(!p.c.skill)return;
-  feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");
-}
-// 固有選手のスキル発動を実況+カットインで明示(カットインは await で順次再生)
-async function skillHit(p){if(p){skillFeed(p);if(typeof sigCut==="function")await sigCut(p);}}
-// チーム系スキル(teamChance/teamDef/mid)を、意味的に妥当な局面で「発動」として明示する。
-// 勝敗ロジックには影響しない演出専用(係数自体は eff/recalcAuras 側で常時掛かっている)。
-async function auraSkill(T,key,prob){
-  if(!T||Math.random()>=prob)return;
-  const hs=T.players.filter(p=>fx(p)[key]);
-  if(hs.length)await skillHit(rnd(hs));
-}
-// 指定fxキーのいずれかを持つ選手のスキルを明示(MFのtec/mid系をビルドアップ/連携で出す)
-async function skillAny(p,keys){if(p&&p.c.skill&&keys.some(k=>fx(p)[k]))await skillHit(p);}
 
-// ================= 攻撃シーケンス =================
-async function maybeVs(a,A,d,D,label){
-  if(["sr","l"].includes(a.c.rar)||["sr","l"].includes(d.c.rar)||Math.random()<0.18)await vsCutin(a,A,d,D,label);
-}
-async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
-  atk.stat.shots++;
-  const gk=pickGK(D);
-  atk.stat.inv++;gk.stat.inv++;
-  await auraSkill(A,"teamChance",0.28); // 決定機を演出した司令塔役(teamChance)の発動を明示
-  const fxA=fx(atk),fxG=fx(gk);
-  const dir=dirOf(A),gx=goalXOf(A);
-  const sx=fx0!=null?fx0:curP(atk).x, sy=fy0!=null?fy0:curP(atk).y;
-  const gy=42+ri(0,16);
-  movePlayer(atk,sx,sy,0.3);
-  movePlayer(gk,gx-dir*2,gy,0.3);     // GKがコースに立つ
-  hot(atk);hot(gk);
-  await wordCutin(atk,A,header?"ヘディング!!":"シュート!!",false,750);
-  const sBase=header
-    ?eff(atk,"off",min,A,D)*0.45+eff(atk,"pow",min,A,D)*0.55
-    :eff(atk,"off",min,A,D)*0.7+eff(atk,"pow",min,A,D)*0.3;
-  const sSc=sBase*(fxA.shoot||1)*rr();
-  const gSc=eff(gk,"def",min,D,A)*(fxG.save||1)*D.teamDef*rr();
-  if(sSc>gSc*TH.gk){
-    if(fxG.miracle&&!gk.um){ // レジェンドGK【奇跡の手】:1試合1回の失点無効化
-      gk.um=true;
-      gk.stat.saves++;
-      await ballTo(gx-dir*1,gy,0.22,"linear");
-      feed(`✨【奇跡の手】発動!!${gk.c.name}がありえない反応で掻き出した!!`,"goal");
-      await wordCutin(gk,D,"MIRACLE!!",true,1200);
-      await ballTo(gx-dir*16,gy+ri(-12,12),0.5);
-      return;
-    }
-    await ballTo(gx+dir*1.5,gy,0.22,"linear");   // ネットに突き刺さる
-    A.score++;
-    atk.stat.goals++;
-    if(assist)assist.stat.assists++;
-    document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
-    feed(`⚽ ゴーーール!!<b>${atk.c.name}</b>が${header?"ヘディングで":""}決めた!(${header?"力"+atk.c.pow:"攻"+atk.c.off})`,"goal");
-    if(fxA.shoot)await skillHit(atk); // スキルカットイン → GOAL演出へ繋ぐ
-    await wordCutin(atk,A,"GOAL!!!",true,1450);
-    await kickoffReset();                          // 全員定位置→キックオフ
-  }else{
-    gk.stat.saves++;
-    await ballTo(gx-dir*1,gy,0.22,"linear");
-    movePlayer(gk,gx-dir*1,gy,0.18);               // GKが触る
-    feed(`GK ${gk.c.name}(守${gk.c.def})がストップ!`);
-    if(fxG.save)await skillHit(gk);
-    await auraSkill(D,"teamDef",0.42);              // 守備陣を統率する teamDef の発動を明示
-    await wordCutin(gk,D,"SAVE!!",false,720);
-    await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
-  }
-}
-async function attackEvent(A,D,min){
-  // tfAに「攻撃スタイル × 相手フォーメーション」の相性係数を畳み込む(全スタイルの主判定に一律適用)
-  const tfA=(A.tactic==="atk"?1.15:A.tactic==="def"?0.85:1)*counterFactor(A.style,D.form);
-  const tfD=D.tactic==="def"?1.15:D.tactic==="atk"?0.85:1;
-  const who=A.side==="A"?"🔴 ":"";
-  const st=A.style;
-  const dir=dirOf(A),gx=goalXOf(A);
-
-  if(st==="side"){ // ウイングがタッチライン際を駆け上がる
-    const w=pickWide(A), d=pickWideDef(D);
-    w.stat.inv++;d.stat.inv++;
-    const wy=curP(w).y<50?12:88;
-    movePlayer(w,50+dir*16,wy,0.5);
-    movePlayer(d,50+dir*24,wy+(wy<50?5:-5),0.5);
-    await ballTo(50+dir*14,wy,0.5);                 // サイドへ展開
-    hot(w);hot(d);
-    await maybeVs(w,A,d,D,"🏃 サイドの仕掛け(速×技)");
-    const aSc=(eff(w,"spd",min,A,D)*0.6+eff(w,"tec",min,A,D)*0.4)*(fx(w).duelSpd||1)*A.teamChance*tfA*rr();
-    const dSc=(eff(d,"def",min,D,A)*0.55+eff(d,"spd",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
-    if(aSc>dSc*TH.side){
-      w.stat.duelW++;
-      movePlayer(w,gx-dir*10,wy,0.45);
-      await ballTo(gx-dir*11,wy,0.45);              // 縦に突破
-      feed(`${who}🏃 サイド突破!<b>${w.c.name}</b>(速${w.c.spd}・技${w.c.tec})が${d.c.name}を振り切った!`,"chance");
-      if(fx(w).duelSpd)await skillHit(w);
-      const t=pickTarget(A), m=pickDefender(D);
-      t.stat.inv++;m.stat.inv++;
-      const cx2=gx-dir*7, cy2=42+ri(0,16);
-      movePlayer(t,cx2-dir*2,cy2,0.4);
-      movePlayer(m,cx2+dir*2,cy2+ri(-4,4),0.4);
-      hot(t);hot(m);
-      await ballTo(cx2,cy2,0.4);                    // クロスが中央へ
-      const crossM=0.72+eff(w,"tec",min,A,D)/20*0.5;
-      const tSc=(eff(t,"pow",min,A,D)*0.55+eff(t,"off",min,A,D)*0.25+eff(t,"spd",min,A,D)*0.2)*(fx(t).duelPow||1)*crossM*rr();
-      const mSc=(eff(m,"pow",min,D,A)*0.5+eff(m,"def",min,D,A)*0.5)*(fx(m).duelD||1)*tfD*rr();
-      if(tSc>mSc*TH.cross){
-        t.stat.duelW++;
-        feed(`クロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が${m.c.name}(力${m.c.pow})に競り勝った!`,"chance");
-        if(fx(t).duelPow)await skillHit(t);
-        await tryShot(t,A,D,min,true,cx2,cy2,w);
-      }else{
-        t.stat.duelL++;m.stat.duelW++;
-        feed(`クロスは${m.c.name}(力${m.c.pow})が跳ね返した!`);if(fx(m).duelD)await skillHit(m);
-        await ballTo(50+dir*6,cy2+ri(-18,18),0.55); // クリア
-      }
-    }else{
-      w.stat.duelL++;d.stat.duelW++;
-      feed(`${who}🏃 ${w.c.name}のサイド突破 → ${d.c.name}(守${d.c.def}・速${d.c.spd})が対応!`);if(fx(d).duelD)await skillHit(d);
-      await ballTo(50,wy+(wy<50?14:-14),0.5);
-    }
-  }
-
-  else if(st==="long"){ // 後方からのロブが前線へ
-    const p=pickPasser(A), r=pickTarget(A), cut=pickPress(D);
-    p.stat.inv++;r.stat.inv++;cut.stat.inv++;
-    await ballTo(curP(p).x,curP(p).y,0.35);          // 後方の起点へ
-    const pSc=eff(p,"tec",min,A,D)*tfA*rr();
-    const cSc=(eff(cut,"spd",min,D,A)*0.5+eff(cut,"def",min,D,A)*0.5)*tfD*rr();
-    hot(p);
-    if(pSc>cSc*TH.longPass){
-      feed(`${who}🚀 <b>${p.c.name}</b>(技${p.c.tec})が最前線へロングフィード!`,"chance");
-      await skillAny(p,["duelTec","mid"]);            // 正確なフィードを通したMFのtec/mid系を明示
-      const d=pickDefender(D);
-      d.stat.inv++;
-      const lx=gx-dir*18, ly=20+ri(0,60);
-      movePlayer(r,lx-dir*2,ly,0.5);
-      movePlayer(d,lx+dir*2,ly+ri(-5,5),0.5);
-      hot(r);hot(d);
-      await ballTo(lx,ly,0.55);                      // ロブが落ちる
-      await maybeVs(r,A,d,D,"🚀 DFラインの裏の駆けっこ(速)");
-      const aSc=eff(r,"spd",min,A,D)*(fx(r).duelSpd||1)*A.teamChance*tfA*rr();
-      const dSc=(eff(d,"spd",min,D,A)*0.55+eff(d,"def",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
-      if(aSc>dSc*TH.longRace){
-        r.stat.duelW++;
-        movePlayer(r,gx-dir*8,ly+(50-ly)*0.3,0.35);
-        await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);   // 裏に抜けた
-        feed(`<b>${r.c.name}</b>(速${r.c.spd})が${d.c.name}(速${d.c.spd})を出し抜いて裏へ抜けた!GKと1対1!`,"chance");
-        if(fx(r).duelSpd)await skillHit(r);
-        await tryShot(r,A,D,min,false,null,null,p);
-      }else{
-        r.stat.duelL++;d.stat.duelW++;
-        feed(`${d.c.name}(速${d.c.spd})が先回りしてクリア!`);if(fx(d).duelD)await skillHit(d);
-        await ballTo(50,ly+ri(-12,12),0.55);
-      }
-    }else{
-      cut.stat.tkl++;
-      feed(`${who}🚀 ロングパスは${cut.c.name}がインターセプト!`);hot(cut);
-      await ballTo(curP(cut).x,curP(cut).y,0.4);
-    }
-  }
-
-  else if(st==="short"){ // 三角パスで崩す
-    const mfs=A.players.filter(p=>p.role==="MF");
-    const m1=mfs.length?rnd(mfs):pickAttacker(A);
-    let m2=mfs.filter(p=>p!==m1);m2=m2.length?rnd(m2):m1;
-    const pr=pickPress(D);
-    m1.stat.inv++;m2.stat.inv++;pr.stat.inv++;
-    hot(m1);hot(m2);
-    await ballTo(curP(m1).x,curP(m1).y,0.3);
-    await ballTo(curP(m2).x+dir*3,curP(m2).y,0.3);   // ワンツー
-    const chain=((eff(m1,"tec",min,A,D)+eff(m2,"tec",min,A,D))/2)*((fx(m1).mid||1)+(fx(m2).mid||1))/2*tfA*rr();
-    const prSc=(eff(pr,"def",min,D,A)*0.5+eff(pr,"spd",min,D,A)*0.5)*tfD*rr();
-    if(chain>prSc*TH.chain){
-      feed(`${who}🔄 <b>${m1.c.name}</b>→<b>${m2.c.name}</b>(技${m1.c.tec}・${m2.c.tec})、細かいパスワークで崩す!`,"chance");
-      await skillAny(m1,["duelTec","mid"]);await skillAny(m2,["duelTec","mid"]); // 連携を司るMFのtec/mid系を明示
-      await duel(A,D,min,tfA,tfD,who,TH.shortBonus);
-    }else{
-      pr.stat.tkl++;
-      feed(`${who}🔄 ${pr.c.name}がパスカット!ショートパスを読まれている`);hot(pr);
-      await ballTo(curP(pr).x,curP(pr).y,0.35);
-    }
-  }
-
-  else await duel(A,D,min,tfA,tfD,who,1);
-}
-async function duel(A,D,min,tfA,tfD,who,bonus){
-  const atk=pickAttacker(A), df=pickDefender(D);
-  atk.stat.inv++;df.stat.inv++;
-  const dir=dirOf(A),gx=goalXOf(A);
-  const ex=gx-dir*16, ey=30+ri(0,40);   // ペナルティエリア手前で勝負
-  movePlayer(atk,ex-dir*3,ey,0.45);
-  movePlayer(df,ex+dir*3,ey+ri(-4,4),0.45);
-  await ballTo(ex-dir*4,ey,0.45);
-  const type=pickW(["spd","pow","tec"],k=>atk.c[k]*atk.c[k]);
-  const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
-  const dt=DUEL_TYPES[type];
-  hot(atk);hot(df);
-  await maybeVs(atk,A,df,D,`${dt.icon} ${dt.label}(${STAT_LABEL[type]}${atk.c[type]} vs 守${df.c.def})`);
-  const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*rr();
-  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*tfD*rr();
-  if(aSc>dSc*TH.duel){
-    atk.stat.duelW++;
-    movePlayer(atk,gx-dir*8,ey+(50-ey)*0.25,0.35);
-    await ballTo(gx-dir*9,ey+(50-ey)*0.25,0.3);     // 抜き去る
-    feed(`${who}${dt.icon} ${dt.label}! <b>${atk.c.name}</b>(${STAT_LABEL[type]}${atk.c[type]}) vs ${df.c.name}(守${df.c.def})…突破!`,"chance");
-    if(fx(atk)[duelKey])await skillHit(atk);
-    await tryShot(atk,A,D,min,false);
-  }else{
-    atk.stat.duelL++;df.stat.duelW++;
-    feed(`${who}${dt.icon} ${atk.c.name}の${dt.label} → ${df.c.name}(守${df.c.def})が止めた!`);
-    if(fx(df).duelD)await skillHit(df);
-    await ballTo(ex+dir*9,ey+ri(-8,8),0.5);          // 奪ってクリア
-  }
-}
-
-// ================= 俯瞰フィールド(動的シミュレーション) =================
+// ===== 俯瞰フィールド(動的シミュレーションの可視化) =====
 function fieldPos(p){ // フォーメーション定位置(横ピッチ座標)
   if(p.fside==="H")return {x:8+(100-p.y)*0.40, y:10+p.x*0.80};
   return {x:92-(100-p.y)*0.40, y:90-p.x*0.80};
@@ -1919,7 +1746,8 @@ function hot(p,ms){
   p.el.classList.add("hot");
   setTimeout(()=>p.el&&p.el.classList.remove("hot"),ms||1600);
 }
-// ================= カットイン =================
+
+// ===== カットイン =====
 async function vsCutin(a,A,d,D,label){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
@@ -1970,6 +1798,225 @@ async function wordCutin(p,T,word,gold,ms){
   document.body.appendChild(o);
   await sleep(ms);o.remove();
 }
+async function maybeVs(a,A,d,D,label){
+  if(["sr","l"].includes(a.c.rar)||["sr","l"].includes(d.c.rar)||Math.random()<0.18)await vsCutin(a,A,d,D,label);
+}
+
+// ===== スキル発動の明示(実況テキスト + 固有カットイン) =====
+function skillFeed(p){ // 実況テキストのみ(カットインは sigCut が担当)
+  if(!p.c.skill)return;
+  feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");
+}
+// 固有選手のスキル発動を実況+カットインで明示(カットインは await で順次再生)
+async function skillHit(p){if(p){skillFeed(p);if(typeof sigCut==="function")await sigCut(p);}}
+// チーム系スキル(teamChance/teamDef/mid)を、意味的に妥当な局面で「発動」として明示する。
+// 勝敗ロジックには影響しない演出専用(係数自体は eff/recalcAuras 側で常時掛かっている)。
+async function auraSkill(T,key,prob){
+  if(!T||Math.random()>=prob)return;
+  const hs=T.players.filter(p=>fx(p)[key]);
+  if(hs.length)await skillHit(rnd(hs));
+}
+// 指定fxキーのいずれかを持つ選手のスキルを明示(MFのtec/mid系をビルドアップ/連携で出す)
+async function skillAny(p,keys){if(p&&p.c.skill&&keys.some(k=>fx(p)[k]))await skillHit(p);}
+
+// ================= 試合進行・攻撃スタイル(オーケストレーション) =================
+// 攻撃スタイルは STYLES レジストリにデータ駆動で定義(新スタイル追加=ここに1エントリ)。
+// 各 run() は「演出(match-render) + 勝敗判定(match-core の resolve*) + stat更新」を組み合わせるシーケンス。
+// 式内のステ配合はスタイル固有なのでインライン(横断的なダイヤルは TUNING)。
+
+const STYLES={
+  // 🎯 中央突破: ペナルティエリア手前の得意勝負(spd/pow/tec)→シュート
+  center:{label:STYLE_LABEL.center, run:async(A,D,min,m)=>{
+    await duel(A,D,min,m.tfA,m.tfD,m.who,1);
+  }},
+  // 🏃 サイドアタック: ウイング突破(速×技)→クロス→ターゲットのヘディング(力)
+  side:{label:STYLE_LABEL.side, run:async(A,D,min,m)=>{
+    const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
+    const w=pickWide(A), d=pickWideDef(D);
+    w.stat.inv++;d.stat.inv++;
+    const wy=curP(w).y<50?12:88;
+    movePlayer(w,50+dir*16,wy,0.5);
+    movePlayer(d,50+dir*24,wy+(wy<50?5:-5),0.5);
+    await ballTo(50+dir*14,wy,0.5);                 // サイドへ展開
+    hot(w);hot(d);
+    await maybeVs(w,A,d,D,"🏃 サイドの仕掛け(速×技)");
+    const aSc=(eff(w,"spd",min,A,D)*0.6+eff(w,"tec",min,A,D)*0.4)*(fx(w).duelSpd||1)*A.teamChance*tfA*rr();
+    const dSc=(eff(d,"def",min,D,A)*0.55+eff(d,"spd",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
+    if(aSc>dSc*TH.side){
+      w.stat.duelW++;
+      movePlayer(w,gx-dir*10,wy,0.45);
+      await ballTo(gx-dir*11,wy,0.45);              // 縦に突破
+      feed(`${who}🏃 サイド突破!<b>${w.c.name}</b>(速${w.c.spd}・技${w.c.tec})が${d.c.name}を振り切った!`,"chance");
+      if(fx(w).duelSpd)await skillHit(w);
+      const t=pickTarget(A), m2=pickDefender(D);
+      t.stat.inv++;m2.stat.inv++;
+      const cx2=gx-dir*7, cy2=42+ri(0,16);
+      movePlayer(t,cx2-dir*2,cy2,0.4);
+      movePlayer(m2,cx2+dir*2,cy2+ri(-4,4),0.4);
+      hot(t);hot(m2);
+      await ballTo(cx2,cy2,0.4);                    // クロスが中央へ
+      const crossM=0.72+eff(w,"tec",min,A,D)/20*0.5;
+      const tSc=(eff(t,"pow",min,A,D)*0.55+eff(t,"off",min,A,D)*0.25+eff(t,"spd",min,A,D)*0.2)*(fx(t).duelPow||1)*crossM*rr();
+      const mSc=(eff(m2,"pow",min,D,A)*0.5+eff(m2,"def",min,D,A)*0.5)*(fx(m2).duelD||1)*tfD*rr();
+      if(tSc>mSc*TH.cross){
+        t.stat.duelW++;
+        feed(`クロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が${m2.c.name}(力${m2.c.pow})に競り勝った!`,"chance");
+        if(fx(t).duelPow)await skillHit(t);
+        await tryShot(t,A,D,min,true,cx2,cy2,w);
+      }else{
+        t.stat.duelL++;m2.stat.duelW++;
+        feed(`クロスは${m2.c.name}(力${m2.c.pow})が跳ね返した!`);if(fx(m2).duelD)await skillHit(m2);
+        await ballTo(50+dir*6,cy2+ri(-18,18),0.55); // クリア
+      }
+    }else{
+      w.stat.duelL++;d.stat.duelW++;
+      feed(`${who}🏃 ${w.c.name}のサイド突破 → ${d.c.name}(守${d.c.def}・速${d.c.spd})が対応!`);if(fx(d).duelD)await skillHit(d);
+      await ballTo(50,wy+(wy<50?14:-14),0.5);
+    }
+  }},
+  // 🚀 ロングパス: 後方からのロブ→裏抜けの駆けっこ(速)→GKと1対1
+  long:{label:STYLE_LABEL.long, run:async(A,D,min,m)=>{
+    const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
+    const p=pickPasser(A), r=pickTarget(A), cut=pickPress(D);
+    p.stat.inv++;r.stat.inv++;cut.stat.inv++;
+    await ballTo(curP(p).x,curP(p).y,0.35);          // 後方の起点へ
+    const pSc=eff(p,"tec",min,A,D)*tfA*rr();
+    const cSc=(eff(cut,"spd",min,D,A)*0.5+eff(cut,"def",min,D,A)*0.5)*tfD*rr();
+    hot(p);
+    if(pSc>cSc*TH.longPass){
+      feed(`${who}🚀 <b>${p.c.name}</b>(技${p.c.tec})が最前線へロングフィード!`,"chance");
+      await skillAny(p,["duelTec","mid"]);            // 正確なフィードを通したMFのtec/mid系を明示
+      const d=pickDefender(D);
+      d.stat.inv++;
+      const lx=gx-dir*18, ly=20+ri(0,60);
+      movePlayer(r,lx-dir*2,ly,0.5);
+      movePlayer(d,lx+dir*2,ly+ri(-5,5),0.5);
+      hot(r);hot(d);
+      await ballTo(lx,ly,0.55);                      // ロブが落ちる
+      await maybeVs(r,A,d,D,"🚀 DFラインの裏の駆けっこ(速)");
+      const aSc=eff(r,"spd",min,A,D)*(fx(r).duelSpd||1)*A.teamChance*tfA*rr();
+      const dSc=(eff(d,"spd",min,D,A)*0.55+eff(d,"def",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
+      if(aSc>dSc*TH.longRace){
+        r.stat.duelW++;
+        movePlayer(r,gx-dir*8,ly+(50-ly)*0.3,0.35);
+        await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);   // 裏に抜けた
+        feed(`<b>${r.c.name}</b>(速${r.c.spd})が${d.c.name}(速${d.c.spd})を出し抜いて裏へ抜けた!GKと1対1!`,"chance");
+        if(fx(r).duelSpd)await skillHit(r);
+        await tryShot(r,A,D,min,false,null,null,p);
+      }else{
+        r.stat.duelL++;d.stat.duelW++;
+        feed(`${d.c.name}(速${d.c.spd})が先回りしてクリア!`);if(fx(d).duelD)await skillHit(d);
+        await ballTo(50,ly+ri(-12,12),0.55);
+      }
+    }else{
+      cut.stat.tkl++;
+      feed(`${who}🚀 ロングパスは${cut.c.name}がインターセプト!`);hot(cut);
+      await ballTo(curP(cut).x,curP(cut).y,0.4);
+    }
+  }},
+  // 🔄 ショートパス: MF同士のワンツー(技)→連携成立で中央勝負(ボーナス付き)
+  short:{label:STYLE_LABEL.short, run:async(A,D,min,m)=>{
+    const {tfA,tfD,who}=m; const dir=dirOf(A);
+    const mfs=A.players.filter(p=>p.role==="MF");
+    const m1=mfs.length?rnd(mfs):pickAttacker(A);
+    let m2=mfs.filter(p=>p!==m1);m2=m2.length?rnd(m2):m1;
+    const pr=pickPress(D);
+    m1.stat.inv++;m2.stat.inv++;pr.stat.inv++;
+    hot(m1);hot(m2);
+    await ballTo(curP(m1).x,curP(m1).y,0.3);
+    await ballTo(curP(m2).x+dir*3,curP(m2).y,0.3);   // ワンツー
+    const chain=((eff(m1,"tec",min,A,D)+eff(m2,"tec",min,A,D))/2)*((fx(m1).mid||1)+(fx(m2).mid||1))/2*tfA*rr();
+    const prSc=(eff(pr,"def",min,D,A)*0.5+eff(pr,"spd",min,D,A)*0.5)*tfD*rr();
+    if(chain>prSc*TH.chain){
+      feed(`${who}🔄 <b>${m1.c.name}</b>→<b>${m2.c.name}</b>(技${m1.c.tec}・${m2.c.tec})、細かいパスワークで崩す!`,"chance");
+      await skillAny(m1,["duelTec","mid"]);await skillAny(m2,["duelTec","mid"]); // 連携を司るMFのtec/mid系を明示
+      await duel(A,D,min,tfA,tfD,who,TH.shortBonus);
+    }else{
+      pr.stat.tkl++;
+      feed(`${who}🔄 ${pr.c.name}がパスカット!ショートパスを読まれている`);hot(pr);
+      await ballTo(curP(pr).x,curP(pr).y,0.35);
+    }
+  }},
+};
+async function attackEvent(A,D,min){
+  // tfA/tfDに戦術補正 +「攻撃スタイル × 相手フォーメーション」の相性係数を畳み込む
+  const tfA=(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counterFactor(A.style,D.form);
+  const tfD=D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1;
+  const who=A.side==="A"?"🔴 ":"";
+  await (STYLES[A.style]||STYLES.center).run(A,D,min,{tfA,tfD,who});
+}
+// 中央1対1(center/short 共用): 演出 → resolveDuel で判定 → 成否の演出/シュート
+async function duel(A,D,min,tfA,tfD,who,bonus){
+  const atk=pickAttacker(A), df=pickDefender(D);
+  atk.stat.inv++;df.stat.inv++;
+  const dir=dirOf(A),gx=goalXOf(A);
+  const ex=gx-dir*16, ey=30+ri(0,40);   // ペナルティエリア手前で勝負
+  movePlayer(atk,ex-dir*3,ey,0.45);
+  movePlayer(df,ex+dir*3,ey+ri(-4,4),0.45);
+  await ballTo(ex-dir*4,ey,0.45);
+  const type=pickW(["spd","pow","tec"],k=>atk.c[k]*atk.c[k]);
+  const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
+  const dt=DUEL_TYPES[type];
+  hot(atk);hot(df);
+  await maybeVs(atk,A,df,D,`${dt.icon} ${dt.label}(${STAT_LABEL[type]}${atk.c[type]} vs 守${df.c.def})`);
+  if(resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus)){
+    atk.stat.duelW++;
+    movePlayer(atk,gx-dir*8,ey+(50-ey)*0.25,0.35);
+    await ballTo(gx-dir*9,ey+(50-ey)*0.25,0.3);     // 抜き去る
+    feed(`${who}${dt.icon} ${dt.label}! <b>${atk.c.name}</b>(${STAT_LABEL[type]}${atk.c[type]}) vs ${df.c.name}(守${df.c.def})…突破!`,"chance");
+    if(fx(atk)[duelKey])await skillHit(atk);
+    await tryShot(atk,A,D,min,false);
+  }else{
+    atk.stat.duelL++;df.stat.duelW++;
+    feed(`${who}${dt.icon} ${atk.c.name}の${dt.label} → ${df.c.name}(守${df.c.def})が止めた!`);
+    if(fx(df).duelD)await skillHit(df);
+    await ballTo(ex+dir*9,ey+ri(-8,8),0.5);          // 奪ってクリア
+  }
+}
+// シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
+async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
+  atk.stat.shots++;
+  const gk=pickGK(D);
+  atk.stat.inv++;gk.stat.inv++;
+  await auraSkill(A,"teamChance",TUNING.aura.teamChance); // 決定機を演出した司令塔役(teamChance)の発動を明示
+  const fxA=fx(atk),fxG=fx(gk);
+  const dir=dirOf(A),gx=goalXOf(A);
+  const sx=fx0!=null?fx0:curP(atk).x, sy=fy0!=null?fy0:curP(atk).y;
+  const gy=42+ri(0,16);
+  movePlayer(atk,sx,sy,0.3);
+  movePlayer(gk,gx-dir*2,gy,0.3);     // GKがコースに立つ
+  hot(atk);hot(gk);
+  await wordCutin(atk,A,header?"ヘディング!!":"シュート!!",false,750);
+  if(resolveShot(atk,gk,header,A,D,min)){
+    if(fxG.miracle&&!gk.um){ // レジェンドGK【奇跡の手】:1試合1回の失点無効化
+      gk.um=true;
+      gk.stat.saves++;
+      await ballTo(gx-dir*1,gy,0.22,"linear");
+      feed(`✨【奇跡の手】発動!!${gk.c.name}がありえない反応で掻き出した!!`,"goal");
+      await wordCutin(gk,D,"MIRACLE!!",true,1200);
+      await ballTo(gx-dir*16,gy+ri(-12,12),0.5);
+      return;
+    }
+    await ballTo(gx+dir*1.5,gy,0.22,"linear");   // ネットに突き刺さる
+    A.score++;
+    atk.stat.goals++;
+    if(assist)assist.stat.assists++;
+    document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
+    feed(`⚽ ゴーーール!!<b>${atk.c.name}</b>が${header?"ヘディングで":""}決めた!(${header?"力"+atk.c.pow:"攻"+atk.c.off})`,"goal");
+    if(fxA.shoot)await skillHit(atk); // スキルカットイン → GOAL演出へ繋ぐ
+    await wordCutin(atk,A,"GOAL!!!",true,1450);
+    await kickoffReset();                          // 全員定位置→キックオフ
+  }else{
+    gk.stat.saves++;
+    await ballTo(gx-dir*1,gy,0.22,"linear");
+    movePlayer(gk,gx-dir*1,gy,0.18);               // GKが触る
+    feed(`GK ${gk.c.name}(守${gk.c.def})がストップ!`);
+    if(fxG.save)await skillHit(gk);
+    await auraSkill(D,"teamDef",TUNING.aura.teamDef); // 守備陣を統率する teamDef の発動を明示
+    await wordCutin(gk,D,"SAVE!!",false,720);
+    await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
+  }
+}
 
 // ================= 試合進行(非同期ループ) =================
 async function tickAsync(){
@@ -1987,7 +2034,7 @@ async function tickAsync(){
   if(homeAtt&&M.away.style==="long"&&Math.random()<0.22){homeAtt=false;feed("🔴 相手のロングカウンター!","chance");}
   const T=homeAtt?M.home:M.away;
   const dir=dirOf(T);
-  await auraSkill(T,"mid",0.12); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
+  await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   // ビルドアップ:保持側の選手へパス
   const c1=pickW(T.players.filter(p=>p.role!=="GK"),p=>p.role==="MF"?2:p.role==="DF"?1:1.4);
   c1.stat.inv++;
@@ -2050,6 +2097,8 @@ function startMatch(idx){
   if(srs.length)feed(`⚠ 要注意:相手の${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);
   runLoop();
 }
+
+// ================= 試合後スタッツ(オーバーレイ) =================
 let _statTeams=null;
 function renderStatRows(team,opp){
   const rows=team.players.map(p=>({p,r:statRating(p,opp)})).sort((a,b)=>b.r-a.r);
@@ -2103,12 +2152,12 @@ async function endMatch(){
     await save();MC=null;return;
   }
   let msg,reward;
-  if(sh>sa){msg="🏆 勝利!!";reward=100+lv*40;if(M.idx===S.cleared)S.cleared++;}
-  else if(sh===sa){msg="🤝 引き分け";reward=50;}
-  else{msg="😢 敗北…";reward=30;}
+  if(sh>sa){msg="🏆 勝利!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
+  else if(sh===sa){msg="🤝 引き分け";reward=TUNING.reward.draw;}
+  else{msg="😢 敗北…";reward=TUNING.reward.lose;}
   S.coins+=reward;coinUI();
   feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
-  const dropP=sh>sa?0.18:sh===sa?0.08:0.04;
+  const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
   let dropMsg="";
   if(Math.random()<dropP){
     S.legendPacks=(S.legendPacks||0)+1;

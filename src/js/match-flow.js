@@ -1,152 +1,200 @@
-// ================= 俯瞰フィールド(動的シミュレーション) =================
-function fieldPos(p){ // フォーメーション定位置(横ピッチ座標)
-  if(p.fside==="H")return {x:8+(100-p.y)*0.40, y:10+p.x*0.80};
-  return {x:92-(100-p.y)*0.40, y:90-p.x*0.80};
-}
-const clX=x=>Math.max(3,Math.min(97,x)), clY=y=>Math.max(7,Math.min(93,y));
-function toScreen(x,y){ // 内部(攻撃軸x,横y) → 画面(縦ピッチ left,top)
-  return {sx:6+y*0.88, sy:97-x*0.94};
-}
-function setPos(el,x,y,dur){
-  const s=toScreen(x,y);
-  el.style.transition=`left ${dur}s steps(7,end), top ${dur}s steps(7,end)`;
-  el.style.left=s.sx+"%";el.style.top=s.sy+"%";
-}
-function curP(p){return p.cur||(p.cur=fieldPos(p));}
-function movePlayer(p,x,y,dur){
-  if(!p.el)return;
-  x=clX(x);y=clY(y);p.cur={x,y};setPos(p.el,x,y,dur);
-}
-async function ballTo(x,y,dur,ease){ // ボールを実際に移動(待ち合わせ可能)
-  const fb=document.getElementById("fball");
-  x=clX(x);y=clY(y);
-  const tm=ease==="linear"?"steps(4,end)":"steps(6,end)";
-  const s=toScreen(x,y);
-  fb.style.transition=`left ${dur}s ${tm}, top ${dur}s ${tm}`;
-  fb.style.left=s.sx+"%";fb.style.top=s.sy+"%";
-  if(MC){MC.bx=x;MC.by=y;MC.ball=x;}
-  await sleep(dur*1000);
-}
-const dirOf=T=>T.side==="H"?1:-1;       // 攻める方向
-const goalXOf=T=>T.side==="H"?94:6;     // 攻め込む先のゴールx
-function buildField(){
-  const fv=document.getElementById("fieldview");
-  fv.querySelectorAll(".tok").forEach(e=>e.remove());
-  const mk=p=>{
-    const t=document.createElement("div");t.className="tok";
-    const ring=document.createElement("div");ring.className="ring "+p.fside;
-    t.appendChild(ring);
-    t.appendChild(spriteCanvas(p.c,26));
-    fv.appendChild(t);p.el=t;
-    p.cur=fieldPos(p);
-    setPos(t,p.cur.x,p.cur.y,0);
-  };
-  MC.home.players.forEach(mk);
-  MC.away.players.forEach(mk);
-  const fb=document.getElementById("fball");
-  const s0=toScreen(50,50);
-  fb.style.transition="none";fb.style.left=s0.sx+"%";fb.style.top=s0.sy+"%";
-  MC.bx=50;MC.by=50;
-}
-function laneY(p){return p.fside==="H"?10+p.x*0.80:90-p.x*0.80;}
-function updateField(){ // 陣形ブロックがボールに追従して全員が敵陣⇔自陣をスライド
-  const M=MC;if(!M)return;
-  [...M.home.players,...M.away.players].forEach(p=>{
-    if(!p.el)return;
-    const ty=typeOf(p.c);
-    const ballT=p.fside==="H"?M.bx:100-M.bx;        // チーム座標系のボール位置
-    const front=Math.min(90,Math.max(45,ballT+16)); // 最前線
-    const back=Math.min(58,Math.max(10,ballT-34));  // 最終ライン
-    let xT,y;
-    if(p.role==="GK"){
-      xT=Math.min(26,Math.max(5,back-6+ty.adv*0.7)); // スイーパーは高め
-      y=50+(M.by-50)*0.3;
+// ================= 試合進行・攻撃スタイル(オーケストレーション) =================
+// 攻撃スタイルは STYLES レジストリにデータ駆動で定義(新スタイル追加=ここに1エントリ)。
+// 各 run() は「演出(match-render) + 勝敗判定(match-core の resolve*) + stat更新」を組み合わせるシーケンス。
+// 式内のステ配合はスタイル固有なのでインライン(横断的なダイヤルは TUNING)。
+
+const STYLES={
+  // 🎯 中央突破: ペナルティエリア手前の得意勝負(spd/pow/tec)→シュート
+  center:{label:STYLE_LABEL.center, run:async(A,D,min,m)=>{
+    await duel(A,D,min,m.tfA,m.tfD,m.who,1);
+  }},
+  // 🏃 サイドアタック: ウイング突破(速×技)→クロス→ターゲットのヘディング(力)
+  side:{label:STYLE_LABEL.side, run:async(A,D,min,m)=>{
+    const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
+    const w=pickWide(A), d=pickWideDef(D);
+    w.stat.inv++;d.stat.inv++;
+    const wy=curP(w).y<50?12:88;
+    movePlayer(w,50+dir*16,wy,0.5);
+    movePlayer(d,50+dir*24,wy+(wy<50?5:-5),0.5);
+    await ballTo(50+dir*14,wy,0.5);                 // サイドへ展開
+    hot(w);hot(d);
+    await maybeVs(w,A,d,D,"🏃 サイドの仕掛け(速×技)");
+    const aSc=(eff(w,"spd",min,A,D)*0.6+eff(w,"tec",min,A,D)*0.4)*(fx(w).duelSpd||1)*A.teamChance*tfA*rr();
+    const dSc=(eff(d,"def",min,D,A)*0.55+eff(d,"spd",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
+    if(aSc>dSc*TH.side){
+      w.stat.duelW++;
+      movePlayer(w,gx-dir*10,wy,0.45);
+      await ballTo(gx-dir*11,wy,0.45);              // 縦に突破
+      feed(`${who}🏃 サイド突破!<b>${w.c.name}</b>(速${w.c.spd}・技${w.c.tec})が${d.c.name}を振り切った!`,"chance");
+      if(fx(w).duelSpd)await skillHit(w);
+      const t=pickTarget(A), m2=pickDefender(D);
+      t.stat.inv++;m2.stat.inv++;
+      const cx2=gx-dir*7, cy2=42+ri(0,16);
+      movePlayer(t,cx2-dir*2,cy2,0.4);
+      movePlayer(m2,cx2+dir*2,cy2+ri(-4,4),0.4);
+      hot(t);hot(m2);
+      await ballTo(cx2,cy2,0.4);                    // クロスが中央へ
+      const crossM=0.72+eff(w,"tec",min,A,D)/20*0.5;
+      const tSc=(eff(t,"pow",min,A,D)*0.55+eff(t,"off",min,A,D)*0.25+eff(t,"spd",min,A,D)*0.2)*(fx(t).duelPow||1)*crossM*rr();
+      const mSc=(eff(m2,"pow",min,D,A)*0.5+eff(m2,"def",min,D,A)*0.5)*(fx(m2).duelD||1)*tfD*rr();
+      if(tSc>mSc*TH.cross){
+        t.stat.duelW++;
+        feed(`クロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が${m2.c.name}(力${m2.c.pow})に競り勝った!`,"chance");
+        if(fx(t).duelPow)await skillHit(t);
+        await tryShot(t,A,D,min,true,cx2,cy2,w);
+      }else{
+        t.stat.duelL++;m2.stat.duelW++;
+        feed(`クロスは${m2.c.name}(力${m2.c.pow})が跳ね返した!`);if(fx(m2).duelD)await skillHit(m2);
+        await ballTo(50+dir*6,cy2+ri(-18,18),0.55); // クリア
+      }
     }else{
-      const depth=Math.min(1,Math.max(0,(91-p.y)/73)); // GK=0..FW=1
-      xT=back+depth*(front-back)+ty.adv;
-      y=laneY(p)+(laneY(p)<50?-1:1)*(ty.wide||0)*0.6;
-      y+=(M.by-y)*0.12;                                // コンパクトネス
+      w.stat.duelL++;d.stat.duelW++;
+      feed(`${who}🏃 ${w.c.name}のサイド突破 → ${d.c.name}(守${d.c.def}・速${d.c.spd})が対応!`);if(fx(d).duelD)await skillHit(d);
+      await ballTo(50,wy+(wy<50?14:-14),0.5);
     }
-    let x=p.fside==="H"?xT:100-xT;
-    if(p.role!=="GK"){
-      const dx=M.bx-x,dy=M.by-y,dist=Math.hypot(dx,dy);
-      if(dist<26){const k=(26-dist)/26*ty.chase;x+=dx*k;y+=dy*k;}
-      x+=(Math.random()*2-1)*ty.roam;
-      y+=(Math.random()*2-1)*ty.roam*1.3;
+  }},
+  // 🚀 ロングパス: 後方からのロブ→裏抜けの駆けっこ(速)→GKと1対1
+  long:{label:STYLE_LABEL.long, run:async(A,D,min,m)=>{
+    const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
+    const p=pickPasser(A), r=pickTarget(A), cut=pickPress(D);
+    p.stat.inv++;r.stat.inv++;cut.stat.inv++;
+    await ballTo(curP(p).x,curP(p).y,0.35);          // 後方の起点へ
+    const pSc=eff(p,"tec",min,A,D)*tfA*rr();
+    const cSc=(eff(cut,"spd",min,D,A)*0.5+eff(cut,"def",min,D,A)*0.5)*tfD*rr();
+    hot(p);
+    if(pSc>cSc*TH.longPass){
+      feed(`${who}🚀 <b>${p.c.name}</b>(技${p.c.tec})が最前線へロングフィード!`,"chance");
+      await skillAny(p,["duelTec","mid"]);            // 正確なフィードを通したMFのtec/mid系を明示
+      const d=pickDefender(D);
+      d.stat.inv++;
+      const lx=gx-dir*18, ly=20+ri(0,60);
+      movePlayer(r,lx-dir*2,ly,0.5);
+      movePlayer(d,lx+dir*2,ly+ri(-5,5),0.5);
+      hot(r);hot(d);
+      await ballTo(lx,ly,0.55);                      // ロブが落ちる
+      await maybeVs(r,A,d,D,"🚀 DFラインの裏の駆けっこ(速)");
+      const aSc=eff(r,"spd",min,A,D)*(fx(r).duelSpd||1)*A.teamChance*tfA*rr();
+      const dSc=(eff(d,"spd",min,D,A)*0.55+eff(d,"def",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
+      if(aSc>dSc*TH.longRace){
+        r.stat.duelW++;
+        movePlayer(r,gx-dir*8,ly+(50-ly)*0.3,0.35);
+        await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);   // 裏に抜けた
+        feed(`<b>${r.c.name}</b>(速${r.c.spd})が${d.c.name}(速${d.c.spd})を出し抜いて裏へ抜けた!GKと1対1!`,"chance");
+        if(fx(r).duelSpd)await skillHit(r);
+        await tryShot(r,A,D,min,false,null,null,p);
+      }else{
+        r.stat.duelL++;d.stat.duelW++;
+        feed(`${d.c.name}(速${d.c.spd})が先回りしてクリア!`);if(fx(d).duelD)await skillHit(d);
+        await ballTo(50,ly+ri(-12,12),0.55);
+      }
+    }else{
+      cut.stat.tkl++;
+      feed(`${who}🚀 ロングパスは${cut.c.name}がインターセプト!`);hot(cut);
+      await ballTo(curP(cut).x,curP(cut).y,0.4);
     }
-    movePlayer(p,x,y,0.7);
-  });
-  // オフザボールの飛び出し
-  const all=[...M.home.players,...M.away.players].filter(p=>p.el&&p.role!=="GK");
-  for(let k=0;k<2;k++){
-    const p=pickW(all,q=>typeOf(q.c).run||0.2);
-    if(!p)continue;
-    const dir=p.fside==="H"?1:-1;
-    movePlayer(p,curP(p).x+dir*ri(4,9),curP(p).y+ri(-7,7),0.55);
+  }},
+  // 🔄 ショートパス: MF同士のワンツー(技)→連携成立で中央勝負(ボーナス付き)
+  short:{label:STYLE_LABEL.short, run:async(A,D,min,m)=>{
+    const {tfA,tfD,who}=m; const dir=dirOf(A);
+    const mfs=A.players.filter(p=>p.role==="MF");
+    const m1=mfs.length?rnd(mfs):pickAttacker(A);
+    let m2=mfs.filter(p=>p!==m1);m2=m2.length?rnd(m2):m1;
+    const pr=pickPress(D);
+    m1.stat.inv++;m2.stat.inv++;pr.stat.inv++;
+    hot(m1);hot(m2);
+    await ballTo(curP(m1).x,curP(m1).y,0.3);
+    await ballTo(curP(m2).x+dir*3,curP(m2).y,0.3);   // ワンツー
+    const chain=((eff(m1,"tec",min,A,D)+eff(m2,"tec",min,A,D))/2)*((fx(m1).mid||1)+(fx(m2).mid||1))/2*tfA*rr();
+    const prSc=(eff(pr,"def",min,D,A)*0.5+eff(pr,"spd",min,D,A)*0.5)*tfD*rr();
+    if(chain>prSc*TH.chain){
+      feed(`${who}🔄 <b>${m1.c.name}</b>→<b>${m2.c.name}</b>(技${m1.c.tec}・${m2.c.tec})、細かいパスワークで崩す!`,"chance");
+      await skillAny(m1,["duelTec","mid"]);await skillAny(m2,["duelTec","mid"]); // 連携を司るMFのtec/mid系を明示
+      await duel(A,D,min,tfA,tfD,who,TH.shortBonus);
+    }else{
+      pr.stat.tkl++;
+      feed(`${who}🔄 ${pr.c.name}がパスカット!ショートパスを読まれている`);hot(pr);
+      await ballTo(curP(pr).x,curP(pr).y,0.35);
+    }
+  }},
+};
+async function attackEvent(A,D,min){
+  // tfA/tfDに戦術補正 +「攻撃スタイル × 相手フォーメーション」の相性係数を畳み込む
+  const tfA=(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counterFactor(A.style,D.form);
+  const tfD=D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1;
+  const who=A.side==="A"?"🔴 ":"";
+  await (STYLES[A.style]||STYLES.center).run(A,D,min,{tfA,tfD,who});
+}
+// 中央1対1(center/short 共用): 演出 → resolveDuel で判定 → 成否の演出/シュート
+async function duel(A,D,min,tfA,tfD,who,bonus){
+  const atk=pickAttacker(A), df=pickDefender(D);
+  atk.stat.inv++;df.stat.inv++;
+  const dir=dirOf(A),gx=goalXOf(A);
+  const ex=gx-dir*16, ey=30+ri(0,40);   // ペナルティエリア手前で勝負
+  movePlayer(atk,ex-dir*3,ey,0.45);
+  movePlayer(df,ex+dir*3,ey+ri(-4,4),0.45);
+  await ballTo(ex-dir*4,ey,0.45);
+  const type=pickW(["spd","pow","tec"],k=>atk.c[k]*atk.c[k]);
+  const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
+  const dt=DUEL_TYPES[type];
+  hot(atk);hot(df);
+  await maybeVs(atk,A,df,D,`${dt.icon} ${dt.label}(${STAT_LABEL[type]}${atk.c[type]} vs 守${df.c.def})`);
+  if(resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus)){
+    atk.stat.duelW++;
+    movePlayer(atk,gx-dir*8,ey+(50-ey)*0.25,0.35);
+    await ballTo(gx-dir*9,ey+(50-ey)*0.25,0.3);     // 抜き去る
+    feed(`${who}${dt.icon} ${dt.label}! <b>${atk.c.name}</b>(${STAT_LABEL[type]}${atk.c[type]}) vs ${df.c.name}(守${df.c.def})…突破!`,"chance");
+    if(fx(atk)[duelKey])await skillHit(atk);
+    await tryShot(atk,A,D,min,false);
+  }else{
+    atk.stat.duelL++;df.stat.duelW++;
+    feed(`${who}${dt.icon} ${atk.c.name}の${dt.label} → ${df.c.name}(守${df.c.def})が止めた!`);
+    if(fx(df).duelD)await skillHit(df);
+    await ballTo(ex+dir*9,ey+ri(-8,8),0.5);          // 奪ってクリア
   }
 }
-async function kickoffReset(){ // ゴール後:全員定位置→センターサークルへ
-  if(!MC)return;
-  [...MC.home.players,...MC.away.players].forEach(p=>{
-    const b=fieldPos(p);movePlayer(p,b.x,b.y,0.8);
-  });
-  await ballTo(50,50,0.7);
-}
-function hot(p,ms){
-  if(!p||!p.el)return;
-  p.el.classList.add("hot");
-  setTimeout(()=>p.el&&p.el.classList.remove("hot"),ms||1600);
-}
-// ================= カットイン =================
-async function vsCutin(a,A,d,D,label){
-  const o=document.createElement("div");o.className="cutin";
-  o.innerHTML=`<div class="band"></div>
-   <div class="inner">
-    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
-    <div class="vsmark">VS</div>
-    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.name}</div><div class="fst">${d.c.skill?"✦"+d.c.skill.name:""}</div></div>
-   </div><div class="cutlabel">${label}</div>`;
-  const ph=o.querySelectorAll(".fph");
-  ph[0].appendChild(spriteCanvas(a.c,92));
-  ph[1].appendChild(spriteCanvas(d.c,92));
-  document.body.appendChild(o);
-  await sleep(1000);o.remove();
-}
-// 固有選手のスキル発動カットイン。awaitで順次再生し、後続(シュート/GOAL等)の演出へ繋げる。
-async function sigCutin(p){
-  if(!p||!p.c||!p.c.skill)return;
-  const o=document.createElement("div");o.className="cutin sig";
-  o.innerHTML=`<div class="band"></div>
-   <div class="inner"><div class="fighter fromL"><div class="fph"></div>
-     <div class="fn">${p.c.flag} ${p.c.name}</div></div>
-   <div class="cutskill">✦ ${p.c.skill.name} ✦</div></div>
-   <div class="cutlabel">シグネチャースキル発動!</div>`;
-  o.querySelector(".fph").appendChild(spriteCanvas(p.c,118));
-  const r=document.createElement("div");r.className="goalrays sig";document.body.appendChild(r);
-  setTimeout(()=>r.remove(),1300);
-  const wrap=document.querySelector(".wrap");
-  if(wrap){wrap.classList.add("shake");setTimeout(()=>wrap.classList.remove("shake"),500);}
-  document.body.appendChild(o);
-  await sleep(1150);o.remove();
-}
-// 固有選手の初回スキル発動でカットインを1回だけ再生(awaitで待つ)。非固有/再発動はno-op。
-async function sigCut(p){
-  if(p&&p.c&&p.c.skill&&p.c.sig&&!p._sigCut){p._sigCut=true;await sigCutin(p);}
-}
-async function wordCutin(p,T,word,gold,ms){
-  const o=document.createElement("div");o.className="cutin";
-  o.innerHTML=`<div class="band"></div>
-   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.name}</div></div>
-   <div class="cutword${gold?" gold":""}">${word}</div></div>`;
-  o.querySelector(".fph").appendChild(spriteCanvas(p.c,gold?100:84));
-  if(gold){
-    const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);
-    setTimeout(()=>r.remove(),1450);
-    document.querySelector(".wrap").classList.add("shake");
-    setTimeout(()=>document.querySelector(".wrap").classList.remove("shake"),550);
+// シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
+async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
+  atk.stat.shots++;
+  const gk=pickGK(D);
+  atk.stat.inv++;gk.stat.inv++;
+  await auraSkill(A,"teamChance",TUNING.aura.teamChance); // 決定機を演出した司令塔役(teamChance)の発動を明示
+  const fxA=fx(atk),fxG=fx(gk);
+  const dir=dirOf(A),gx=goalXOf(A);
+  const sx=fx0!=null?fx0:curP(atk).x, sy=fy0!=null?fy0:curP(atk).y;
+  const gy=42+ri(0,16);
+  movePlayer(atk,sx,sy,0.3);
+  movePlayer(gk,gx-dir*2,gy,0.3);     // GKがコースに立つ
+  hot(atk);hot(gk);
+  await wordCutin(atk,A,header?"ヘディング!!":"シュート!!",false,750);
+  if(resolveShot(atk,gk,header,A,D,min)){
+    if(fxG.miracle&&!gk.um){ // レジェンドGK【奇跡の手】:1試合1回の失点無効化
+      gk.um=true;
+      gk.stat.saves++;
+      await ballTo(gx-dir*1,gy,0.22,"linear");
+      feed(`✨【奇跡の手】発動!!${gk.c.name}がありえない反応で掻き出した!!`,"goal");
+      await wordCutin(gk,D,"MIRACLE!!",true,1200);
+      await ballTo(gx-dir*16,gy+ri(-12,12),0.5);
+      return;
+    }
+    await ballTo(gx+dir*1.5,gy,0.22,"linear");   // ネットに突き刺さる
+    A.score++;
+    atk.stat.goals++;
+    if(assist)assist.stat.assists++;
+    document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
+    feed(`⚽ ゴーーール!!<b>${atk.c.name}</b>が${header?"ヘディングで":""}決めた!(${header?"力"+atk.c.pow:"攻"+atk.c.off})`,"goal");
+    if(fxA.shoot)await skillHit(atk); // スキルカットイン → GOAL演出へ繋ぐ
+    await wordCutin(atk,A,"GOAL!!!",true,1450);
+    await kickoffReset();                          // 全員定位置→キックオフ
+  }else{
+    gk.stat.saves++;
+    await ballTo(gx-dir*1,gy,0.22,"linear");
+    movePlayer(gk,gx-dir*1,gy,0.18);               // GKが触る
+    feed(`GK ${gk.c.name}(守${gk.c.def})がストップ!`);
+    if(fxG.save)await skillHit(gk);
+    await auraSkill(D,"teamDef",TUNING.aura.teamDef); // 守備陣を統率する teamDef の発動を明示
+    await wordCutin(gk,D,"SAVE!!",false,720);
+    await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
   }
-  document.body.appendChild(o);
-  await sleep(ms);o.remove();
 }
 
 // ================= 試合進行(非同期ループ) =================
@@ -165,7 +213,7 @@ async function tickAsync(){
   if(homeAtt&&M.away.style==="long"&&Math.random()<0.22){homeAtt=false;feed("🔴 相手のロングカウンター!","chance");}
   const T=homeAtt?M.home:M.away;
   const dir=dirOf(T);
-  await auraSkill(T,"mid",0.12); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
+  await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   // ビルドアップ:保持側の選手へパス
   const c1=pickW(T.players.filter(p=>p.role!=="GK"),p=>p.role==="MF"?2:p.role==="DF"?1:1.4);
   c1.stat.inv++;
@@ -228,6 +276,8 @@ function startMatch(idx){
   if(srs.length)feed(`⚠ 要注意:相手の${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);
   runLoop();
 }
+
+// ================= 試合後スタッツ(オーバーレイ) =================
 let _statTeams=null;
 function renderStatRows(team,opp){
   const rows=team.players.map(p=>({p,r:statRating(p,opp)})).sort((a,b)=>b.r-a.r);
@@ -281,12 +331,12 @@ async function endMatch(){
     await save();MC=null;return;
   }
   let msg,reward;
-  if(sh>sa){msg="🏆 勝利!!";reward=100+lv*40;if(M.idx===S.cleared)S.cleared++;}
-  else if(sh===sa){msg="🤝 引き分け";reward=50;}
-  else{msg="😢 敗北…";reward=30;}
+  if(sh>sa){msg="🏆 勝利!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
+  else if(sh===sa){msg="🤝 引き分け";reward=TUNING.reward.draw;}
+  else{msg="😢 敗北…";reward=TUNING.reward.lose;}
   S.coins+=reward;coinUI();
   feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
-  const dropP=sh>sa?0.18:sh===sa?0.08:0.04;
+  const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
   let dropMsg="";
   if(Math.random()<dropP){
     S.legendPacks=(S.legendPacks||0)+1;
