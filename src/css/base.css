@@ -107,6 +107,13 @@ canvas.sprite{image-rendering:auto}
 .card.sel{outline:3px solid var(--cyan)}
 
 .grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+#sigPickGrid{max-height:60vh;overflow-y:auto}
+#sigPickGrid .pickable{cursor:pointer;transition:transform .08s}
+#sigPickGrid .pickable:active{transform:scale(.95)}
+/* 選択券ピッカー: 所持済みは選べない(暗転+所持済みバッジ) */
+.card.sig-owned{filter:grayscale(.85) brightness(.55);pointer-events:none;position:relative}
+.card.sig-owned::after{content:"所持済み";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'M PLUS 1p',sans-serif;font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 3px #000;background:rgba(6,12,22,.35)}
 .collfilter{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 2px}
 .natchip{font-family:'M PLUS 1p',sans-serif;font-size:11px;font-weight:700;padding:3px 9px;border-radius:14px;
   border:1px solid #2a3d56;background:#0f1c2f;color:#b9c8da;cursor:pointer;display:inline-flex;align-items:center;gap:5px}

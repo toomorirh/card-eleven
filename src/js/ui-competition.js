@@ -155,10 +155,11 @@ function renderLeagueMode(){
 }
 function claimSeason(rank){
   let reward=0,champ=false,msg="";
-  if(rank===1){reward=500;champ=true;msg="優勝賞金🪙500+チャンピオンパック!";}
+  if(rank===1){reward=500;champ=true;msg="優勝賞金🪙500+チャンピオンパック+シグネチャーパック!";}
   else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
   else{reward=100;msg=`${rank}位 参加賞🪙100`;}
-  S.coins+=reward;if(champ)S.championPacks=(S.championPacks||0)+1;
+  S.coins+=reward;
+  if(champ){S.championPacks=(S.championPacks||0)+1;S.sigPacks=(S.sigPacks||0)+1;} // 優勝でシグネチャーパックも
   coinUI();toast(msg);
 }
 function playLeagueRound(){

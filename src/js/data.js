@@ -361,4 +361,13 @@ function makeSignature(id){
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
 }
+// ===== 固有選手の入手: マイルストーン(実績)報酬 =====
+// 控えめ・アスピレーショナルに。各 one-time 実績で「シグネチャーパック(ランダム)」または
+// 「シグネチャー選択券(好きな1名)」を付与。達成済みは S.ms[id] で記録。リーグ優勝は別途(claimSeason)。
+// kind: "pack"=ランダムパック / "select"=選択券
+const MILESTONES=[
+  {id:"clear4",   test:()=>S.cleared>=4,            kind:"pack",   msg:"⚽ Lv4到達! シグネチャーパックを獲得!"},
+  {id:"coll40",   test:()=>S.coll.length>=40,       kind:"pack",   msg:"📚 コレクション40枚! シグネチャーパックを獲得!"},
+  {id:"clearAll", test:()=>S.cleared>=CLUBS.length, kind:"select", msg:"🏆 全クラブ制覇! シグネチャー選択券を獲得!"},
+];
 

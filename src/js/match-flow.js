@@ -354,6 +354,7 @@ async function endMatch(){
   row.appendChild(rt);row.appendChild(bk);
   e.appendChild(row);
   MC=null;
+  checkMilestones(); // ステージ攻略の達成でシグネチャー報酬を付与
   await save();
 }
 document.querySelectorAll(".tactics [data-t]").forEach(b=>b.onclick=()=>{

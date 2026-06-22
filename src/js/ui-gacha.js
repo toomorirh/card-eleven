@@ -14,10 +14,14 @@ const PACKS=[
    can:()=>(S.championPacks||0)>0, pay:()=>{S.championPacks=(S.championPacks||0)-1;}, owned:()=>S.championPacks||0,
    get:()=>championDraw()},
   {id:"signature",name:"シグネチャーパック",emoji:"🌟",color:"#ff5ea0",cost:null,
-   desc:"1枚入り / 固有選手(★★★★)確定",
+   desc:"1枚入り / 未所持の固有選手を優先確定・実績報酬",
    can:()=>(S.sigPacks||0)>0, pay:()=>{S.sigPacks=(S.sigPacks||0)-1;}, owned:()=>S.sigPacks||0,
-   get:()=>[makeSignature(rnd(SIGNATURES).id)]},
+   get:()=>{const pool=unownedSignatures();return [makeSignature(rnd(pool.length?pool:SIGNATURES).id)];}},
 ];
+// 既に所持している固有選手のid集合(コレクション内に同じ sig を持つカードがあるか)。
+function ownedSigSet(){return new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));}
+// まだ持っていない固有選手の一覧。全員所持済みなら空配列(呼び出し側で全プールにフォールバック)。
+function unownedSignatures(){const own=ownedSigSet();return SIGNATURES.filter(s=>!own.has(s.id));}
 // チャンピオンパック: 5枚。高排出4枚 + SR以上1枚確定(うち18%でLEGEND)
 function championDraw(){
   const out=[];
@@ -39,7 +43,53 @@ function renderGacha(){
     t.onclick=()=>openPackById(p.id);
     list.appendChild(t);
   });
+  // シグネチャー選択券: 所持している時だけ表示(好きな固有選手を1人選べる・特別な実績報酬)
+  const sel=S.sigSelect||0;
+  if(sel>0){
+    const t=document.createElement("div");
+    t.className="packtile";t.style.setProperty("--pc","#ffd24a");
+    t.innerHTML=`<div class="pemoji">🎟️</div><div class="pname">シグネチャー選択券</div>`
+      +`<div class="pmeta">所持 ${sel}</div><div class="pdesc">好きな固有選手を1人選んで獲得!</div>`
+      +`<div class="popen">選んで獲得</div>`;
+    t.onclick=openSignaturePicker;
+    list.appendChild(t);
+  }
 }
+// 選択券: 固有選手の一覧から1人を選び、その場で獲得(演出付き)。
+function openSignaturePicker(){
+  if(_revealing)return;
+  if((S.sigSelect||0)<=0){toast("選択券を持っていません");return;}
+  const modal=document.getElementById("sigPickModal");
+  const grid=document.getElementById("sigPickGrid");grid.innerHTML="";
+  const own=ownedSigSet();
+  const allOwned=own.size>=SIGNATURES.length; // 全員所持済みのみ、券を無駄にしないため重複選択を許可
+  SIGNATURES.forEach(sg=>{
+    const c=makeSignature(sg.id);          // プレビュー用カード(獲得時に作り直す)
+    const el=cardEl(c);
+    if(own.has(sg.id)&&!allOwned){          // 所持済みは選べない(無駄引き防止)。一覧には残してコンプ感を見せる
+      el.classList.add("sig-owned");
+      el.title="所持済み";
+    }else{
+      el.classList.add("pickable");
+      el.onclick=()=>pickSignature(sg.id);
+    }
+    grid.appendChild(el);
+  });
+  modal.classList.add("on");
+}
+async function pickSignature(id){
+  if((S.sigSelect||0)<=0)return;
+  if(ownedSigSet().has(id)&&ownedSigSet().size<SIGNATURES.length){toast("その選手は既に所持しています");return;} // 念のための二重ガード(全員所持時は重複可)
+  document.getElementById("sigPickModal").classList.remove("on");
+  S.sigSelect=(S.sigSelect||0)-1;
+  const card=makeSignature(id);
+  S.coll.push(card);
+  coinUI();await save();renderGacha();
+  _revealing=true;
+  await runReveal({name:"シグネチャー選択券",emoji:"🎟️",color:"#ffd24a",can:()=>false},[card]);
+  _revealing=false;
+}
+document.getElementById("sigPickClose").onclick=()=>document.getElementById("sigPickModal").classList.remove("on");
 let _revealing=false;
 function drawPack(id){ // 純ロジック(演出なし):引けたらカード配列、不可なら null。テスト/将来の自動化から再利用可。
   const p=packById(id);if(!p||!p.can())return null;
