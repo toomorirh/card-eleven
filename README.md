@@ -34,8 +34,9 @@ card-eleven/
     │   ├── ui-roster.js        カード描画・編成(フォーメーション)・図鑑
     │   ├── ui-gacha.js         ガチャ(パック定義・抽選・開封演出)
     │   ├── ui-competition.js   ステージ攻略一覧・リーグ戦モード
-    │   ├── match-engine.js     試合の計算(eff/デュエル/シュート判定など)
-    │   ├── match-flow.js       俯瞰フィールド描画・カットイン・試合進行ループ・途中交代
+    │   ├── match-core.js       試合の純粋計算&バランス(eff/支配/勝敗判定resolve*/team構築・DOM非依存)
+    │   ├── match-render.js     描画・演出(フィールド/ボール移動/カットイン/実況/スキル演出)
+    │   ├── match-flow.js       進行制御&攻撃スタイル(STYLESレジストリ/tick/開始終了/交代)
     │   └── boot.js             起動呼び出し(load().then(...)。結合順は必ず最後)
     ├── css/                ← スタイル定義(役割ごとに分割)
     │   ├── base.css            変数・レイアウト・カード等の基本スタイル
