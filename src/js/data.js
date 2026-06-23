@@ -390,6 +390,18 @@ const SIGNATURES=[
   {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler",
    stats:{off:17,def:15,pow:15,tec:20,spd:18,sta:15},
    skill:{name:"和製の天才", desc:"技術とスピードで違いを生むアタッカー。技・速の勝負を大幅強化", fx:{duelTec:1.4,duelSpd:1.3}}},
+  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"shadow",
+   stats:{off:19,def:12,pow:15,tec:20,spd:16,sta:18},
+   skill:{name:"オランダの至宝", desc:"絶妙なトラップと冷徹な決定力。テクニック勝負とシュートを大幅強化", fx:{duelTec:1.45,shoot:1.3}}},
+  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"b2b",
+   stats:{off:14,def:17,pow:20,tec:15,spd:15,sta:19},
+   skill:{name:"中盤の支配者", desc:"球際の強さで中盤を制圧。支配率と対人守備を大幅強化", fx:{mid:1.4,duelD:1.3}}},
+  {id:"henry", name:"ティエリ・アンリ", flag:"🇫🇷", pos:"FW", sub:"CF", type:"striker",
+   stats:{off:19,def:13,pow:15,tec:17,spd:20,sta:16},
+   skill:{name:"ヴァンガ", desc:"圧倒的なスピードと精度の高い決定力。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.4,shoot:1.35}}},
+  {id:"buffon", name:"ジャンルイジ・ブッフォン", flag:"🇮🇹", pos:"GK", sub:"GK", type:"liner",
+   stats:{off:15,def:20,pow:16,tec:16,spd:16,sta:17},
+   skill:{name:"伝説の守護神", desc:"年齢を感じさせぬ反応。セーブを大幅強化し終盤に真価を発揮", fx:{save:1.6,clutch:1.15}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){

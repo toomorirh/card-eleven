@@ -50,7 +50,7 @@
 | ファイル | 責務 | 主な中身 |
 |---|---|---|
 | `match-core.js` | **純粋シミュレーション&バランス**(DOM非依存) | `eff` `fatigue` `situ` `midPower` `recalcAuras` / `pick*` / 起点選択(`pickChannel` `pickOriginPlayer` `rollTurnover` `pickWinner` `buildupSuccess` `pressPower` `buildSecurity`) / 連鎖(`matchupDefender` `linkWeight` `resolveLink` `laneOf` `stamOf`) / `buildTeam` `myTeam` `oppTeam` `oppPickStyle` / `statRating` / 勝敗判定の純粋関数 `resolveDuel` `resolveShot` |
-| `match-render.js` | **描画・演出**(DOM/アニメ) | フィールド座標変換・`movePlayer` `ballTo` `buildField` `updateField` / カットイン(`vsCutin` `wordCutin`(super=`big`) `sigCutin`(スポットライト) `pkCutin`(PK一騎打ち)) / `actionBanner` `crowdPulse` `scorePop` / `feed` / スキル発動演出(`skillHit` `skillPulse`(系統色) `auraSkill` `skillAny`) |
+| `match-render.js` | **描画・演出**(DOM/アニメ) | フィールド座標変換・`movePlayer` `ballTo` `buildField` `updateField` / カットイン(`vsCutin` `wordCutin`(super=`big`) `sigCutin`(スポットライト) `pkCutin`(PK一騎打ち) `spCutin`(セットプレー) `kickoffCutin` `gameSetCutin`) / `crowdPulse` `scorePop` / `feed` / スキル発動演出(`skillHit` `skillPulse`(系統色) `auraSkill` `skillAny`) |
 | `match-flow.js` | **進行制御・起点→連鎖** | 起点(`recordOrigin`) / 連鎖(`LINKS` レジストリ・`runChain` `egoRun` `linkAvailable` `depthFrac` `recordLink` `recMatch`) / `tryShot` / `tickAsync` `runLoop` / `startMatch` `endMatch` / スタッツ表示 / 途中交代 |
 
 - **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigueMax` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin` `link`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
@@ -58,7 +58,7 @@
 - **連鎖チェーン**(起点→リンク×N→シュート): `runChain` が毎ステップ「シュート移行(深さ・つなぎ数で増加)/リンク」を判定。リンクは `LINKS` レジストリ(拡張可)で **combination(連結)/through/cross/dribble/cutin**。可能性は `linkAvailable`(ジオメトリ=幅/中央)、**選択は `linkWeight`(選手パラメータ＝個性)**。dribble/cutin は `(off,spd,tec)×スタミナ×type.drive` で重み付け＝**エゴイスト個性**(ドリブラー/ウインガーが自分で持ち込む)。受け手に対する守備者は `matchupDefender`(左右ミラー `100-lane`・静的レーン主体)で決定し `resolveLink` で競る。`TUNING.link`(maxLink/directShoot/progStep/base/egoStat/advanced)。
 - **セットプレー**(別レイヤー・連鎖の副次結果から派生): フィニッシュ系リンク(dribble/cutin/cross/through)で `rollFoul` が当たると **PK/FK**(`setPiece`→`spShot` 直接 or `aerialBox` クロス)。危険なクリア/GKセーブから確率で **CK**(`setCorner`→`aerialBox`)。スローインは通常保持に吸収(イベント化せず)。`_spActive` で再帰防止。`TUNING.setpiece`(foulBase/boxChance/pkBase/fkDirectShare/cornerOnClear/cornerOnSave)。低頻度(実測 PK≈0.2/試合・CK≈0.5/試合)で味付け。
 - **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChain`(リンク連鎖) → 各リンクが演出しつつ `resolveLink`/`resolveShot` で判定 → ゴール/セーブ。
-- **演出(match-flow/render)**: 得点は `goalCelebrate` に集約(種別=ヘディング/個人技/PK/直接FK/スーパー、スコアpop・歓声`crowdPulse`・同点/勝ち越し/ハットトリックの実況、得点者に`keyman`オーラ)。スーパーゴールは遠距離×高off/powで判定し`wordCutin`の`big`で増強。セットプレーは専用カットイン(`pkCutin`)/バナー(`actionBanner`)。試合の流れは連続攻撃の「猛攻」(`MC._streak`)・85分以降の時計赤(`#clock.late`)・終了間際コール。スキル発動は系統色パルス(`skillPulse`: 攻/守/支配)。
+- **演出(match-flow/render)**: 得点は `goalCelebrate` に集約(種別=ヘディング/個人技/PK/直接FK/スーパー、スコアpop・歓声`crowdPulse`・同点/勝ち越し/ハットトリックの実況)。スーパーゴールは遠距離×高off/powで判定し`wordCutin`の`big`で増強。セットプレーは専用カットイン(PK=`pkCutin` 一騎打ち / FK・CK=`spCutin` 蹴る選手表示)。試合開始`kickoffCutin`(両チーム主将)・終了`gameSetCutin`。試合の流れは連続攻撃の「猛攻」(`MC._streak`)・85分以降の時計赤(`#clock.late`)・終了間際コール。スキル発動は系統色パルス(`skillPulse`: 攻/守/支配)。カットインは中央マークを画面中央に固定、語句型は縦中央スタックで選手を中段表示。
 - **ボルテージ(熱気)** `MC.volt`(0..1): 試合の熱気。攻撃成立/シュート/得点/猛攻で上がり、停滞で冷め、時間で下限上昇(`TUNING.volt`)。**スキル発動「演出」の表示確率(`skillShow`=gateBase+volt)をゲート**し、序盤(volt低)のキックオフ直後に唐突な発動演出が出ないようにする。**勝敗計算の係数(eff/resolve)は常時適用で不変**=演出のみの制御。0.7初到達で「ヒートアップ」告知。
 - **変更の指針**:
   - 新しいリンク種別追加 → `LINKS` に1エントリ(+`linkWeight` に重み式、必要なら `linkAvailable`)。
@@ -189,7 +189,7 @@
 - `makeSignature(id)` でカード化。`rar:"l"`(レジェンド枠の演出を流用)+ `sig` 識別子を持ち、固定ステ・ユニークスキル・固有名・国籍を持つ。図鑑/カードでは **★★★★** 表示で通常LEGEND(ランダム生成)と区別。
 - **モチーフ画像**: `src/assets/signatures/<id>.png` に1ポーズ(背景透過推奨)を置くと、`build.py` が **SIGNATURESに登録済みのidと一致するものだけ** base64 データURI化して `window.SIG_IMG` を生成し、JSバンドル先頭(`"use strict";`直後)に注入(オフライン単一HTMLを維持)。`spriteCanvas` が `c.sig` で分岐してこの画像を描画(未配置時は★プレースホルダ)。複数ポーズ入りの生ソースはここに置いても切り出して`<id>.png`にするまで埋め込まれない。
 - **入手**: 実績(トロフィー)報酬のみ。コイン購入・通常ガチャ・かけら合成は不可で、アスピレーショナルな到達目標として位置づける。詳細は §7.6。基本は**ランダム確定パック**(`S.sigPacks`)で入手し、特別な実績では**選択券**(`S.sigSelect`、好きな1名を指名獲得)が手に入る。
-- 全12名: メッシ/C.ロナウド/ハーランド/エムバペ/ケイン/カカ/モドリッチ/ネイマール/ファン・ダイク/マルディーニ/ノイアー/久保。
+- 全16名: メッシ/C.ロナウド/ハーランド/エムバペ/ケイン/カカ/モドリッチ/ネイマール/ファン・ダイク/マルディーニ/ノイアー/久保/ベルカンプ/ヴィエラ/アンリ/ブッフォン。
 
 ---
 
@@ -312,9 +312,9 @@
 - **ロジックとUIを分離**: 純抽選 `drawPack(id)`(pay+get+所持追加、演出なし)を `openPackById`(演出付き)と検証ハーネスが共用。
 - レジェンドパックはコイン購入不可・`owned()` で所持数表示・試合後ドロップのみ(§8)。`prefers-reduced-motion` で演出停止。
 - **チャンピオンパック**(`id:"champion"`, 🏅): リーグ優勝報酬(`S.championPacks`)。1パック=**5枚**(高排出4枚 + SR以上1枚確定、確定枠の18%でLEGEND)。`championDraw()` で生成。コイン購入不可。実測内訳の目安: N≈12% R≈31% SR≈44% L≈11%。
-- **シグネチャーパック**(`id:"signature"`, 🌟): **固有選手(★★★★)1枚確定**(§3.6)。`S.sigPacks` 枚数で管理、コイン購入不可。**未所持優先抽選**: `unownedSignatures()`(コレクションにまだ無い `sig`)からランダムに1名を `makeSignature` で生成。全12名所持済みの場合のみ全プールにフォールバック(=重複可)。開封演出では専用バナー(🌟 シグネチャー選手 登場!!)を表示。入手は実績(トロフィー)報酬のみ(§7.6)。
+- **シグネチャーパック**(`id:"signature"`, 🌟): **固有選手(★★★★)1枚確定**(§3.6)。`S.sigPacks` 枚数で管理、コイン購入不可。**未所持優先抽選**: `unownedSignatures()`(コレクションにまだ無い `sig`)からランダムに1名を `makeSignature` で生成。全16名所持済みの場合のみ全プールにフォールバック(=重複可)。開封演出では専用バナー(🌟 シグネチャー選手 登場!!)を表示。入手は実績(トロフィー)報酬のみ(§7.6)。
 - **シグネチャー選択券**(🎟️): `S.sigSelect` で管理する特別報酬。ガチャ画面に専用タイルとして所持時のみ表示し、タップで `#sigPickModal`(`SIGNATURES` 全員のカード一覧 `#sigPickGrid`)を開く。**所持済みの選手はグレーアウト(`.sig-owned`「所持済み」)+選択不可**で無駄引きを防止し、未所持のみ選べる(全員所持済みのときだけ重複選択を許可して券が死なないようにフォールバック)。1名を選ぶと券を1枚消費して `makeSignature` で確定獲得し、選択券専用の開封演出を再生。ランダムでは狙えない選手をピンポイントで補完できる、最上位の到達報酬。
-- **重複ポリシー**: パック・選択券とも未所持優先で、コンプリート前に同じ固有選手が重複しない。`ownedSigSet()`(`S.coll` 内の `sig`)で判定。全12名コンプ後のみ重複を許容。
+- **重複ポリシー**: パック・選択券とも未所持優先で、コンプリート前に同じ固有選手が重複しない。`ownedSigSet()`(`S.coll` 内の `sig`)で判定。全16名コンプ後のみ重複を許容。
 
 ### 7.5 ユーザーインターフェース(スマートフォン最適化)
 - **試合画面レイアウト**: フィールド表示を `.fieldview max-height:200px`（従来62vh から95%削減）に縮小し、実況フィード・戦術ボタン・交代操作が全て画面内に収まるようコンパクト化。スマートフォンでのスクロール操作を排除。
