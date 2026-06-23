@@ -80,15 +80,34 @@ def _check_signature_assets():
         print("  → tools/crop_signature.py で <id>.png を作成してください。")
 
 
+BODY_FIG_DIR = ROOT / "src" / "assets" / "bodies" / "figs"
+
+
+def _gen_block():
+    """src/assets/bodies/figs/<pos>_<i>.(png|webp) を base64 データURI化し、汎用選手の
+    全身図プール `window.GEN_IMG={"fw":[uri,...],"mf":[...],"df":[...],"gk":[...]};` を生成。
+    pos は接頭辞(fw/mf/df/gk)で振り分け。ファイル名順で決定的に出力(--check安定)。"""
+    pools = {"fw": [], "mf": [], "df": [], "gk": []}
+    if BODY_FIG_DIR.is_dir():
+        for f in sorted(BODY_FIG_DIR.iterdir()):
+            if f.suffix.lower() in _MIME:
+                pos = f.stem.split("_")[0].lower()
+                if pos in pools:
+                    b64 = base64.b64encode(f.read_bytes()).decode("ascii")
+                    pools[pos].append("data:%s;base64,%s" % (_MIME[f.suffix.lower()], b64))
+    body = ",".join('"%s":[%s]' % (p, ",".join('"%s"' % u for u in pools[p])) for p in ("fw", "mf", "df", "gk"))
+    return "window.GEN_IMG={%s};" % body
+
+
 def _assemble_js():
-    """JS本体を結合し、先頭の "use strict"; 直後に SIG_IMG ブロックを差し込む
-    (strictモードを保ちつつ、data.js のプリロードより前に SIG_IMG を定義する)。"""
+    """JS本体を結合し、先頭の "use strict"; 直後に SIG_IMG / GEN_IMG ブロックを差し込む
+    (strictモードを保ちつつ、data.js のプリロードより前に画像プールを定義する)。"""
     body = _join("js", JS_FILES)
-    sig = _sig_block()
+    inject = _sig_block() + "\n" + _gen_block()
     first_nl = body.find("\n")
     if first_nl == -1:
-        return body + "\n" + sig
-    return body[:first_nl] + "\n" + sig + body[first_nl:]
+        return body + "\n" + inject
+    return body[:first_nl] + "\n" + inject + body[first_nl:]
 
 
 def _replace_block(html, pattern, new_inner, label):

@@ -21,7 +21,11 @@ function imgReady(img){ // Android Chromeのdecode()ハング対策
 // window.SIG_IMG={id:dataURI,...} を注入する(テスト時は未定義=プレースホルダ描画)。
 const SIG_IMG_EL={};
 if(typeof window!=="undefined"&&window.SIG_IMG){for(const k in window.SIG_IMG){const im=new Image();im.src=window.SIG_IMG[k];SIG_IMG_EL[k]=im;}}
-const SPR_READY=Promise.all([imgReady(HEAD_IMG),imgReady(BODY_IMG),...Object.values(SIG_IMG_EL).map(imgReady)]);
+// 汎用選手の全身図プール(window.GEN_IMG={"fw":[uri,...],...})。あれば頭部+ボディ合成より優先。
+const GEN_IMG_EL={fw:[],mf:[],df:[],gk:[]};
+if(typeof window!=="undefined"&&window.GEN_IMG){for(const p in window.GEN_IMG){(window.GEN_IMG[p]||[]).forEach(u=>{const im=new Image();im.src=u;(GEN_IMG_EL[p]||(GEN_IMG_EL[p]=[])).push(im);});}}
+const _GEN_ALL=[].concat(...Object.values(GEN_IMG_EL));
+const SPR_READY=Promise.all([imgReady(HEAD_IMG),imgReady(BODY_IMG),...Object.values(SIG_IMG_EL).map(imgReady),..._GEN_ALL.map(imgReady)]);
 const withTimeout=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(r,ms))]);
 const BODY_ANCHOR=[[71, 22], [68, 21], [69, 27], [55, 31], [58, 22], [67, 24], [66, 30], [65, 24], [63, 15], [64, 20], [69, 18], [64, 17], [60, 24], [81, 25], [67, 25], [65, 17]]; // 各ボディの首位置(肌色検出で算出)
 const HCW=100,HCH=96,BCW=132,BCH=88,POSCOL={FW:0,MF:1,DF:2,GK:3};
@@ -60,6 +64,18 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
   }
   const L=c.look||(c.look=makeLook(c.pos,c.rar));
   if(L.headIdx==null){L.headIdx=ri(0,31);L.bodyVar=ri(0,3);}
+  // 全身図プールがあれば、シグネチャーと同じ等身の全身図で描画(頭部+ボディ合成より優先)
+  const pool=GEN_IMG_EL[(c.pos||"FW").toLowerCase()]||[];
+  if(pool.length){
+    if(L.figIdx==null)L.figIdx=ri(0,pool.length-1);
+    const gim=pool[L.figIdx%pool.length];
+    if(gim&&gim.naturalWidth>0){
+      const sc=Math.min(W/gim.naturalWidth,H/gim.naturalHeight);
+      const dw=gim.naturalWidth*sc,dh=gim.naturalHeight*sc;
+      ctx.drawImage(gim,(W-dw)/2,H-dh,dw,dh); // 下端そろえ中央配置(sigと同方式)
+      return cv;
+    }
+  }
   const bi=L.bodyVar*4+POSCOL[c.pos];
   const by=H-BCH;
   try{
