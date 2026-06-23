@@ -95,7 +95,7 @@ const TUNING={
   midTactic:{atk:1.05,def:0.92},                   // 支配率の戦術補正
   midStyle:{short:1.06,long:0.94},                 // 支配率のスタイル補正
   mid:{tec:0.45,spd:0.3,sta:0.25,mf:1,other:0.32}, // 支配率の能力重み/ポジション重み
-  th:{duel:1.1,gk:0.88,side:0.9,cross:0.78,longPass:0.95,longRace:1.08,chain:0.92,shortBonus:1.12}, // 各判定の閾値
+  th:{duel:1.1,gk:0.82,side:0.9,cross:0.78,longPass:0.95,longRace:1.08,chain:0.92,shortBonus:1.12}, // 各判定の閾値
   aura:{teamChance:0.28,teamDef:0.42,mid:0.12},    // チーム系スキルの発動演出確率
   reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
@@ -107,7 +107,7 @@ const TUNING={
     counterBonus:1.12,         // winチャンネルの攻撃補正(守備が崩れている)
     // チャンネル基準重み(build/overlap/feedの混合比を直接調整。平均ステに掛ける)。winは奪取から別途。
     channelBase:{build:3.2,overlap:1.3,feed:1.1},
-    buildup:{build:0.50,overlap:0.52,feed:0.46,win:0.88}, // 攻撃成立率(win=奪取済みで高い)
+    buildup:{build:0.34,overlap:0.36,feed:0.31,win:0.60}, // 攻撃成立率(win=奪取済みで高い)
     // スタイルボタン(center/side/long/short)→ チャンネル重みのバイアス
     styleBias:{
       center:{build:1.3,overlap:0.8,feed:0.9},
@@ -116,24 +116,34 @@ const TUNING={
       short: {build:1.7,overlap:0.9,feed:0.7},
     },
   },
+  // 連鎖チェーン(起点→リンク×N→シュート)。リンク選択はパラメータ重み(個性)、可能性はジオメトリで判定。
+  link:{
+    maxLink:{build:4,overlap:3,feed:2,win:2},      // チャンネル別の最大つなぎ数
+    directShootBase:0.03, depthShoot:0.30, stepShoot:0.10, // 素のシュート移行率(深さ・つなぎ数で増加)
+    progStep:0.20,                                  // 連結成功ごとの前進度(prog)の増加
+    base:{combination:1.4,through:0.9,cross:1.0,dribble:1.0,cutin:1.0}, // リンク種別の基準重み(combは連結=連鎖を伸ばす)
+    egoStat:{off:0.4,spd:0.3,tec:0.3},             // 自分で行く系(dribble/cutin)の能力配合
+    advanced:0.30,                                  // この前進度(prog)以上で「前進した」=クロス/カットイン可
+  },
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性
+// drive=自分で持ち込む性向(dribble/cut-inの重み係数)。ドリブラー高/ゲームメーカー低=個性の源。
 const TYPES={
- FW:{striker:{n:"ストライカー",adv:7,wide:0,roam:1.5,chase:0.3,poss:0.85,atk:1.6,tgt:1.4,run:2},
-     post:{n:"ポストプレイヤー",adv:2,wide:0,roam:1.5,chase:0.5,poss:1.15,atk:1.0,tgt:1.8,run:1},
-     dribbler:{n:"ドリブラー",adv:4,wide:9,roam:4,chase:0.5,poss:0.95,atk:1.3,tgt:0.8,run:3,wideSel:1},
-     shadow:{n:"シャドー",adv:-1,wide:0,roam:3,chase:0.55,poss:1.1,atk:1.3,tgt:1.0,run:3}},
- MF:{maker:{n:"ゲームメーカー",adv:0,wide:0,roam:1.5,chase:0.6,poss:1.3,atk:0.9,pas:1.6,run:1},
-     b2b:{n:"ボックストゥボックス",adv:2,wide:0,roam:5,chase:0.65,poss:1.15,atk:1.4,pas:1.0,run:4},
-     winger:{n:"ウインガー",adv:3,wide:10,roam:3.5,chase:0.4,poss:0.95,atk:1.1,run:3,wideSel:1},
-     anchor:{n:"アンカー",adv:-5,wide:0,roam:1.2,chase:0.55,poss:1.15,pas:1.3,defSel:1.2,run:1}},
- DF:{stopper:{n:"ストッパー",adv:2,wide:0,roam:2.5,chase:0.7,poss:1,defSel:1.5,run:2},
-     cover:{n:"カバー",adv:-3,wide:0,roam:1.2,chase:0.45,poss:1,defSel:1.2,run:1},
-     sb:{n:"攻撃的SB",adv:3,wide:8,roam:3.5,chase:0.5,poss:1.05,defSel:1.0,run:3,wideSel:1}},
- GK:{liner:{n:"シュートストッパー",adv:0,wide:0,roam:0.6,chase:0,poss:1,run:0},
-     sweeper:{n:"スイーパー",adv:5,wide:0,roam:1.5,chase:0,poss:1.4,run:1},
-     commander:{n:"コマンダー",adv:2,wide:0,roam:1,chase:0,poss:1.15,run:0}}};
+ FW:{striker:{n:"ストライカー",adv:7,wide:0,roam:1.5,chase:0.3,poss:0.85,atk:1.6,tgt:1.4,run:2,drive:1.2},
+     post:{n:"ポストプレイヤー",adv:2,wide:0,roam:1.5,chase:0.5,poss:1.15,atk:1.0,tgt:1.8,run:1,drive:0.7},
+     dribbler:{n:"ドリブラー",adv:4,wide:9,roam:4,chase:0.5,poss:0.95,atk:1.3,tgt:0.8,run:3,wideSel:1,drive:1.9},
+     shadow:{n:"シャドー",adv:-1,wide:0,roam:3,chase:0.55,poss:1.1,atk:1.3,tgt:1.0,run:3,drive:1.3}},
+ MF:{maker:{n:"ゲームメーカー",adv:0,wide:0,roam:1.5,chase:0.6,poss:1.3,atk:0.9,pas:1.6,run:1,drive:0.5},
+     b2b:{n:"ボックストゥボックス",adv:2,wide:0,roam:5,chase:0.65,poss:1.15,atk:1.4,pas:1.0,run:4,drive:1.1},
+     winger:{n:"ウインガー",adv:3,wide:10,roam:3.5,chase:0.4,poss:0.95,atk:1.1,run:3,wideSel:1,drive:1.6},
+     anchor:{n:"アンカー",adv:-5,wide:0,roam:1.2,chase:0.55,poss:1.15,pas:1.3,defSel:1.2,run:1,drive:0.5}},
+ DF:{stopper:{n:"ストッパー",adv:2,wide:0,roam:2.5,chase:0.7,poss:1,defSel:1.5,run:2,drive:0.7},
+     cover:{n:"カバー",adv:-3,wide:0,roam:1.2,chase:0.45,poss:1,defSel:1.2,run:1,drive:0.5},
+     sb:{n:"攻撃的SB",adv:3,wide:8,roam:3.5,chase:0.5,poss:1.05,defSel:1.0,run:3,wideSel:1,drive:1.3}},
+ GK:{liner:{n:"シュートストッパー",adv:0,wide:0,roam:0.6,chase:0,poss:1,run:0,drive:0.2},
+     sweeper:{n:"スイーパー",adv:5,wide:0,roam:1.5,chase:0,poss:1.4,run:1,drive:0.2},
+     commander:{n:"コマンダー",adv:2,wide:0,roam:1,chase:0,poss:1.15,run:0,drive:0.2}}};
 function rollType(pos){return rnd(Object.keys(TYPES[pos]));}
 function typeOf(c){const g=TYPES[c.pos];return g[c.type]||g[Object.keys(g)[0]];}
 

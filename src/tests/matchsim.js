@@ -105,6 +105,15 @@ function collect(M) {
     out.orMF = t.role.MF / t.atks; out.orDF = t.role.DF / t.atks; out.orFW = t.role.FW / t.atks; out.orGK = t.role.GK / t.atks;
     out.atks = t.atks;
   }
+  // 連鎖テレメトリ(リンク種別/エゴ/マッチアップ整合)
+  if (t && t.links) {
+    const L = t.link;
+    out.chain = t.links / t.atks;            // 平均つなぎ数(起点あたりリンク数)
+    out.lkComb = L.combination / t.links; out.lkThrough = L.through / t.links;
+    out.lkCross = L.cross / t.links; out.lkDribble = L.dribble / t.links; out.lkCutin = L.cutin / t.links;
+    if (t.ego.n) { out.egoOff = t.ego.offSum / t.ego.n; out.egoDriver = t.ego.driverN / t.ego.n; }
+    if (t.mu.n) out.muFit = t.mu.sum / t.mu.n; // マッチアップ整合(1=完全に対応レーン)
+  }
   return out;
 }
 
@@ -121,6 +130,9 @@ async function runCell(label, baseSeed, opt) {
     // 起点テレメトリ(新エンジンのみ存在)
     push("atks", r.atks); push("chBuild", r.chBuild); push("chOverlap", r.chOverlap); push("chFeed", r.chFeed); push("chWin", r.chWin);
     push("orMF", r.orMF); push("orDF", r.orDF); push("orFW", r.orFW); push("orGK", r.orGK);
+    // 連鎖テレメトリ
+    push("chain", r.chain); push("lkComb", r.lkComb); push("lkThrough", r.lkThrough); push("lkCross", r.lkCross);
+    push("lkDribble", r.lkDribble); push("lkCutin", r.lkCutin); push("egoOff", r.egoOff); push("egoDriver", r.egoDriver); push("muFit", r.muFit);
   }
   const out = {};
   for (const k in cols) out[k] = stats(cols[k]);
@@ -155,6 +167,7 @@ async function runAll() {
 const KEYS = ["gpm", "shots", "conv", "homeWin", "draw", "invCV", "shareFW", "shareMF", "shareDF", "ratingMean", "ratingSD"];
 function fmt(m) { return m ? `${m.mean.toFixed(3)}±${m.ci.toFixed(3)}` : "—"; }
 const KEYS_ORIGIN = ["atks", "chBuild", "chOverlap", "chFeed", "chWin", "orMF", "orDF", "orFW", "orGK"];
+const KEYS_CHAIN = ["chain", "lkComb", "lkThrough", "lkCross", "lkDribble", "lkCutin", "egoOff", "egoDriver", "muFit"];
 function printTable(cells) {
   console.log(`\n中検証(Tier1)  N=${N}/セル  指標=平均±95%CI\n`);
   console.log(["cell".padEnd(20), ...KEYS.map(k => k.padStart(13))].join(""));
@@ -166,6 +179,10 @@ function printTable(cells) {
     console.log(["cell".padEnd(20), ...KEYS_ORIGIN.map(k => k.padStart(13))].join(""));
     for (const c of cells)
       console.log([c.label.padEnd(20), ...KEYS_ORIGIN.map(k => fmt(c.metrics[k]).padStart(13))].join(""));
+    console.log(`\n連鎖テレメトリ(つなぎ数/リンク種別比/エゴ:平均off・ドリブラー率/マッチアップ整合)\n`);
+    console.log(["cell".padEnd(20), ...KEYS_CHAIN.map(k => k.padStart(13))].join(""));
+    for (const c of cells)
+      console.log([c.label.padEnd(20), ...KEYS_CHAIN.map(k => fmt(c.metrics[k]).padStart(13))].join(""));
   }
 }
 function toJSON(cells) {

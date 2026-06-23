@@ -49,17 +49,18 @@
 
 | ファイル | 責務 | 主な中身 |
 |---|---|---|
-| `match-core.js` | **純粋シミュレーション&バランス**(DOM非依存) | `eff` `fatigue` `situ` `midPower` `recalcAuras` / `pick*` / 起点選択(`pickChannel` `pickOriginPlayer` `rollTurnover` `pickWinner` `buildupSuccess` `pressPower` `buildSecurity`) / `buildTeam` `myTeam` `oppTeam` `oppPickStyle` / `statRating` / 勝敗判定の純粋関数 `resolveDuel` `resolveShot` |
+| `match-core.js` | **純粋シミュレーション&バランス**(DOM非依存) | `eff` `fatigue` `situ` `midPower` `recalcAuras` / `pick*` / 起点選択(`pickChannel` `pickOriginPlayer` `rollTurnover` `pickWinner` `buildupSuccess` `pressPower` `buildSecurity`) / 連鎖(`matchupDefender` `linkWeight` `resolveLink` `laneOf` `stamOf`) / `buildTeam` `myTeam` `oppTeam` `oppPickStyle` / `statRating` / 勝敗判定の純粋関数 `resolveDuel` `resolveShot` |
 | `match-render.js` | **描画・演出**(DOM/アニメ) | フィールド座標変換・`movePlayer` `ballTo` `buildField` `updateField` / カットイン(`vsCutin` `wordCutin` `sigCutin`) / `feed` / スキル発動演出(`skillHit` `auraSkill` `skillAny`) |
-| `match-flow.js` | **進行制御・起点→チャンネル** | `STYLES` レジストリ(center/side/long/short の各シーケンス) / `runChannel`(起点チャンネル→代表スタイル実行) `CHANNEL_STYLE` `recordOrigin` / `tryShot` `duel` / `tickAsync` `runLoop` / `startMatch` `endMatch` / スタッツ表示 / 途中交代 |
+| `match-flow.js` | **進行制御・起点→連鎖** | 起点(`recordOrigin`) / 連鎖(`LINKS` レジストリ・`runChain` `egoRun` `linkAvailable` `depthFrac` `recordLink` `recMatch`) / `tryShot` / `tickAsync` `runLoop` / `startMatch` `endMatch` / スタッツ表示 / 途中交代 |
 
-- **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigueMax` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
-- **起点(オリジン)レイヤー**(開放play): tick毎に `midPower` 比で主導権チーム T を決め、`rollTurnover` で守備側の奪取(=カウンター)を判定。奪取なら攻撃が反転し channel="win"。それ以外は `pickChannel`(build/overlap/feed)＋`pickOriginPlayer` で**起点選手**を選ぶ(全選手が起点になりうる/MF優位)。`buildupSuccess` で攻撃が形になるか判定し、`runChannel` が起点選手を `lead` として代表スタイルのシーケンスを実行。専用ロングカウンター抽選は撤去し `rollTurnover` に一本化。`TUNING.origin`(turnoverBase/channelBase/styleBias/buildup/counterBonus)で調整。チャンネル→代表スタイルは `CHANNEL_STYLE`(build=short/overlap=side/feed=long/win=center)。
-  - **未実装(次段)**: 連鎖のポジションマッチアップ化(細分sub＋現在位置で受け手/対応守備者を決定)、セットプレー(ファウル/クリアから派生)。
-- **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChannel` が `STYLES[代表].run` を実行 → 各 run が演出しつつ `resolveDuel`/`resolveShot` で判定 → ゴール/セーブ。
+- **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigueMax` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin` `link`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
+- **起点(オリジン)レイヤー**(開放play): tick毎に `midPower` 比で主導権チーム T を決め、`rollTurnover` で守備側の奪取(=カウンター)を判定。奪取なら攻撃が反転し channel="win"。それ以外は `pickChannel`(build/overlap/feed)＋`pickOriginPlayer` で**起点選手**を選ぶ(全選手が起点になりうる/MF優位)。`buildupSuccess` で攻撃が形になるか判定。専用ロングカウンター抽選は撤去し `rollTurnover` に一本化。`TUNING.origin`(turnoverBase/channelBase/styleBias/buildup/counterBonus)。
+- **連鎖チェーン**(起点→リンク×N→シュート): `runChain` が毎ステップ「シュート移行(深さ・つなぎ数で増加)/リンク」を判定。リンクは `LINKS` レジストリ(拡張可)で **combination(連結)/through/cross/dribble/cutin**。可能性は `linkAvailable`(ジオメトリ=幅/中央)、**選択は `linkWeight`(選手パラメータ＝個性)**。dribble/cutin は `(off,spd,tec)×スタミナ×type.drive` で重み付け＝**エゴイスト個性**(ドリブラー/ウインガーが自分で持ち込む)。受け手に対する守備者は `matchupDefender`(左右ミラー `100-lane`・静的レーン主体)で決定し `resolveLink` で競る。`TUNING.link`(maxLink/directShoot/progStep/base/egoStat/advanced)。
+  - **未実装(次段)**: セットプレー(`resolveLink` 失敗の reason=clear/tackle/(将来)foul をフックに、ファウル→FK/PK、クリア→CK を派生)。
+- **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChain`(リンク連鎖) → 各リンクが演出しつつ `resolveLink`/`resolveShot` で判定 → ゴール/セーブ。
 - **変更の指針**:
-  - 新しい攻撃スタイル追加 → `STYLES` に1エントリ(+`oppPickStyle` の係数、必要なら `FORM_COUNTER`)。
-  - バランス調整 → `data.js` の `TUNING`(必要なら各 run 内のステ配合)。
+  - 新しいリンク種別追加 → `LINKS` に1エントリ(+`linkWeight` に重み式、必要なら `linkAvailable`)。
+  - バランス調整 → `data.js` の `TUNING`(`origin`/`link`/`th` 等)。
   - 見た目/演出変更 → `match-render.js`。
 - **リグレッション確認**: 構造変更は「シード固定で前後の試合スコアが一致するか」で振る舞い不変を検証できる(`seedRandom` で Math.random を固定して同一条件の試合を回す)。
 

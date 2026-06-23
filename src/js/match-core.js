@@ -216,6 +216,53 @@ function buildupSuccess(channel,edge){
   return Math.random()<b*(0.8+edge*0.4);
 }
 
+// ===== 連鎖チェーンのマッチアップ&リンク(純粋ロジック) =====
+const stamOf=(p,min)=>fatigue(p.c,min-(p.enter||0)); // 現在のスタミナ係数(疲れると低下)
+const laneOf=p=>p.x;                                   // 静的レーン(左右0-100)。マッチアップの主基準
+// ポジションマッチアップ: 受け手のレーンに対応する守備者(左右ミラー=100-lane)。静的レーン主体。
+function matchupDefender(recv,D){
+  const target=100-laneOf(recv);
+  return pickW(D.players.filter(p=>p.role!=="GK"),p=>{
+    const dist=Math.abs(laneOf(p)-target);
+    const roleW=p.role==="DF"?1:p.role==="MF"?0.5:0.15;
+    return roleW*Math.max(0.06,1-dist/55);            // レーンが近いほど対応しやすい
+  })||pickDefender(D);
+}
+// リンク種別の選択重み(=個性)。dribble/cutin は off/spd/tec×スタミナ×type.drive でエゴが出る。
+function linkWeight(type,p,min,A,D){
+  const ty=typeOf(p.c), b=TUNING.link.base[type]||1, es=TUNING.link.egoStat;
+  const ego=(eff(p,"off",min,A,D)*es.off+eff(p,"spd",min,A,D)*es.spd+eff(p,"tec",min,A,D)*es.tec)*stamOf(p,min)*(ty.drive||1);
+  switch(type){
+    case "combination":
+    case "through":  return b*eff(p,"tec",min,A,D)*(ty.pas||1);
+    case "cross":    return b*eff(p,"tec",min,A,D)*(ty.wideSel?1.3:1);
+    case "dribble":
+    case "cutin":    return b*ego;
+  }
+  return b;
+}
+// リンクの競り合い判定(種別ごとのステ配合)。true=成功。resolveDuelと同形。
+function resolveLink(type,atk,df,A,D,min,tfA,tfD,bonus){
+  let aSc,dSc,thr;
+  switch(type){
+    case "combination":
+      aSc=eff(atk,"tec",min,A,D)*(fx(atk).duelTec||fx(atk).mid||1); thr=TH.chain;
+      dSc=(eff(df,"def",min,D,A)*0.5+eff(df,"spd",min,D,A)*0.5)*(fx(df).duelD||1); break;
+    case "through":
+      aSc=eff(atk,"spd",min,A,D)*(fx(atk).duelSpd||1); thr=TH.longRace;
+      dSc=(eff(df,"spd",min,D,A)*0.55+eff(df,"def",min,D,A)*0.45)*(fx(df).duelD||1); break;
+    case "cross":
+      aSc=(eff(atk,"pow",min,A,D)*0.55+eff(atk,"off",min,A,D)*0.25+eff(atk,"spd",min,A,D)*0.2)*(fx(atk).duelPow||1); thr=TH.cross;
+      dSc=(eff(df,"pow",min,D,A)*0.5+eff(df,"def",min,D,A)*0.5)*(fx(df).duelD||1); break;
+    default: // dribble / cutin
+      aSc=(eff(atk,"off",min,A,D)*0.4+eff(atk,"spd",min,A,D)*0.3+eff(atk,"tec",min,A,D)*0.3)*(fx(atk).duelSpd||fx(atk).duelTec||1); thr=TH.duel;
+      dSc=(eff(df,"def",min,D,A)*0.6+eff(df,"spd",min,D,A)*0.4)*(fx(df).duelD||1); break;
+  }
+  aSc*=A.teamChance*tfA*(bonus||1)*rr();
+  dSc*=D.teamDef*tfD*rr();
+  return aSc>dSc*thr;
+}
+
 // ===== 勝敗判定(純粋関数・DOM/演出/stat更新を持たない) =====
 // 中央1対1の勝敗。攻撃側スコア > 守備側スコア×TH.duel で突破。rr()消費順は aSc→dSc(乱数列を保持)。
 function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){

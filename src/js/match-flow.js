@@ -1,170 +1,133 @@
-// ================= 試合進行・攻撃スタイル(オーケストレーション) =================
-// 攻撃スタイルは STYLES レジストリにデータ駆動で定義(新スタイル追加=ここに1エントリ)。
-// 各 run() は「演出(match-render) + 勝敗判定(match-core の resolve*) + stat更新」を組み合わせるシーケンス。
-// 式内のステ配合はスタイル固有なのでインライン(横断的なダイヤルは TUNING)。
+// ================= 試合進行・連鎖チェーン(オーケストレーション) =================
+// 起点(オリジン)→ リンク連鎖 → シュート。リンクは LINKS レジストリで拡張可能(新種別=1エントリ)。
+// リンクの「可能性」は linkAvailable(ジオメトリ)、「選択」は linkWeight(パラメータ=選手個性)。
+// マッチアップ(matchupDefender)・判定(resolveLink)は match-core(純粋)、演出は match-render。
 
-const STYLES={
-  // 🎯 中央突破: ペナルティエリア手前の得意勝負(spd/pow/tec)→シュート
-  center:{label:STYLE_LABEL.center, run:async(A,D,min,m)=>{
-    await duel(A,D,min,m.tfA,m.tfD,m.who,m.bonus||1,m.lead);
-  }},
-  // 🏃 サイドアタック: ウイング突破(速×技)→クロス→ターゲットのヘディング(力)
-  side:{label:STYLE_LABEL.side, run:async(A,D,min,m)=>{
-    const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
-    const w=(m.lead&&isWide(m.lead))?m.lead:pickWide(A), d=pickWideDef(D);
-    w.stat.inv++;d.stat.inv++;
-    const wy=curP(w).y<50?12:88;
-    movePlayer(w,50+dir*16,wy,0.5);
-    movePlayer(d,50+dir*24,wy+(wy<50?5:-5),0.5);
-    await ballTo(50+dir*14,wy,0.5);                 // サイドへ展開
-    hot(w);hot(d);
-    await maybeVs(w,A,d,D,"🏃 サイドの仕掛け(速×技)");
-    const aSc=(eff(w,"spd",min,A,D)*0.6+eff(w,"tec",min,A,D)*0.4)*(fx(w).duelSpd||1)*A.teamChance*tfA*rr();
-    const dSc=(eff(d,"def",min,D,A)*0.55+eff(d,"spd",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
-    if(aSc>dSc*TH.side){
-      w.stat.duelW++;
-      movePlayer(w,gx-dir*10,wy,0.45);
-      await ballTo(gx-dir*11,wy,0.45);              // 縦に突破
-      feed(`${who}🏃 サイド突破!<b>${w.c.name}</b>(速${w.c.spd}・技${w.c.tec})が${d.c.name}を振り切った!`,"chance");
-      if(fx(w).duelSpd)await skillHit(w);
-      const t=pickTarget(A), m2=pickDefender(D);
-      t.stat.inv++;m2.stat.inv++;
-      const cx2=gx-dir*7, cy2=42+ri(0,16);
-      movePlayer(t,cx2-dir*2,cy2,0.4);
-      movePlayer(m2,cx2+dir*2,cy2+ri(-4,4),0.4);
-      hot(t);hot(m2);
-      await ballTo(cx2,cy2,0.4);                    // クロスが中央へ
-      const crossM=0.72+eff(w,"tec",min,A,D)/20*0.5;
-      const tSc=(eff(t,"pow",min,A,D)*0.55+eff(t,"off",min,A,D)*0.25+eff(t,"spd",min,A,D)*0.2)*(fx(t).duelPow||1)*crossM*rr();
-      const mSc=(eff(m2,"pow",min,D,A)*0.5+eff(m2,"def",min,D,A)*0.5)*(fx(m2).duelD||1)*tfD*rr();
-      if(tSc>mSc*TH.cross){
-        t.stat.duelW++;
-        feed(`クロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が${m2.c.name}(力${m2.c.pow})に競り勝った!`,"chance");
-        if(fx(t).duelPow)await skillHit(t);
-        await tryShot(t,A,D,min,true,cx2,cy2,w);
-      }else{
-        t.stat.duelL++;m2.stat.duelW++;
-        feed(`クロスは${m2.c.name}(力${m2.c.pow})が跳ね返した!`);if(fx(m2).duelD)await skillHit(m2);
-        await ballTo(50+dir*6,cy2+ri(-18,18),0.55); // クリア
-      }
-    }else{
-      w.stat.duelL++;d.stat.duelW++;
-      feed(`${who}🏃 ${w.c.name}のサイド突破 → ${d.c.name}(守${d.c.def}・速${d.c.spd})が対応!`);if(fx(d).duelD)await skillHit(d);
-      await ballTo(50,wy+(wy<50?14:-14),0.5);
+// 連鎖の前進度(0=自陣〜1=敵ゴール)。render座標(攻撃軸x)で算出。
+function depthFrac(A,p){const x=curP(p).x;return dirOf(A)>0?x/100:(100-x)/100;}
+// リンクの可能性(ジオメトリ・ゲート)。選択自体は linkWeight(パラメータ=個性)で行う。
+function linkAvailable(type,ctx){
+  if(type==="cross"||type==="cutin")return ctx.wide; // 幅がある(サイドに開いている)時のみ
+  return true; // combination/through/dribble は常時可能
+}
+// 自分で持ち込む系(dribble/cut-in)の共通実行。carrierがマッチアップ守備者を抜いて自らシュート(エゴ)。
+async function egoRun(ctx,type){
+  const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A),gx=goalXOf(A);
+  const df=matchupDefender(carrier,D); recMatch(carrier,df);
+  carrier.stat.inv++;df.stat.inv++;
+  const ey=type==="cutin"?(curP(carrier).y<50?38:62):30+ri(0,40);
+  const ex=gx-dir*15;
+  movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
+  await ballTo(ex-dir*3,ey,0.4);hot(carrier);hot(df);
+  await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)");
+  if(resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus)){
+    carrier.stat.duelW++;
+    feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
+    if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
+    await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3);
+    await tryShot(carrier,A,D,min,false);
+    return {shot:true};
+  }
+  carrier.stat.duelL++;df.stat.duelW++;df.stat.tkl++;
+  feed(`${who}${df.c.name}(守${df.c.def})が${type==="cutin"?"カットイン":"ドリブル"}を止めた!`);if(fx(df).duelD)await skillHit(df);
+  return {lost:true,reason:"tackle"};
+}
+// リンクのレジストリ(拡張前提: 1エントリ追加で種別が増える)。各 run は演出+resolveLinkを行い、
+// {receiver,assist}=連結成功 / {shot}=フィニッシュ済み / {lost}=ロスト を返す。
+const LINKS={
+  // つなぎ: ワンツーで近い味方へ。成功で carrier 前進・連鎖継続。
+  combination:{ run:async ctx=>{
+    const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A);
+    const mate=pickW(A.players.filter(p=>p!==carrier&&p.role!=="GK"),p=>1+(dir>0?curP(p).x:100-curP(p).x)/40);
+    if(!mate)return {lost:true};
+    const df=matchupDefender(mate,D); recMatch(mate,df);
+    carrier.stat.inv++;mate.stat.inv++;df.stat.inv++;hot(carrier);hot(mate);
+    await ballTo(curP(carrier).x+dir*2,curP(carrier).y,0.3);
+    await ballTo(curP(mate).x+dir*3,curP(mate).y,0.3);
+    if(resolveLink("combination",mate,df,A,D,min,tf.a,tf.d,tf.bonus)){
+      mate.stat.duelW++;
+      feed(`${who}🔄 <b>${carrier.c.name}</b>→<b>${mate.c.name}</b> ワンツーで前進!`,"chance");
+      await skillAny(mate,["duelTec","mid"]);
+      return {receiver:mate,assist:carrier};
     }
+    df.stat.tkl++;feed(`${who}${df.c.name}がパスをカット!`);if(fx(df).duelD)await skillHit(df);
+    return {lost:true,reason:"intercept"};
   }},
-  // 🚀 ロングパス: 後方からのロブ→裏抜けの駆けっこ(速)→GKと1対1
-  long:{label:STYLE_LABEL.long, run:async(A,D,min,m)=>{
-    const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
-    const p=m.lead||pickPasser(A), r=pickTarget(A), cut=pickPress(D);
-    p.stat.inv++;r.stat.inv++;cut.stat.inv++;
-    await ballTo(curP(p).x,curP(p).y,0.35);          // 後方の起点へ
-    const pSc=eff(p,"tec",min,A,D)*tfA*rr();
-    const cSc=(eff(cut,"spd",min,D,A)*0.5+eff(cut,"def",min,D,A)*0.5)*tfD*rr();
-    hot(p);
-    if(pSc>cSc*TH.longPass){
-      feed(`${who}🚀 <b>${p.c.name}</b>(技${p.c.tec})が最前線へロングフィード!`,"chance");
-      await skillAny(p,["duelTec","mid"]);            // 正確なフィードを通したMFのtec/mid系を明示
-      const d=pickDefender(D);
-      d.stat.inv++;
-      const lx=gx-dir*18, ly=20+ri(0,60);
-      movePlayer(r,lx-dir*2,ly,0.5);
-      movePlayer(d,lx+dir*2,ly+ri(-5,5),0.5);
-      hot(r);hot(d);
-      await ballTo(lx,ly,0.55);                      // ロブが落ちる
-      await maybeVs(r,A,d,D,"🚀 DFラインの裏の駆けっこ(速)");
-      const aSc=eff(r,"spd",min,A,D)*(fx(r).duelSpd||1)*A.teamChance*tfA*rr();
-      const dSc=(eff(d,"spd",min,D,A)*0.55+eff(d,"def",min,D,A)*0.45)*(fx(d).duelD||1)*D.teamDef*tfD*rr();
-      if(aSc>dSc*TH.longRace){
-        r.stat.duelW++;
-        movePlayer(r,gx-dir*8,ly+(50-ly)*0.3,0.35);
-        await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);   // 裏に抜けた
-        feed(`<b>${r.c.name}</b>(速${r.c.spd})が${d.c.name}(速${d.c.spd})を出し抜いて裏へ抜けた!GKと1対1!`,"chance");
-        if(fx(r).duelSpd)await skillHit(r);
-        await tryShot(r,A,D,min,false,null,null,p);
-      }else{
-        r.stat.duelL++;d.stat.duelW++;
-        feed(`${d.c.name}(速${d.c.spd})が先回りしてクリア!`);if(fx(d).duelD)await skillHit(d);
-        await ballTo(50,ly+ri(-12,12),0.55);
-      }
-    }else{
-      cut.stat.tkl++;
-      feed(`${who}🚀 ロングパスは${cut.c.name}がインターセプト!`);hot(cut);
-      await ballTo(curP(cut).x,curP(cut).y,0.4);
+  // 縦パス(終端): 抜け出すランナーへ。成功でGKと1対1。
+  through:{ run:async ctx=>{
+    const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A),gx=goalXOf(A);
+    const r=pickTarget(A),df=matchupDefender(r,D); recMatch(r,df);
+    carrier.stat.inv++;r.stat.inv++;df.stat.inv++;
+    const lx=gx-dir*18, ly=20+ri(0,60);
+    movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
+    await ballTo(lx,ly,0.5);hot(r);hot(df);
+    await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)");
+    if(resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus)){
+      r.stat.duelW++;
+      feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
+      if(fx(r).duelSpd)await skillHit(r);
+      await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);
+      await tryShot(r,A,D,min,false,null,null,carrier);
+      return {shot:true};
     }
+    df.stat.tkl++;feed(`${who}${df.c.name}(速${df.c.spd})が先回りしてクリア!`);if(fx(df).duelD)await skillHit(df);
+    return {lost:true,reason:"clear"};
   }},
-  // 🔄 ショートパス: MF同士のワンツー(技)→連携成立で中央勝負(ボーナス付き)
-  short:{label:STYLE_LABEL.short, run:async(A,D,min,m)=>{
-    const {tfA,tfD,who}=m; const dir=dirOf(A);
-    const mfs=A.players.filter(p=>p.role==="MF");
-    const m1=(m.lead&&m.lead.role==="MF")?m.lead:(mfs.length?rnd(mfs):pickAttacker(A));
-    let m2=mfs.filter(p=>p!==m1);m2=m2.length?rnd(m2):m1;
-    const pr=pickPress(D);
-    m1.stat.inv++;m2.stat.inv++;pr.stat.inv++;
-    hot(m1);hot(m2);
-    await ballTo(curP(m1).x,curP(m1).y,0.3);
-    await ballTo(curP(m2).x+dir*3,curP(m2).y,0.3);   // ワンツー
-    const chain=((eff(m1,"tec",min,A,D)+eff(m2,"tec",min,A,D))/2)*((fx(m1).mid||1)+(fx(m2).mid||1))/2*tfA*rr();
-    const prSc=(eff(pr,"def",min,D,A)*0.5+eff(pr,"spd",min,D,A)*0.5)*tfD*rr();
-    if(chain>prSc*TH.chain){
-      feed(`${who}🔄 <b>${m1.c.name}</b>→<b>${m2.c.name}</b>(技${m1.c.tec}・${m2.c.tec})、細かいパスワークで崩す!`,"chance");
-      await skillAny(m1,["duelTec","mid"]);await skillAny(m2,["duelTec","mid"]); // 連携を司るMFのtec/mid系を明示
-      await duel(A,D,min,tfA,tfD,who,TH.shortBonus);
-    }else{
-      pr.stat.tkl++;
-      feed(`${who}🔄 ${pr.c.name}がパスカット!ショートパスを読まれている`);hot(pr);
-      await ballTo(curP(pr).x,curP(pr).y,0.35);
+  // クロス(終端): 幅から中央のターゲットへ→ヘディング。
+  cross:{ run:async ctx=>{
+    const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A),gx=goalXOf(A);
+    const t=pickTarget(A),df=matchupDefender(t,D); recMatch(t,df);
+    carrier.stat.inv++;t.stat.inv++;df.stat.inv++;
+    const cx=gx-dir*7, cy=42+ri(0,16);
+    movePlayer(t,cx-dir*2,cy,0.4);movePlayer(df,cx+dir*2,cy+ri(-4,4),0.4);
+    await ballTo(cx,cy,0.4);hot(t);hot(df);
+    if(resolveLink("cross",t,df,A,D,min,tf.a,tf.d,tf.bonus)){
+      t.stat.duelW++;
+      feed(`${who}🏃 <b>${carrier.c.name}</b>のクロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
+      if(fx(t).duelPow)await skillHit(t);
+      await tryShot(t,A,D,min,true,cx,cy,carrier);
+      return {shot:true};
     }
+    df.stat.tkl++;feed(`${who}クロスは${df.c.name}(力${df.c.pow})が跳ね返した!`);if(fx(df).duelD)await skillHit(df);
+    return {lost:true,reason:"clear"};
   }},
+  // ドリブル(終端・エゴ): 中央で守備者を抜いて自らシュート。
+  dribble:{ run:ctx=>egoRun(ctx,"dribble") },
+  // カットイン(終端・エゴ): 幅から中へ切れ込んで自らシュート。
+  cutin:{ run:ctx=>egoRun(ctx,"cutin") },
 };
-// 起点チャンネル → 攻撃シーケンスの対応(各チャンネルは代表スタイルのシーケンスを再利用)。
-// build=中央の組み立て(short) / overlap=サイド(side) / feed=背後へ(long) / win=直線カウンター(center)。
-const CHANNEL_STYLE={build:"short",overlap:"side",feed:"long",win:"center"};
-// 起点チャンネルを実行。tfA/tfDに戦術補正 +「代表スタイル × 相手フォーメーション」相性係数を畳み込む。
-// origin(起点選手)を lead として渡し、そのチャンネルの先頭アクションを担わせる。
-async function runChannel(channel,A,D,min,origin){
-  const style=CHANNEL_STYLE[channel]||"center";
+// 連鎖チェーン: 起点→リンク×N→シュート。深さ/つなぎ数でシュート移行率が増え自然終端。
+async function runChain(channel,A,D,min,origin){
   const counter=channel==="win"?TUNING.origin.counterBonus:1;
-  const tfA=(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counterFactor(style,D.form)*counter;
-  const tfD=D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1;
+  const tf={ a:(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counter,
+             d:(D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1), bonus:1 };
   const who=A.side==="A"?"🔴 ":"";
-  await STYLES[style].run(A,D,min,{tfA,tfD,who,lead:origin,channel,bonus:channel==="win"?1:1});
-}
-// 試合テレメトリ(中検証で読む): 起点チャンネル/役職の分布、攻撃成立数。
-function recordOrigin(M,ch,p){
-  M.telemetry=M.telemetry||{ch:{build:0,overlap:0,feed:0,win:0},role:{GK:0,DF:0,MF:0,FW:0},atks:0};
-  M.telemetry.ch[ch]=(M.telemetry.ch[ch]||0)+1;
-  M.telemetry.role[p.role]=(M.telemetry.role[p.role]||0)+1;
-  M.telemetry.atks++;
-}
-// 中央1対1(center/short 共用): 演出 → resolveDuel で判定 → 成否の演出/シュート
-async function duel(A,D,min,tfA,tfD,who,bonus,lead){
-  const atk=lead||pickAttacker(A), df=pickDefender(D);
-  atk.stat.inv++;df.stat.inv++;
-  const dir=dirOf(A),gx=goalXOf(A);
-  const ex=gx-dir*16, ey=30+ri(0,40);   // ペナルティエリア手前で勝負
-  movePlayer(atk,ex-dir*3,ey,0.45);
-  movePlayer(df,ex+dir*3,ey+ri(-4,4),0.45);
-  await ballTo(ex-dir*4,ey,0.45);
-  const type=pickW(["spd","pow","tec"],k=>atk.c[k]*atk.c[k]);
-  const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
-  const dt=DUEL_TYPES[type];
-  hot(atk);hot(df);
-  await maybeVs(atk,A,df,D,`${dt.icon} ${dt.label}(${STAT_LABEL[type]}${atk.c[type]} vs 守${df.c.def})`);
-  if(resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus)){
-    atk.stat.duelW++;
-    movePlayer(atk,gx-dir*8,ey+(50-ey)*0.25,0.35);
-    await ballTo(gx-dir*9,ey+(50-ey)*0.25,0.3);     // 抜き去る
-    feed(`${who}${dt.icon} ${dt.label}! <b>${atk.c.name}</b>(${STAT_LABEL[type]}${atk.c[type]}) vs ${df.c.name}(守${df.c.def})…突破!`,"chance");
-    if(fx(atk)[duelKey])await skillHit(atk);
-    await tryShot(atk,A,D,min,false);
-  }else{
-    atk.stat.duelL++;df.stat.duelW++;
-    feed(`${who}${dt.icon} ${atk.c.name}の${dt.label} → ${df.c.name}(守${df.c.def})が止めた!`);
-    if(fx(df).duelD)await skillHit(df);
-    await ballTo(ex+dir*9,ey+ri(-8,8),0.5);          // 奪ってクリア
+  const L=TUNING.link, maxL=L.maxLink[channel]??3, dir=dirOf(A), gx=goalXOf(A);
+  let carrier=origin, assist=null, steps=0, prog=depthFrac(A,origin);
+  while(true){
+    const sc=L.directShootBase+prog*L.depthShoot+steps*L.stepShoot;
+    if(steps>=maxL||Math.random()<sc){ await tryShot(carrier,A,D,min,false,null,null,assist); return; }
+    const ctx={A,D,min,tf,who,carrier,wide:isWide(carrier),adv:prog>=L.advanced};
+    const types=Object.keys(LINKS).filter(t=>linkAvailable(t,ctx));
+    const type=pickW(types,t=>linkWeight(t,carrier,min,A,D));
+    recordLink(MC,type,carrier);
+    const out=await LINKS[type].run(ctx);
+    if(out.lost){await ballTo(curP(carrier).x-dir*8,curP(carrier).y+ri(-10,10),0.5);return;}
+    if(out.shot)return;
+    carrier=out.receiver; if(out.assist)assist=out.assist; steps++;
+    prog=Math.min(0.9,prog+L.progStep);
+    movePlayer(carrier,gx-dir*(18-steps*4),curP(carrier).y,0.4); // 連結のたびに受け手が前進
   }
 }
+// 試合テレメトリ(中検証で読む)。起点/リンク/エゴ/マッチアップ整合を集計。
+function ensureTele(M){return M.telemetry||(M.telemetry={
+  ch:{build:0,overlap:0,feed:0,win:0}, role:{GK:0,DF:0,MF:0,FW:0}, atks:0,
+  link:{combination:0,through:0,cross:0,dribble:0,cutin:0}, links:0,
+  ego:{n:0,offSum:0,driverN:0}, mu:{sum:0,n:0} });}
+function recordOrigin(M,ch,p){const t=ensureTele(M);t.ch[ch]=(t.ch[ch]||0)+1;t.role[p.role]=(t.role[p.role]||0)+1;t.atks++;}
+function recordLink(M,type,carrier){const t=ensureTele(M);t.link[type]=(t.link[type]||0)+1;t.links++;
+  if(type==="dribble"||type==="cutin"){t.ego.n++;t.ego.offSum+=carrier.c.off;const ty=carrier.c.type;if(ty==="dribbler"||ty==="winger")t.ego.driverN++;}}
+function recMatch(recv,df){const t=ensureTele(MC);const dist=Math.abs((100-recv.x)-df.x);t.mu.sum+=Math.max(0,1-dist/100);t.mu.n++;}
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
   atk.stat.shots++;
@@ -240,7 +203,7 @@ async function tickAsync(){
   const tShare=mh/(mh+ma), edge=(T===M.home)?tShare:1-tShare;
   if(buildupSuccess(channel,edge)){
     recordOrigin(M,channel,origin);
-    await runChannel(channel,T,D,M.min,origin);
+    await runChain(channel,T,D,M.min,origin);
   }else{
     const mates=T.players.filter(p=>p!==origin&&p.role!=="GK");
     if(mates.length){const c2=pickW(mates,p=>1+(dir>0?curP(p).x:100-curP(p).x)/50);c2.stat.inv++;await ballTo(curP(c2).x+dir*2,curP(c2).y,0.45);}
