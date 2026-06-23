@@ -207,9 +207,16 @@ async function setCorner(A,D,min){
   }finally{_spActive=false;}
 }
 const teamName=T=>T.side==="H"?"マイチーム":((MC&&MC.name)||"相手");
+// ボルテージ加算(イベントで熱気が上がる)。0.7初到達で「ヒートアップ」を1回告知。
+function addVolt(x){
+  if(!MC)return;
+  MC.volt=Math.min(1,(MC.volt||0)+x);
+  if(MC.volt>=0.7&&!MC._heated){MC._heated=true;feed("🔥 ヒートアップ!スタジアムが沸いてきた!","chance");}
+}
 // ゴール演出の集約: 加点 + 種別/スーパー判定 + スコアpop/歓声 + バナー/カットイン + 流れ(同点・勝ち越し・ハット)。
 async function goalCelebrate(scorer,A,D,min,opts={}){
   const preA=A.score, preD=D.score;
+  addVolt(TUNING.volt.goal); // 得点で熱気が一気に上がる
   A.score++; scorer.stat.goals++; if(opts.assist)opts.assist.stat.assists++;
   document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
   scorePop(A.side); crowdPulse();
@@ -234,6 +241,7 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
   atk.stat.shots++;
+  addVolt(TUNING.volt.shot); // シュートで熱気が上がる
   const gk=pickGK(D);
   atk.stat.inv++;gk.stat.inv++;
   await auraSkill(A,"teamChance",TUNING.aura.teamChance); // 決定機を演出した司令塔役(teamChance)の発動を明示
@@ -278,6 +286,9 @@ async function tickAsync(){
   clk.textContent=(M.min>=90?"90+":M.min)+"分";
   if(M.min>=85)clk.classList.add("late");                 // 終盤は時計を赤く
   if(M.min===87&&Math.abs(M.home.score-M.away.score)<=1)feed("⏱ 終了間際!ラストチャンスだ!","chance"); // 接戦のみ煽る
+  // ボルテージ: 停滞で冷め(decay)、時間で下限が上昇。0.4未満でヒートアップ告知をリセット。
+  M.volt=Math.max((M.volt||0)*TUNING.volt.decay, M.min/90*TUNING.volt.timeFloor);
+  if(M.volt<0.4)M._heated=false;
   M.home.tactic=S.tactic;M.home.style=S.style;
   if(M.min===60){
     M.away.tactic=M.away.score<M.home.score?"atk":M.away.score>M.home.score?"def":"bal";
@@ -297,7 +308,7 @@ async function tickAsync(){
   }
   // モメンタム(連続攻撃): 同じチームが攻め続けると「猛攻」コール
   if(M._lastAtk===T.side){M._streak=(M._streak||1)+1;}else{M._streak=1;M._lastAtk=T.side;}
-  if(M._streak===3)feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");
+  if(M._streak===3){feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
   const dir=dirOf(T);
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   origin.stat.inv++;
@@ -306,6 +317,7 @@ async function tickAsync(){
   const tShare=mh/(mh+ma), edge=(T===M.home)?tShare:1-tShare;
   if(buildupSuccess(channel,edge)){
     recordOrigin(M,channel,origin);
+    addVolt(TUNING.volt.atk); // 攻撃が形になると熱気が上がる
     await runChain(channel,T,D,M.min,origin);
   }else{
     const mates=T.players.filter(p=>p!==origin&&p.role!=="GK");
@@ -348,7 +360,7 @@ function startMatch(idx){
 
   const home=myTeam(),away=oppTeam(lv,club);
   away.style=oppPickStyle(away);
-  MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false};
+  MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}(Lv.${lv})`);

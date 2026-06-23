@@ -59,6 +59,7 @@
 - **セットプレー**(別レイヤー・連鎖の副次結果から派生): フィニッシュ系リンク(dribble/cutin/cross/through)で `rollFoul` が当たると **PK/FK**(`setPiece`→`spShot` 直接 or `aerialBox` クロス)。危険なクリア/GKセーブから確率で **CK**(`setCorner`→`aerialBox`)。スローインは通常保持に吸収(イベント化せず)。`_spActive` で再帰防止。`TUNING.setpiece`(foulBase/boxChance/pkBase/fkDirectShare/cornerOnClear/cornerOnSave)。低頻度(実測 PK≈0.2/試合・CK≈0.5/試合)で味付け。
 - **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChain`(リンク連鎖) → 各リンクが演出しつつ `resolveLink`/`resolveShot` で判定 → ゴール/セーブ。
 - **演出(match-flow/render)**: 得点は `goalCelebrate` に集約(種別=ヘディング/個人技/PK/直接FK/スーパー、スコアpop・歓声`crowdPulse`・同点/勝ち越し/ハットトリックの実況、得点者に`keyman`オーラ)。スーパーゴールは遠距離×高off/powで判定し`wordCutin`の`big`で増強。セットプレーは専用カットイン(`pkCutin`)/バナー(`actionBanner`)。試合の流れは連続攻撃の「猛攻」(`MC._streak`)・85分以降の時計赤(`#clock.late`)・終了間際コール。スキル発動は系統色パルス(`skillPulse`: 攻/守/支配)。
+- **ボルテージ(熱気)** `MC.volt`(0..1): 試合の熱気。攻撃成立/シュート/得点/猛攻で上がり、停滞で冷め、時間で下限上昇(`TUNING.volt`)。**スキル発動「演出」の表示確率(`skillShow`=gateBase+volt)をゲート**し、序盤(volt低)のキックオフ直後に唐突な発動演出が出ないようにする。**勝敗計算の係数(eff/resolve)は常時適用で不変**=演出のみの制御。0.7初到達で「ヒートアップ」告知。
 - **変更の指針**:
   - 新しいリンク種別追加 → `LINKS` に1エントリ(+`linkWeight` に重み式、必要なら `linkAvailable`)。
   - バランス調整 → `data.js` の `TUNING`(`origin`/`link`/`th` 等)。

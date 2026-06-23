@@ -187,7 +187,7 @@ async function kickoffCutin(hc,ac,awayName){
     <div class="fighter fromR"><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
    </div><div class="cutlabel kickoff">⚽ KICK OFF</div>`;
   const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(hc.c,92));ph[1].appendChild(spriteCanvas(ac.c,92));
-  document.body.appendChild(o);await sleep(1400);o.remove();
+  document.body.appendChild(o);await sleep(2300);o.remove();
 }
 // GAME SET カットイン: 最終スコアを表示。
 async function gameSetCutin(sh,sa){
@@ -224,10 +224,17 @@ function skillPulse(p){
   if(!p||!p.el)return;const cls="sk-"+skillCat(fx(p));
   p.el.classList.add(cls);setTimeout(()=>p.el&&p.el.classList.remove(cls),900);
 }
+// ボルテージ・ゲート: 発動「演出」の出やすさ。序盤(volt低)は抑制、熱気が上がると解放。
+// ※スキルの効果係数(eff/resolve)は常時適用で不変。ここは演出の表示確率のみ。
+function skillShow(){
+  const v=(typeof MC!=="undefined"&&MC)?(MC.volt||0):1;
+  return Math.random()<Math.min(1,TUNING.volt.gateBase+v);
+}
 // スキル発動を明示。固有選手は実況もカットインも「1試合1回だけ」(_sigCut で重複防止)。
-// 通常スキルは局面ごとに実況(カットインなし)+系統色パルス。
+// 通常スキルは局面ごとに実況(カットインなし)+系統色パルス。ボルテージで表示を抑制。
 async function skillHit(p){
   if(!p||!p.c||!p.c.skill)return;
+  if(!skillShow())return;          // 序盤など熱気が低い時は発動演出を出さない(係数は別途常時適用)
   if(p.c.sig){
     if(p._sigCut)return;            // 2回目以降は実況もカットインも出さない
     p._sigCut=true;
