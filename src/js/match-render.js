@@ -168,10 +168,33 @@ async function pkCutin(a,d){
   const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(a.c,92));ph[1].appendChild(spriteCanvas(d.c,92));
   document.body.appendChild(o);await sleep(1100);o.remove();
 }
-// 軽量バナー(セットプレー開始の合図など)。中央に短く出す。
-async function actionBanner(text,cls,ms){
-  const o=document.createElement("div");o.className="actbanner "+(cls||"");o.innerHTML=text;
-  document.body.appendChild(o);await sleep(ms||850);o.remove();
+// セットプレーのカットイン(通常カットインと同じ帯スタイル): 蹴る選手の絵+名前+種別名。
+async function spCutin(p,title){
+  const o=document.createElement("div");o.className="cutin";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.flag} ${p.c.name}</div></div>
+   <div class="cutword sp">${title}</div></div>`;
+  o.querySelector(".fph").appendChild(spriteCanvas(p.c,92));
+  document.body.appendChild(o);await sleep(950);o.remove();
+}
+// KICK OFF カットイン: 両チームの主将(最高OVR)を VS で表示。
+async function kickoffCutin(hc,ac,awayName){
+  const o=document.createElement("div");o.className="cutin";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner">
+    <div class="fighter fromL"><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">マイチーム 主将</div></div>
+    <div class="vsmark">VS</div>
+    <div class="fighter fromR"><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
+   </div><div class="cutlabel kickoff">⚽ KICK OFF</div>`;
+  const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(hc.c,92));ph[1].appendChild(spriteCanvas(ac.c,92));
+  document.body.appendChild(o);await sleep(1400);o.remove();
+}
+// GAME SET カットイン: 最終スコアを表示。
+async function gameSetCutin(sh,sa){
+  const o=document.createElement("div");o.className="cutin gameset";
+  o.innerHTML=`<div class="band"></div><div class="inner"><div class="cutword">GAME SET</div></div>
+   <div class="cutlabel">${sh} - ${sa}</div>`;
+  document.body.appendChild(o);await sleep(1400);o.remove();
 }
 // 歓声パルス(得点時に画面端が一瞬光る)。
 function crowdPulse(){

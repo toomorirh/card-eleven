@@ -25,7 +25,7 @@ async function egoRun(ctx,type){
     carrier.stat.duelW++;
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
-    await wordCutin(carrier,A,"個人技!!",false,600); // エゴ突破フラッシュ
+    await wordCutin(carrier,A,type==="cutin"?"カットイン成功!":"ドリブル突破!",false,650); // エゴ突破フラッシュ(種別別)
     await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3);
     await tryShot(carrier,A,D,min,false,null,null,null,"ego");
     return {shot:true};
@@ -183,13 +183,13 @@ async function _setPiece(kind,A,D,min){
   const wide=curP(taker).y<35||curP(taker).y>65;
   if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
     feed(`${who}⚡ 直接FKのチャンス! <b>${taker.c.name}</b>`,"chance");
-    await actionBanner("⚡ 直接フリーキック","fk");
+    await spCutin(taker,"直接フリーキック");
     await ballTo(gx-dir*20,50,0.45);
     const g=await spShot(taker,A,D,min,1.15,"直接FK!!","fk");
     if(g)recordSet(MC,"fk",true);
   }else{
     feed(`${who}🏃 FKからのクロス! <b>${taker.c.name}</b>が蹴る`,"chance");
-    await actionBanner("🏃 フリーキック","fk");
+    await spCutin(taker,"フリーキック");
     await ballTo(gx-dir*22,curP(taker).y,0.45);
     await aerialBox(A,D,min,taker,{a:1.05,d:1,bonus:1},who); // 得点はtryShot内で計上
   }
@@ -201,7 +201,7 @@ async function setCorner(A,D,min){
     recordSet(MC,"ck");
     const who=A.side==="A"?"🔴 ":"", kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
     feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
-    await actionBanner("🚩 コーナーキック","ck");
+    await spCutin(kicker,"コーナーキック");
     await ballTo(gx-dir*2,curP(kicker).y<50?8:92,0.45);
     await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
   }finally{_spActive=false;}
@@ -229,7 +229,6 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
   else if(preA===preD&&A.score>preD)feed(`${who}🔥 ${teamName(A)}が勝ち越し!`,"chance");
   if(scorer.stat.goals===2)feed(`${who}⭐ ${scorer.c.name} 2点目!`);
   if(scorer.stat.goals===3)feed(`${who}🌟 ${scorer.c.name} ハットトリック達成!!`,"goal");
-  if(scorer.el)scorer.el.classList.add("keyman"); // 得点者に常時オーラ(キーマン可視化)
   await kickoffReset();
 }
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
@@ -359,8 +358,12 @@ function startMatch(idx){
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.rar==="sr"||p.c.rar==="l");
   if(srs.length)feed(`⚠ 要注意:相手の${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);
-  runLoop();
+  // KICK OFF カットイン(両チーム主将=最高OVR)を再生してから試合ループ開始
+  (async()=>{ await kickoffCutin(teamCaptain(home),teamCaptain(away),name); runLoop(); })();
 }
+// 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
+const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+const teamCaptain=T=>T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
 
 // ================= 試合後スタッツ(オーバーレイ) =================
 let _statTeams=null;
@@ -402,6 +405,7 @@ function hideStatOverlay(){
 document.querySelectorAll("#statOverlay .statTabs button").forEach(b=>b.onclick=()=>renderStatTab(b.dataset.team));
 async function endMatch(){
   const M=MC,lv=M.lv,sh=M.home.score,sa=M.away.score;
+  await gameSetCutin(sh,sa); // 試合終了カットイン
   if(S._leagueMatch){
     S._leagueMatch=false;
     const e=document.getElementById("matchEnd");
