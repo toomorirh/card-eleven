@@ -114,10 +114,11 @@ async function vsCutin(a,A,d,D,label){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
-    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
-    <div class="vsmark">VS</div>
-    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.name}</div><div class="fst">${d.c.skill?"✦"+d.c.skill.name:""}</div></div>
-   </div><div class="cutlabel">${label}</div>`;
+    <div class="side l"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
+    <div class="ctr"><span class="vsmark">VS</span></div>
+    <div class="side r"><div class="fph"></div><div class="fn">${d.c.name}</div><div class="fst">${d.c.skill?"✦"+d.c.skill.name:""}</div></div>
+    <div class="cutlabel">${label}</div>
+   </div>`;
   const ph=o.querySelectorAll(".fph");
   ph[0].appendChild(spriteCanvas(a.c,92));
   ph[1].appendChild(spriteCanvas(d.c,92));
@@ -141,9 +142,9 @@ async function sigCutin(p){
 async function wordCutin(p,T,word,gold,ms,big){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
-   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.name}</div></div>
-   <div class="cutword${gold?" gold":""}${big?" big":""}">${word}</div></div>`;
-  o.querySelector(".fph").appendChild(spriteCanvas(p.c,gold?100:84));
+   <div class="wc-fig"></div>
+   <div class="cutword${gold?" gold":""}${big?" big":""}">${word}</div>`;
+  o.querySelector(".wc-fig").appendChild(spriteCanvas(p.c,gold?100:84));
   if(gold){
     const r=document.createElement("div");r.className="goalrays"+(big?" big":"");document.body.appendChild(r);
     setTimeout(()=>r.remove(),big?1700:1450);
@@ -161,40 +162,41 @@ async function pkCutin(a,d){
   const o=document.createElement("div");o.className="cutin pk";
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
-    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.flag} ${a.c.name}</div><div class="fst">キッカー</div></div>
-    <div class="vsmark pk">PK</div>
-    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.flag} ${d.c.name}</div><div class="fst">守護神</div></div>
-   </div><div class="cutlabel">ペナルティキック</div>`;
+    <div class="side l"><div class="fph"></div><div class="fn">${a.c.flag} ${a.c.name}</div><div class="fst">キッカー</div></div>
+    <div class="ctr"><span class="vsmark pk">PK</span></div>
+    <div class="side r"><div class="fph"></div><div class="fn">${d.c.flag} ${d.c.name}</div><div class="fst">守護神</div></div>
+    <div class="cutlabel">ペナルティキック</div>
+   </div>`;
   const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(a.c,92));ph[1].appendChild(spriteCanvas(d.c,92));
   document.body.appendChild(o);await sleep(1100);o.remove();
 }
-// セットプレーのカットイン(通常カットインと同じ帯スタイル): 蹴る選手の絵+名前+種別名。
+// セットプレーのカットイン(語句型・縦中央スタック): 蹴る選手の絵+種別名+名前。
 async function spCutin(p,title){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
-   <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.flag} ${p.c.name}</div></div>
-   <div class="cutword sp">${title}</div></div>`;
-  o.querySelector(".fph").appendChild(spriteCanvas(p.c,92));
+   <div class="wc-fig"></div>
+   <div class="cutword sp">${title}</div>
+   <div class="cutlabel">${p.c.flag} ${p.c.name}</div>`;
+  o.querySelector(".wc-fig").appendChild(spriteCanvas(p.c,92));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
-// KICK OFF カットイン: 両チームの主将(最高OVR)を VS で表示。
+// KICK OFF カットイン: 両チームの主将(最高OVR)を左右に、中央に「KICK OFF」。
 async function kickoffCutin(hc,ac,awayName){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
-    <div class="fighter fromL"><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">マイチーム 主将</div></div>
-    <div class="vsmark">VS</div>
-    <div class="fighter fromR"><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
-   </div><div class="cutlabel kickoff">⚽ KICK OFF</div>`;
+    <div class="side l"><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">マイチーム 主将</div></div>
+    <div class="ctr"><span class="vsmark kickoff">⚽ KICK OFF</span></div>
+    <div class="side r"><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
+   </div>`;
   const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(hc.c,92));ph[1].appendChild(spriteCanvas(ac.c,92));
   document.body.appendChild(o);await sleep(2300);o.remove();
 }
-// GAME SET カットイン: 最終スコアを表示。
+// GAME SET カットイン: 中央に「GAME SET」+最終スコア(縦中央スタック)。
 async function gameSetCutin(sh,sa){
   const o=document.createElement("div");o.className="cutin gameset";
-  o.innerHTML=`<div class="band"></div><div class="inner"><div class="cutword">GAME SET</div></div>
-   <div class="cutlabel">${sh} - ${sa}</div>`;
-  document.body.appendChild(o);await sleep(1400);o.remove();
+  o.innerHTML=`<div class="band"></div><div class="cutword">GAME SET</div><div class="cutlabel">${sh} - ${sa}</div>`;
+  document.body.appendChild(o);await sleep(1500);o.remove();
 }
 // 歓声パルス(得点時に画面端が一瞬光る)。
 function crowdPulse(){

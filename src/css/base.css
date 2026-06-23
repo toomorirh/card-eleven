@@ -259,17 +259,24 @@ canvas.sprite{image-rendering:auto}
 .cutin .band{position:absolute;left:-6%;right:-6%;top:50%;height:172px;transform:translateY(-50%) skewY(-3deg);
   background:linear-gradient(90deg,rgba(8,14,24,0),rgba(8,14,24,.95) 12%,rgba(8,14,24,.95) 88%,rgba(8,14,24,0));
   border-top:2px solid var(--gold);border-bottom:2px solid var(--gold)}
-.cutin .inner{position:relative;display:flex;align-items:center;gap:20px;z-index:1}
-.cutin .cutlabel{position:relative;z-index:1;font-family:'DotGothic16';font-size:14px;color:var(--cyan);margin-top:10px}
-.fighter{display:flex;flex-direction:column;align-items:center;gap:3px}
-.fighter .fn{font-weight:900;font-size:13px;text-shadow:0 1px 3px #000}
-.fighter .fst{font-family:'DotGothic16';font-size:11px;color:var(--gold)}
-.fromL{animation:inL .28s both}.fromR{animation:inR .28s both}
-@keyframes inL{from{transform:translateX(-90px);opacity:0}to{transform:none;opacity:1}}
-@keyframes inR{from{transform:translateX(90px);opacity:0}to{transform:none;opacity:1}}
-.vsmark{font-family:'DotGothic16';font-size:36px;color:var(--red);text-shadow:0 0 10px rgba(224,85,70,.7);animation:vspop .35s both}
+/* VS型(2人+中央マーク): 選手を左右に絶対配置・中段。マークは画面中央に固定。 */
+.cutin .inner{position:absolute;inset:0;z-index:1}
+.cutin .side{position:absolute;top:50%;display:flex;flex-direction:column;align-items:center;gap:4px;width:40%}
+.cutin .side.l{left:2%;animation:inL .3s both}
+.cutin .side.r{right:2%;animation:inR .3s both}
+@keyframes inL{from{transform:translate(-70px,-50%);opacity:0}to{transform:translate(0,-50%);opacity:1}}
+@keyframes inR{from{transform:translate(70px,-50%);opacity:0}to{transform:translate(0,-50%);opacity:1}}
+.cutin .ctr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;text-align:center}
+.cutin .cutlabel{position:absolute;left:50%;top:64%;transform:translateX(-50%);z-index:2;
+  font-family:'DotGothic16';font-size:14px;color:var(--cyan);white-space:nowrap;text-align:center}
+.fn{font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fst{font-family:'DotGothic16';font-size:11px;color:var(--gold);text-align:center}
+.vsmark{display:inline-block;font-family:'DotGothic16';font-size:36px;color:var(--red);text-shadow:0 0 10px rgba(224,85,70,.7);animation:vspop .35s both}
+.vsmark.kickoff{color:var(--gold);font-size:26px;text-shadow:0 0 12px rgba(232,194,90,.8)}
 @keyframes vspop{0%{transform:scale(3);opacity:0}70%{transform:scale(.9)}100%{transform:scale(1);opacity:1}}
-.cutword{font-family:'DotGothic16';font-size:40px;color:#fff;z-index:1;
+/* 語句型(単体選手+語): 選手→語句を画面中央に縦スタック(文字に圧迫されず中段表示) */
+.cutin .wc-fig{position:relative;z-index:1;animation:vspop .3s both}
+.cutword{display:inline-block;text-align:center;font-family:'DotGothic16';font-size:40px;color:#fff;z-index:2;
   text-shadow:0 0 16px rgba(84,214,200,.8);animation:vspop .3s both}
 .cutword.gold{font-size:50px;color:var(--gold);text-shadow:0 0 24px rgba(232,194,90,.95)}
 .goalrays{position:fixed;inset:-60%;z-index:125;pointer-events:none;
@@ -308,7 +315,7 @@ canvas.sprite{image-rendering:auto}
 
 /* ===== 追加演出(A:セットプレー / B:ゴール格分け / C:流れ / D:個性) ===== */
 /* スーパーゴール(大きな金文字 + 強いシェイク/放射光) */
-.cutword.big{font-size:60px;color:#ffe24a;text-shadow:0 0 30px rgba(255,210,74,1),0 0 52px rgba(255,120,180,.75)}
+.cutword.big{font-size:46px;color:#ffe24a;text-shadow:0 0 30px rgba(255,210,74,1),0 0 52px rgba(255,120,180,.75)}
 .goalrays.big{inset:-80%;background:repeating-conic-gradient(rgba(255,210,90,.30) 0 7deg,transparent 7deg 14deg)}
 .shake-big{animation:shakeBig .7s}
 @keyframes shakeBig{0%,100%{transform:none}15%{transform:translate(7px,-5px)}30%{transform:translate(-7px,5px)}
