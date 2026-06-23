@@ -50,7 +50,7 @@
 | ファイル | 責務 | 主な中身 |
 |---|---|---|
 | `match-core.js` | **純粋シミュレーション&バランス**(DOM非依存) | `eff` `fatigue` `situ` `midPower` `recalcAuras` / `pick*` / 起点選択(`pickChannel` `pickOriginPlayer` `rollTurnover` `pickWinner` `buildupSuccess` `pressPower` `buildSecurity`) / 連鎖(`matchupDefender` `linkWeight` `resolveLink` `laneOf` `stamOf`) / `buildTeam` `myTeam` `oppTeam` `oppPickStyle` / `statRating` / 勝敗判定の純粋関数 `resolveDuel` `resolveShot` |
-| `match-render.js` | **描画・演出**(DOM/アニメ) | フィールド座標変換・`movePlayer` `ballTo` `buildField` `updateField` / カットイン(`vsCutin` `wordCutin` `sigCutin`) / `feed` / スキル発動演出(`skillHit` `auraSkill` `skillAny`) |
+| `match-render.js` | **描画・演出**(DOM/アニメ) | フィールド座標変換・`movePlayer` `ballTo` `buildField` `updateField` / カットイン(`vsCutin` `wordCutin`(super=`big`) `sigCutin`(スポットライト) `pkCutin`(PK一騎打ち)) / `actionBanner` `crowdPulse` `scorePop` / `feed` / スキル発動演出(`skillHit` `skillPulse`(系統色) `auraSkill` `skillAny`) |
 | `match-flow.js` | **進行制御・起点→連鎖** | 起点(`recordOrigin`) / 連鎖(`LINKS` レジストリ・`runChain` `egoRun` `linkAvailable` `depthFrac` `recordLink` `recMatch`) / `tryShot` / `tickAsync` `runLoop` / `startMatch` `endMatch` / スタッツ表示 / 途中交代 |
 
 - **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigueMax` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin` `link`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
@@ -58,6 +58,7 @@
 - **連鎖チェーン**(起点→リンク×N→シュート): `runChain` が毎ステップ「シュート移行(深さ・つなぎ数で増加)/リンク」を判定。リンクは `LINKS` レジストリ(拡張可)で **combination(連結)/through/cross/dribble/cutin**。可能性は `linkAvailable`(ジオメトリ=幅/中央)、**選択は `linkWeight`(選手パラメータ＝個性)**。dribble/cutin は `(off,spd,tec)×スタミナ×type.drive` で重み付け＝**エゴイスト個性**(ドリブラー/ウインガーが自分で持ち込む)。受け手に対する守備者は `matchupDefender`(左右ミラー `100-lane`・静的レーン主体)で決定し `resolveLink` で競る。`TUNING.link`(maxLink/directShoot/progStep/base/egoStat/advanced)。
 - **セットプレー**(別レイヤー・連鎖の副次結果から派生): フィニッシュ系リンク(dribble/cutin/cross/through)で `rollFoul` が当たると **PK/FK**(`setPiece`→`spShot` 直接 or `aerialBox` クロス)。危険なクリア/GKセーブから確率で **CK**(`setCorner`→`aerialBox`)。スローインは通常保持に吸収(イベント化せず)。`_spActive` で再帰防止。`TUNING.setpiece`(foulBase/boxChance/pkBase/fkDirectShare/cornerOnClear/cornerOnSave)。低頻度(実測 PK≈0.2/試合・CK≈0.5/試合)で味付け。
 - **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChain`(リンク連鎖) → 各リンクが演出しつつ `resolveLink`/`resolveShot` で判定 → ゴール/セーブ。
+- **演出(match-flow/render)**: 得点は `goalCelebrate` に集約(種別=ヘディング/個人技/PK/直接FK/スーパー、スコアpop・歓声`crowdPulse`・同点/勝ち越し/ハットトリックの実況、得点者に`keyman`オーラ)。スーパーゴールは遠距離×高off/powで判定し`wordCutin`の`big`で増強。セットプレーは専用カットイン(`pkCutin`)/バナー(`actionBanner`)。試合の流れは連続攻撃の「猛攻」(`MC._streak`)・85分以降の時計赤(`#clock.late`)・終了間際コール。スキル発動は系統色パルス(`skillPulse`: 攻/守/支配)。
 - **変更の指針**:
   - 新しいリンク種別追加 → `LINKS` に1エントリ(+`linkWeight` に重み式、必要なら `linkAvailable`)。
   - バランス調整 → `data.js` の `TUNING`(`origin`/`link`/`th` 等)。

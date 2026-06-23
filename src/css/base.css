@@ -306,6 +306,43 @@ canvas.sprite{image-rendering:auto}
   text-shadow:0 1px 3px #000;animation:sigName 1.45s ease-out both}
 @media (prefers-reduced-motion: reduce){.sigcut,.sigcut-spot,.sigcut-fig,.sigcut-name,.sigcut-sub{animation:none}}
 
+/* ===== 追加演出(A:セットプレー / B:ゴール格分け / C:流れ / D:個性) ===== */
+/* スーパーゴール(大きな金文字 + 強いシェイク/放射光) */
+.cutword.big{font-size:60px;color:#ffe24a;text-shadow:0 0 30px rgba(255,210,74,1),0 0 52px rgba(255,120,180,.75)}
+.goalrays.big{inset:-80%;background:repeating-conic-gradient(rgba(255,210,90,.30) 0 7deg,transparent 7deg 14deg)}
+.shake-big{animation:shakeBig .7s}
+@keyframes shakeBig{0%,100%{transform:none}15%{transform:translate(7px,-5px)}30%{transform:translate(-7px,5px)}
+  45%{transform:translate(6px,4px)}60%{transform:translate(-6px,-4px)}75%{transform:translate(4px,3px)}}
+/* PKフェイスオフ */
+.vsmark.pk{color:#ffd24a;font-size:30px;text-shadow:0 0 12px rgba(255,210,74,.85)}
+/* セットプレー開始バナー */
+.actbanner{position:fixed;top:33%;left:50%;transform:translateX(-50%);z-index:132;pointer-events:none;
+  font-family:'DotGothic16';font-size:21px;font-weight:900;color:#fff;letter-spacing:2px;
+  padding:8px 22px;border-radius:10px;background:rgba(8,14,24,.92);border:2px solid var(--cyan);
+  text-shadow:0 2px 4px #000;animation:actbn .85s ease-out both}
+.actbanner.fk{border-color:#ffd24a}.actbanner.ck{border-color:#7dff9e}
+@keyframes actbn{0%{opacity:0;transform:translateX(-50%) translateY(-12px) scale(.9)}
+  20%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}80%{opacity:1}100%{opacity:0}}
+/* 歓声パルス(得点時に画面端が光る) */
+.crowd{position:fixed;inset:0;z-index:120;pointer-events:none;animation:crowd .9s ease-out both}
+@keyframes crowd{0%{box-shadow:inset 0 0 0 0 rgba(255,225,120,0)}
+  25%{box-shadow:inset 0 0 90px 24px rgba(255,225,120,.55)}100%{box-shadow:inset 0 0 130px 32px rgba(255,225,120,0)}}
+/* スコア数字ポップ */
+#sH.pop,#sA.pop{display:inline-block;animation:scorepop .6s ease-out}
+@keyframes scorepop{0%{transform:scale(1)}30%{transform:scale(1.85);color:#ffe24a;text-shadow:0 0 14px rgba(255,210,74,.9)}100%{transform:scale(1)}}
+/* 終了間際の時計 */
+#clock.late{color:var(--red);animation:clkpulse 1s ease-in-out infinite}
+@keyframes clkpulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* 得点者(キーマン)オーラ */
+.tok.keyman::after{content:"";position:absolute;inset:-3px;border-radius:50%;
+  border:2px solid rgba(255,210,74,.75);animation:keyaura 1.3s ease-in-out infinite;pointer-events:none}
+@keyframes keyaura{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.3);opacity:.15}}
+/* スキル系統色パルス(攻=赤橙 / 守=青 / 支配=緑) */
+.tok.sk-atk{filter:drop-shadow(0 0 7px rgba(255,120,90,.95))}
+.tok.sk-def{filter:drop-shadow(0 0 7px rgba(120,180,255,.95))}
+.tok.sk-mid{filter:drop-shadow(0 0 7px rgba(120,255,170,.95))}
+@media (prefers-reduced-motion: reduce){.cutword.big,.goalrays.big,.shake-big,.actbanner,.crowd,#clock.late,.tok.keyman::after,.pop{animation:none}}
+
 /* gacha */
 .packlist{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
 .packtile{position:relative;border-radius:14px;padding:14px 10px 12px;cursor:pointer;text-align:center;overflow:hidden;

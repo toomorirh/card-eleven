@@ -138,17 +138,17 @@ async function sigCutin(p){
   document.body.appendChild(o);
   await sleep(1300);o.remove();
 }
-async function wordCutin(p,T,word,gold,ms){
+async function wordCutin(p,T,word,gold,ms,big){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
    <div class="inner"><div class="fighter fromL"><div class="fph"></div><div class="fn">${p.c.name}</div></div>
-   <div class="cutword${gold?" gold":""}">${word}</div></div>`;
+   <div class="cutword${gold?" gold":""}${big?" big":""}">${word}</div></div>`;
   o.querySelector(".fph").appendChild(spriteCanvas(p.c,gold?100:84));
   if(gold){
-    const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);
-    setTimeout(()=>r.remove(),1450);
-    document.querySelector(".wrap").classList.add("shake");
-    setTimeout(()=>document.querySelector(".wrap").classList.remove("shake"),550);
+    const r=document.createElement("div");r.className="goalrays"+(big?" big":"");document.body.appendChild(r);
+    setTimeout(()=>r.remove(),big?1700:1450);
+    const w=document.querySelector(".wrap");if(w){w.classList.add(big?"shake-big":"shake");
+      setTimeout(()=>w.classList.remove("shake","shake-big"),big?700:550);}
   }
   document.body.appendChild(o);
   await sleep(ms);o.remove();
@@ -156,24 +156,63 @@ async function wordCutin(p,T,word,gold,ms){
 async function maybeVs(a,A,d,D,label){
   if(["sr","l"].includes(a.c.rar)||["sr","l"].includes(d.c.rar)||Math.random()<0.18)await vsCutin(a,A,d,D,label);
 }
+// PK専用カットイン: キッカー vs GK の一騎打ち(緊張のフェイスオフ)。
+async function pkCutin(a,d){
+  const o=document.createElement("div");o.className="cutin pk";
+  o.innerHTML=`<div class="band"></div>
+   <div class="inner">
+    <div class="fighter fromL"><div class="fph"></div><div class="fn">${a.c.flag} ${a.c.name}</div><div class="fst">キッカー</div></div>
+    <div class="vsmark pk">PK</div>
+    <div class="fighter fromR"><div class="fph"></div><div class="fn">${d.c.flag} ${d.c.name}</div><div class="fst">守護神</div></div>
+   </div><div class="cutlabel">ペナルティキック</div>`;
+  const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(a.c,92));ph[1].appendChild(spriteCanvas(d.c,92));
+  document.body.appendChild(o);await sleep(1100);o.remove();
+}
+// 軽量バナー(セットプレー開始の合図など)。中央に短く出す。
+async function actionBanner(text,cls,ms){
+  const o=document.createElement("div");o.className="actbanner "+(cls||"");o.innerHTML=text;
+  document.body.appendChild(o);await sleep(ms||850);o.remove();
+}
+// 歓声パルス(得点時に画面端が一瞬光る)。
+function crowdPulse(){
+  const o=document.createElement("div");o.className="crowd";document.body.appendChild(o);
+  setTimeout(()=>o.remove(),900);
+}
+// スコア数字のポップ。
+function scorePop(side){
+  const el=document.getElementById(side==="H"?"sH":"sA");if(!el)return;
+  el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");
+  setTimeout(()=>el&&el.classList.remove("pop"),700);
+}
 
 // ===== スキル発動の明示(実況テキスト + 固有カットイン) =====
 function skillFeed(p){ // 実況テキストのみ
   if(!p.c.skill)return;
   feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");
 }
+// スキルの系統(色分け用): 守備/支配/攻撃。
+function skillCat(fxo){
+  if(fxo.save||fxo.duelD||fxo.teamDef||fxo.miracle)return "def";
+  if(fxo.mid||fxo.teamChance)return "mid";
+  return "atk";
+}
+// スキル発動時にトークンを系統色で一瞬光らせる(個性の可視化)。
+function skillPulse(p){
+  if(!p||!p.el)return;const cls="sk-"+skillCat(fx(p));
+  p.el.classList.add(cls);setTimeout(()=>p.el&&p.el.classList.remove(cls),900);
+}
 // スキル発動を明示。固有選手は実況もカットインも「1試合1回だけ」(_sigCut で重複防止)。
-// 通常スキルは局面ごとに実況(カットインなし)。
+// 通常スキルは局面ごとに実況(カットインなし)+系統色パルス。
 async function skillHit(p){
   if(!p||!p.c||!p.c.skill)return;
   if(p.c.sig){
     if(p._sigCut)return;            // 2回目以降は実況もカットインも出さない
     p._sigCut=true;
-    skillFeed(p);
+    skillFeed(p);skillPulse(p);
     await sigCutin(p);
     return;
   }
-  skillFeed(p);
+  skillFeed(p);skillPulse(p);
 }
 // チーム系スキル(teamChance/teamDef/mid)を、意味的に妥当な局面で「発動」として明示する。
 // 勝敗ロジックには影響しない演出専用(係数自体は eff/recalcAuras 側で常時掛かっている)。
