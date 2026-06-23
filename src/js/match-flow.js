@@ -6,12 +6,12 @@
 const STYLES={
   // 🎯 中央突破: ペナルティエリア手前の得意勝負(spd/pow/tec)→シュート
   center:{label:STYLE_LABEL.center, run:async(A,D,min,m)=>{
-    await duel(A,D,min,m.tfA,m.tfD,m.who,1);
+    await duel(A,D,min,m.tfA,m.tfD,m.who,m.bonus||1,m.lead);
   }},
   // 🏃 サイドアタック: ウイング突破(速×技)→クロス→ターゲットのヘディング(力)
   side:{label:STYLE_LABEL.side, run:async(A,D,min,m)=>{
     const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
-    const w=pickWide(A), d=pickWideDef(D);
+    const w=(m.lead&&isWide(m.lead))?m.lead:pickWide(A), d=pickWideDef(D);
     w.stat.inv++;d.stat.inv++;
     const wy=curP(w).y<50?12:88;
     movePlayer(w,50+dir*16,wy,0.5);
@@ -56,7 +56,7 @@ const STYLES={
   // 🚀 ロングパス: 後方からのロブ→裏抜けの駆けっこ(速)→GKと1対1
   long:{label:STYLE_LABEL.long, run:async(A,D,min,m)=>{
     const {tfA,tfD,who}=m; const dir=dirOf(A),gx=goalXOf(A);
-    const p=pickPasser(A), r=pickTarget(A), cut=pickPress(D);
+    const p=m.lead||pickPasser(A), r=pickTarget(A), cut=pickPress(D);
     p.stat.inv++;r.stat.inv++;cut.stat.inv++;
     await ballTo(curP(p).x,curP(p).y,0.35);          // 後方の起点へ
     const pSc=eff(p,"tec",min,A,D)*tfA*rr();
@@ -97,7 +97,7 @@ const STYLES={
   short:{label:STYLE_LABEL.short, run:async(A,D,min,m)=>{
     const {tfA,tfD,who}=m; const dir=dirOf(A);
     const mfs=A.players.filter(p=>p.role==="MF");
-    const m1=mfs.length?rnd(mfs):pickAttacker(A);
+    const m1=(m.lead&&m.lead.role==="MF")?m.lead:(mfs.length?rnd(mfs):pickAttacker(A));
     let m2=mfs.filter(p=>p!==m1);m2=m2.length?rnd(m2):m1;
     const pr=pickPress(D);
     m1.stat.inv++;m2.stat.inv++;pr.stat.inv++;
@@ -117,16 +117,29 @@ const STYLES={
     }
   }},
 };
-async function attackEvent(A,D,min){
-  // tfA/tfDに戦術補正 +「攻撃スタイル × 相手フォーメーション」の相性係数を畳み込む
-  const tfA=(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counterFactor(A.style,D.form);
+// 起点チャンネル → 攻撃シーケンスの対応(各チャンネルは代表スタイルのシーケンスを再利用)。
+// build=中央の組み立て(short) / overlap=サイド(side) / feed=背後へ(long) / win=直線カウンター(center)。
+const CHANNEL_STYLE={build:"short",overlap:"side",feed:"long",win:"center"};
+// 起点チャンネルを実行。tfA/tfDに戦術補正 +「代表スタイル × 相手フォーメーション」相性係数を畳み込む。
+// origin(起点選手)を lead として渡し、そのチャンネルの先頭アクションを担わせる。
+async function runChannel(channel,A,D,min,origin){
+  const style=CHANNEL_STYLE[channel]||"center";
+  const counter=channel==="win"?TUNING.origin.counterBonus:1;
+  const tfA=(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counterFactor(style,D.form)*counter;
   const tfD=D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1;
   const who=A.side==="A"?"🔴 ":"";
-  await (STYLES[A.style]||STYLES.center).run(A,D,min,{tfA,tfD,who});
+  await STYLES[style].run(A,D,min,{tfA,tfD,who,lead:origin,channel,bonus:channel==="win"?1:1});
+}
+// 試合テレメトリ(中検証で読む): 起点チャンネル/役職の分布、攻撃成立数。
+function recordOrigin(M,ch,p){
+  M.telemetry=M.telemetry||{ch:{build:0,overlap:0,feed:0,win:0},role:{GK:0,DF:0,MF:0,FW:0},atks:0};
+  M.telemetry.ch[ch]=(M.telemetry.ch[ch]||0)+1;
+  M.telemetry.role[p.role]=(M.telemetry.role[p.role]||0)+1;
+  M.telemetry.atks++;
 }
 // 中央1対1(center/short 共用): 演出 → resolveDuel で判定 → 成否の演出/シュート
-async function duel(A,D,min,tfA,tfD,who,bonus){
-  const atk=pickAttacker(A), df=pickDefender(D);
+async function duel(A,D,min,tfA,tfD,who,bonus,lead){
+  const atk=lead||pickAttacker(A), df=pickDefender(D);
   atk.stat.inv++;df.stat.inv++;
   const dir=dirOf(A),gx=goalXOf(A);
   const ex=gx-dir*16, ey=30+ri(0,40);   // ペナルティエリア手前で勝負
@@ -208,24 +221,29 @@ async function tickAsync(){
     if(M.away.tactic==="atk")feed(`${M.name}がカードを前に動かしてきた!攻勢だ!`);
   }
   const mh=midPower(M.home,M.away,M.min),ma=midPower(M.away,M.home,M.min);
-  let homeAtt=Math.random()<mh/(mh+ma);
-  if(!homeAtt&&M.home.style==="long"&&Math.random()<0.22){homeAtt=true;feed("素早い切り替えからロングカウンター!","chance");}
-  if(homeAtt&&M.away.style==="long"&&Math.random()<0.22){homeAtt=false;feed("🔴 相手のロングカウンター!","chance");}
-  const T=homeAtt?M.home:M.away;
+  // 主導権(支配率比) → 奪取(カウンター)判定 → チャンネル/起点選択
+  let T=Math.random()<mh/(mh+ma)?M.home:M.away;
+  let D=T===M.home?M.away:M.home;
+  let channel,origin;
+  if(rollTurnover(T,D,M.min)){
+    [T,D]=[D,T];channel="win";origin=pickWinner(T,D,M.min);
+    feed(`${T.side==="A"?"🔴 ":""}⚡ ${origin.c.name}がボールを奪った!カウンターのチャンス!`,"chance");
+  }else{
+    channel=pickChannel(T,D,M.min);
+    origin=pickOriginPlayer(T,D,channel,M.min);
+  }
   const dir=dirOf(T);
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
-  // ビルドアップ:保持側の選手へパス
-  const c1=pickW(T.players.filter(p=>p.role!=="GK"),p=>p.role==="MF"?2:p.role==="DF"?1:1.4);
-  c1.stat.inv++;
-  await ballTo(curP(c1).x+dir*2,curP(c1).y,0.4);
+  origin.stat.inv++;
+  await ballTo(curP(origin).x+dir*2,curP(origin).y,0.4); // 起点へボールが収まる
   updateField();
-  if(Math.random()<0.5){
-    await attackEvent(T, homeAtt?M.away:M.home, M.min);
+  const tShare=mh/(mh+ma), edge=(T===M.home)?tShare:1-tShare;
+  if(buildupSuccess(channel,edge)){
+    recordOrigin(M,channel,origin);
+    await runChannel(channel,T,D,M.min,origin);
   }else{
-    const mates=T.players.filter(p=>p!==c1&&p.role!=="GK");
-    const c2=pickW(mates,p=>1+(dir>0?curP(p).x:100-curP(p).x)/50); // 前の選手ほど受けやすい
-    c2.stat.inv++;
-    await ballTo(curP(c2).x+dir*2,curP(c2).y,0.45);
+    const mates=T.players.filter(p=>p!==origin&&p.role!=="GK");
+    if(mates.length){const c2=pickW(mates,p=>1+(dir>0?curP(p).x:100-curP(p).x)/50);c2.stat.inv++;await ballTo(curP(c2).x+dir*2,curP(c2).y,0.45);}
     if(Math.random()<0.45)feed(["中盤で激しいボールの奪い合い","じっくりとパスを回す","ラインを押し上げていく","セカンドボールを拾った"][ri(0,3)]);
   }
 }

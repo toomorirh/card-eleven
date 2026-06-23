@@ -148,6 +148,74 @@ function pickPress(T){return pickW(T.players.filter(p=>p.role==="MF"||p.role==="
 function pickGK(T){return T.players.find(p=>p.role==="GK")||T.players[0];}
 const rr=()=>TUNING.rng.min+Math.random()*TUNING.rng.span;
 
+// ===== 起点(オリジン)選択: 開放playの4チャンネル(純粋ロジック) =====
+// プレス強度(奪取力): 守備で動く選手の def+spd をポジション/型で重み付け
+function pressPower(T,opp,min){
+  let s=0;
+  T.players.forEach(p=>{
+    if(p.role==="GK")return;
+    const ty=typeOf(p.c);
+    const w=(p.role==="DF"?1:p.role==="MF"?0.9:0.5)*(ty.defSel||1);
+    s+=(eff(p,"def",min,T,opp)*0.6+eff(p,"spd",min,T,opp)*0.4)*w;
+  });
+  return s;
+}
+// ビルドの安全度(奪われにくさ): tec×支配
+function buildSecurity(T,opp,min){
+  let s=0;
+  T.players.forEach(p=>{ if(p.role!=="GK") s+=eff(p,"tec",min,T,opp)*typeOf(p.c).poss; });
+  return s;
+}
+// 奪取(カウンター)判定: 守備側Dが攻撃側Tからボールを奪うか。専用ロングカウンター抽選の置換。
+function rollTurnover(T,D,min){
+  const press=pressPower(D,T,min)*(D.tactic==="atk"?TUNING.origin.pressAtk:1);
+  const sec=buildSecurity(T,D,min)/(T.tactic==="atk"?TUNING.origin.riskAtk:1);
+  return Math.random()<TUNING.origin.turnoverBase*press/(press+sec||1);
+}
+// 奪取者: 高(def+spd)の選手(FW/MF/DF可。"高DFのFW"が前で奪う等)
+function pickWinner(D,opp,min){
+  return pickW(D.players.filter(p=>p.role!=="GK"),p=>{
+    const ty=typeOf(p.c);
+    return (eff(p,"def",min,D,opp)*0.5+eff(p,"spd",min,D,opp)*0.5)*(ty.defSel||0.8)*(p.role==="FW"?1.1:1);
+  });
+}
+// 深い位置の選手(feedチャンネルの担い手): DF全員 + 低い位置取りのMF(アンカー等)
+function isDeep(p){return p.role==="DF"||(p.role==="MF"&&typeOf(p.c).adv<0);}
+// チャンネルの代表強度(count正規化＝平均)。選手数の多寡で偏らないようにする。
+function chanAvg(T,filter,statfn){
+  const ps=T.players.filter(filter);
+  return ps.length?ps.reduce((s,p)=>s+statfn(p),0)/ps.length:0;
+}
+// 通常起点のチャンネル選択(build/overlap/feed)。チャンネル基準重み×スタイルバイアス。
+function pickChannel(T,opp,min){
+  const sb=TUNING.origin.styleBias[T.style]||{};
+  const cb=TUNING.origin.channelBase;
+  const w={
+    build:  chanAvg(T,p=>p.role==="MF", p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss)*cb.build*(sb.build||1),
+    overlap:chanAvg(T,p=>isWide(p)&&p.role!=="GK", p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))/2*(typeOf(p.c).wideSel?1.2:1))*cb.overlap*(sb.overlap||1),
+    feed:   chanAvg(T,isDeep, p=>eff(p,"tec",min,T,opp))*cb.feed*(sb.feed||1),
+  };
+  return pickW(Object.keys(w),k=>w[k]);
+}
+// チャンネル内の起点選手を抽選
+function pickOriginPlayer(T,opp,channel,min){
+  if(channel==="overlap"){
+    const ws=T.players.filter(p=>isWide(p)&&p.role!=="GK");
+    return ws.length?pickW(ws,p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))*(typeOf(p.c).wideSel?1.3:1)):pickAttacker(T);
+  }
+  if(channel==="feed"){
+    const ds=T.players.filter(isDeep);
+    return ds.length?pickW(ds,p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss):pickPasser(T);
+  }
+  // build: MF優位で全選手から(tec×支配)
+  return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="MF"?2.2:p.role==="DF"?0.5:1.2)*eff(p,"tec",min,T,opp)*typeOf(p.c).poss);
+}
+// ビルドアップ成功(攻撃が形になるか)。失敗=保持崩れ(攻撃イベントなし)。edge=Tの支配率シェア(0..1)。
+function buildupSuccess(channel,edge){
+  const b=TUNING.origin.buildup[channel]??0.55;
+  return Math.random()<b*(0.8+edge*0.4);
+}
+
 // ===== 勝敗判定(純粋関数・DOM/演出/stat更新を持たない) =====
 // 中央1対1の勝敗。攻撃側スコア > 守備側スコア×TH.duel で突破。rr()消費順は aSc→dSc(乱数列を保持)。
 function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){

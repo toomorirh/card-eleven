@@ -99,6 +99,23 @@ const TUNING={
   aura:{teamChance:0.28,teamDef:0.42,mid:0.12},    // チーム系スキルの発動演出確率
   reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
+  // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
+  origin:{
+    turnoverBase:0.20,         // 奪取(カウンター)の基準率。press(D)/(press+buildSec(T)) を掛ける
+    pressAtk:1.15,             // 守備側Dがatk戦術ならプレス強化(奪いに来る)
+    riskAtk:1.25,              // 攻撃側Tがatk戦術なら被奪取増(buildSecを割って分母を下げる)
+    counterBonus:1.12,         // winチャンネルの攻撃補正(守備が崩れている)
+    // チャンネル基準重み(build/overlap/feedの混合比を直接調整。平均ステに掛ける)。winは奪取から別途。
+    channelBase:{build:3.2,overlap:1.3,feed:1.1},
+    buildup:{build:0.50,overlap:0.52,feed:0.46,win:0.88}, // 攻撃成立率(win=奪取済みで高い)
+    // スタイルボタン(center/side/long/short)→ チャンネル重みのバイアス
+    styleBias:{
+      center:{build:1.3,overlap:0.8,feed:0.9},
+      side:  {build:0.8,overlap:1.7,feed:0.9},
+      long:  {build:0.8,overlap:0.8,feed:1.7},
+      short: {build:1.7,overlap:0.9,feed:0.7},
+    },
+  },
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性

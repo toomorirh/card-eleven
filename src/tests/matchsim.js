@@ -88,7 +88,7 @@ function collect(M) {
   // 関与の集中度(変動係数 CV = sd/mean)。低いほど全選手に散っている。
   const im = invs.reduce((a, b) => a + b, 0) / invs.length;
   const isd = Math.sqrt(invs.reduce((a, b) => a + (b - im) ** 2, 0) / invs.length);
-  return {
+  const out = {
     hs: M.home.score, as: M.away.score, goals, shots,
     homeWin: M.home.score > M.away.score ? 1 : 0,
     draw: M.home.score === M.away.score ? 1 : 0,
@@ -98,6 +98,14 @@ function collect(M) {
     invCV: im ? isd / im : 0,
     ratingMean: rs.mean, ratingSD: Math.sqrt(ratings.reduce((a, b) => a + (b - rs.mean) ** 2, 0) / ratings.length),
   };
+  // 起点テレメトリ(新エンジン): MC.telemetry に両チーム合算で記録される
+  const t = M.telemetry;
+  if (t && t.atks) {
+    out.chBuild = t.ch.build / t.atks; out.chOverlap = t.ch.overlap / t.atks; out.chFeed = t.ch.feed / t.atks; out.chWin = t.ch.win / t.atks;
+    out.orMF = t.role.MF / t.atks; out.orDF = t.role.DF / t.atks; out.orFW = t.role.FW / t.atks; out.orGK = t.role.GK / t.atks;
+    out.atks = t.atks;
+  }
+  return out;
 }
 
 // ---- セルを N 試合回して指標化 ----
@@ -110,6 +118,9 @@ async function runCell(label, baseSeed, opt) {
     push("draw", r.draw); push("conv", r.conv); push("invCV", r.invCV);
     push("shareFW", r.shareFW); push("shareMF", r.shareMF); push("shareDF", r.shareDF); push("shareGK", r.shareGK);
     push("ratingMean", r.ratingMean); push("ratingSD", r.ratingSD);
+    // 起点テレメトリ(新エンジンのみ存在)
+    push("atks", r.atks); push("chBuild", r.chBuild); push("chOverlap", r.chOverlap); push("chFeed", r.chFeed); push("chWin", r.chWin);
+    push("orMF", r.orMF); push("orDF", r.orDF); push("orFW", r.orFW); push("orGK", r.orGK);
   }
   const out = {};
   for (const k in cols) out[k] = stats(cols[k]);
@@ -143,11 +154,19 @@ async function runAll() {
 // ---- 出力/保存/比較 ----
 const KEYS = ["gpm", "shots", "conv", "homeWin", "draw", "invCV", "shareFW", "shareMF", "shareDF", "ratingMean", "ratingSD"];
 function fmt(m) { return m ? `${m.mean.toFixed(3)}±${m.ci.toFixed(3)}` : "—"; }
+const KEYS_ORIGIN = ["atks", "chBuild", "chOverlap", "chFeed", "chWin", "orMF", "orDF", "orFW", "orGK"];
 function printTable(cells) {
   console.log(`\n中検証(Tier1)  N=${N}/セル  指標=平均±95%CI\n`);
   console.log(["cell".padEnd(20), ...KEYS.map(k => k.padStart(13))].join(""));
   for (const c of cells)
     console.log([c.label.padEnd(20), ...KEYS.map(k => fmt(c.metrics[k]).padStart(13))].join(""));
+  // 起点テレメトリ(新エンジンで値が入る。旧エンジンでは空)
+  if (cells.some(c => c.metrics.atks)) {
+    console.log(`\n起点テレメトリ(チャンネル比/起点役職比)\n`);
+    console.log(["cell".padEnd(20), ...KEYS_ORIGIN.map(k => k.padStart(13))].join(""));
+    for (const c of cells)
+      console.log([c.label.padEnd(20), ...KEYS_ORIGIN.map(k => fmt(c.metrics[k]).padStart(13))].join(""));
+  }
 }
 function toJSON(cells) {
   const o = {};
