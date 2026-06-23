@@ -19,6 +19,7 @@ async function egoRun(ctx,type){
   const ex=gx-dir*15;
   movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
   await ballTo(ex-dir*3,ey,0.4);hot(carrier);hot(df);
+  const foul=rollFoul(df,type); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
   await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)");
   if(resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus)){
     carrier.stat.duelW++;
@@ -61,6 +62,7 @@ const LINKS={
     const lx=gx-dir*18, ly=20+ri(0,60);
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
     await ballTo(lx,ly,0.5);hot(r);hot(df);
+    const foul=rollFoul(df,"through"); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
     await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)");
     if(resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus)){
       r.stat.duelW++;
@@ -71,24 +73,18 @@ const LINKS={
       return {shot:true};
     }
     df.stat.tkl++;feed(`${who}${df.c.name}(速${df.c.spd})が先回りしてクリア!`);if(fx(df).duelD)await skillHit(df);
+    if(Math.random()<TUNING.setpiece.cornerOnClear){await setCorner(A,D,min);return {shot:true};}
     return {lost:true,reason:"clear"};
   }},
-  // クロス(終端): 幅から中央のターゲットへ→ヘディング。
+  // クロス(終端): 幅から中央のターゲットへ→ヘディング(aerialBox共用)。
   cross:{ run:async ctx=>{
-    const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A),gx=goalXOf(A);
-    const t=pickTarget(A),df=matchupDefender(t,D); recMatch(t,df);
-    carrier.stat.inv++;t.stat.inv++;df.stat.inv++;
-    const cx=gx-dir*7, cy=42+ri(0,16);
-    movePlayer(t,cx-dir*2,cy,0.4);movePlayer(df,cx+dir*2,cy+ri(-4,4),0.4);
-    await ballTo(cx,cy,0.4);hot(t);hot(df);
-    if(resolveLink("cross",t,df,A,D,min,tf.a,tf.d,tf.bonus)){
-      t.stat.duelW++;
-      feed(`${who}🏃 <b>${carrier.c.name}</b>のクロス!中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
-      if(fx(t).duelPow)await skillHit(t);
-      await tryShot(t,A,D,min,true,cx,cy,carrier);
-      return {shot:true};
-    }
-    df.stat.tkl++;feed(`${who}クロスは${df.c.name}(力${df.c.pow})が跳ね返した!`);if(fx(df).duelD)await skillHit(df);
+    const {A,D,min,tf,who,carrier}=ctx;
+    carrier.stat.inv++;
+    feed(`${who}🏃 <b>${carrier.c.name}</b>がクロスを上げる!`,"chance");
+    await ballTo(curP(carrier).x,curP(carrier).y,0.25);
+    const r=await aerialBox(A,D,min,carrier,tf,who);
+    if(r.shot)return {shot:true};
+    if(Math.random()<TUNING.setpiece.cornerOnClear){await setCorner(A,D,min);return {shot:true};} // 危険なクリア→CK
     return {lost:true,reason:"clear"};
   }},
   // ドリブル(終端・エゴ): 中央で守備者を抜いて自らシュート。
@@ -123,11 +119,90 @@ async function runChain(channel,A,D,min,origin){
 function ensureTele(M){return M.telemetry||(M.telemetry={
   ch:{build:0,overlap:0,feed:0,win:0}, role:{GK:0,DF:0,MF:0,FW:0}, atks:0,
   link:{combination:0,through:0,cross:0,dribble:0,cutin:0}, links:0,
-  ego:{n:0,offSum:0,driverN:0}, mu:{sum:0,n:0} });}
+  ego:{n:0,offSum:0,driverN:0}, mu:{sum:0,n:0}, sp:{fk:0,pk:0,ck:0,goals:0} });}
 function recordOrigin(M,ch,p){const t=ensureTele(M);t.ch[ch]=(t.ch[ch]||0)+1;t.role[p.role]=(t.role[p.role]||0)+1;t.atks++;}
 function recordLink(M,type,carrier){const t=ensureTele(M);t.link[type]=(t.link[type]||0)+1;t.links++;
   if(type==="dribble"||type==="cutin"){t.ego.n++;t.ego.offSum+=carrier.c.off;const ty=carrier.c.type;if(ty==="dribbler"||ty==="winger")t.ego.driverN++;}}
 function recMatch(recv,df){const t=ensureTele(MC);const dist=Math.abs((100-recv.x)-df.x);t.mu.sum+=Math.max(0,1-dist/100);t.mu.n++;}
+function recordSet(M,kind,goal){const t=ensureTele(M);if(t.sp[kind]!=null)t.sp[kind]++;if(goal)t.sp.goals++;}
+
+// ===== セットプレー(別レイヤー: 連鎖の副次結果から派生・プリミティブ流用) =====
+let _spActive=false; // セットプレー処理中フラグ(CK→ヘディング→セーブ→CK の無限再帰を防ぐ)
+// 高ベースのシュート vs GK の純判定(PK/直接FK共用)。
+async function spShot(taker,A,D,min,base,label){
+  const gk=pickGK(D),dir=dirOf(A),gx=goalXOf(A);
+  taker.stat.inv++;taker.stat.shots++;gk.stat.inv++;
+  movePlayer(taker,gx-dir*9,50,0.3);movePlayer(gk,gx-dir*2,48,0.3);
+  await wordCutin(taker,A,label,false,800);
+  const sSc=(eff(taker,"off",min,A,D)*0.6+eff(taker,"tec",min,A,D)*0.4)*base*(fx(taker).shoot||1)*rr();
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*rr();
+  if(sSc>gSc*TH.gk){
+    A.score++;taker.stat.goals++;document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
+    await ballTo(gx+dir*1.5,48,0.22,"linear");
+    feed(`⚽ ゴーーール!!<b>${taker.c.name}</b>が決めた!`,"goal");
+    await wordCutin(taker,A,"GOAL!!!",true,1300);await kickoffReset();
+    return true;
+  }
+  gk.stat.saves++;await ballTo(gx-dir*1,48,0.22,"linear");
+  feed(`🧤 ${gk.c.name}がストップ!`);await wordCutin(gk,D,"SAVE!!",false,650);await ballTo(gx-dir*14,50,0.5);
+  return false;
+}
+// 空中戦(クロス/CK/クロスFK 共用): ターゲットがヘディング → シュート。CK/危険クリアは派生元。
+async function aerialBox(A,D,min,deliverer,tf,who){
+  const dir=dirOf(A),gx=goalXOf(A);
+  const t=pickTarget(A),df=matchupDefender(t,D); recMatch(t,df);
+  t.stat.inv++;df.stat.inv++;
+  const cx=gx-dir*7, cy=42+ri(0,16);
+  movePlayer(t,cx-dir*2,cy,0.4);movePlayer(df,cx+dir*2,cy+ri(-4,4),0.4);
+  await ballTo(cx,cy,0.4);hot(t);hot(df);
+  if(resolveLink("cross",t,df,A,D,min,tf.a,tf.d,tf.bonus)){
+    t.stat.duelW++;
+    feed(`${who}中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
+    if(fx(t).duelPow)await skillHit(t);
+    await tryShot(t,A,D,min,true,cx,cy,deliverer);
+    return {shot:true};
+  }
+  df.stat.tkl++;feed(`${who}${df.c.name}(力${df.c.pow})が跳ね返した!`);if(fx(df).duelD)await skillHit(df);
+  return {clear:true};
+}
+// ファウル → FK or PK。キッカーは最良シューター。
+async function setPiece(kind,A,D,min){
+  if(_spActive)return; _spActive=true; try{ await _setPiece(kind,A,D,min); }finally{_spActive=false;}
+}
+async function _setPiece(kind,A,D,min){
+  const who=A.side==="A"?"🔴 ":"", taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+  if(kind==="pk"){
+    recordSet(MC,"pk");
+    feed(`${who}🎯 PK獲得! <b>${taker.c.name}</b>がスポットへ`,"goal");
+    await ballTo(gx-dir*8,50,0.4);
+    const g=await spShot(taker,A,D,min,TUNING.setpiece.pkBase,"PK!!");
+    if(g)recordSet(MC,"pk",true);
+    return;
+  }
+  recordSet(MC,"fk");
+  const wide=curP(taker).y<35||curP(taker).y>65;
+  if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
+    feed(`${who}⚡ 直接FKのチャンス! <b>${taker.c.name}</b>`,"chance");
+    await ballTo(gx-dir*20,50,0.45);
+    const g=await spShot(taker,A,D,min,1.15,"直接FK!!");
+    if(g)recordSet(MC,"fk",true);
+  }else{
+    feed(`${who}🏃 FKからのクロス! <b>${taker.c.name}</b>が蹴る`,"chance");
+    await ballTo(gx-dir*22,curP(taker).y,0.45);
+    await aerialBox(A,D,min,taker,{a:1.05,d:1,bonus:1},who); // 得点はtryShot内で計上
+  }
+}
+// CK: 危険なクリア/セーブから派生。キッカーのクロス → 空中戦。
+async function setCorner(A,D,min){
+  if(_spActive)return; _spActive=true; // 再帰防止
+  try{
+    recordSet(MC,"ck");
+    const who=A.side==="A"?"🔴 ":"", kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
+    await ballTo(gx-dir*2,curP(kicker).y<50?8:92,0.45);
+    await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
+  }finally{_spActive=false;}
+}
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
   atk.stat.shots++;
@@ -169,6 +244,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist){
     if(fxG.save)await skillHit(gk);
     await auraSkill(D,"teamDef",TUNING.aura.teamDef); // 守備陣を統率する teamDef の発動を明示
     await wordCutin(gk,D,"SAVE!!",false,720);
+    if(!_spActive&&Math.random()<TUNING.setpiece.cornerOnSave){await setCorner(A,D,min);return;} // 弾いてCK
     await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
   }
 }

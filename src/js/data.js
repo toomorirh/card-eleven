@@ -125,6 +125,15 @@ const TUNING={
     egoStat:{off:0.4,spd:0.3,tec:0.3},             // 自分で行く系(dribble/cutin)の能力配合
     advanced:0.30,                                  // この前進度(prog)以上で「前進した」=クロス/カットイン可
   },
+  // セットプレー(別レイヤー): 連鎖の副次結果から派生。ファウル→FK/PK、危険なクリア/セーブ→CK。低頻度で味付け。
+  setpiece:{
+    foulBase:0.05,        // フィニッシュ系リンクでの守備側ファウル発生率
+    boxChance:{dribble:0.35,cutin:0.30,cross:0.20,through:0.30}, // ファウルがエリア内(=PK)になる確率
+    pkBase:1.9,           // PKのシュート威力(高い=高確率で決まる)
+    fkDirectShare:0.45,   // 中央/近いFK=直接シュートの割合(残りはクロス)
+    cornerOnClear:0.11,   // 危険なクリアがCKになる割合
+    cornerOnSave:0.10,    // GKセーブがCKになる割合
+  },
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性

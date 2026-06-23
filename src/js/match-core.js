@@ -263,6 +263,17 @@ function resolveLink(type,atk,df,A,D,min,tfA,tfD,bonus){
   return aSc>dSc*thr;
 }
 
+// セットプレー: フィニッシュ系リンクでの守備側ファウル判定 → "pk"(エリア内) / "fk" / null。
+function rollFoul(df,linkType){
+  const sp=TUNING.setpiece;
+  if(Math.random()>=sp.foulBase*(typeOf(df.c).defSel?1.15:1))return null; // 守備的な型ほど僅かにファウル増
+  return Math.random()<(sp.boxChance[linkType]||0.25)?"pk":"fk";
+}
+// セットプレーのキッカー: 攻撃側の最良シューター(攻×技)。
+function pickShooter(A){
+  return pickW(A.players.filter(p=>p.role!=="GK"),p=>p.c.off*1.2+p.c.tec)||A.players[0];
+}
+
 // ===== 勝敗判定(純粋関数・DOM/演出/stat更新を持たない) =====
 // 中央1対1の勝敗。攻撃側スコア > 守備側スコア×TH.duel で突破。rr()消費順は aSc→dSc(乱数列を保持)。
 function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){

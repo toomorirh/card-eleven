@@ -114,6 +114,7 @@ function collect(M) {
     if (t.ego.n) { out.egoOff = t.ego.offSum / t.ego.n; out.egoDriver = t.ego.driverN / t.ego.n; }
     if (t.mu.n) out.muFit = t.mu.sum / t.mu.n; // マッチアップ整合(1=完全に対応レーン)
   }
+  if (t && t.sp) { out.spPK = t.sp.pk; out.spFK = t.sp.fk; out.spCK = t.sp.ck; } // 1試合あたりのセットプレー数
   return out;
 }
 
@@ -133,6 +134,7 @@ async function runCell(label, baseSeed, opt) {
     // 連鎖テレメトリ
     push("chain", r.chain); push("lkComb", r.lkComb); push("lkThrough", r.lkThrough); push("lkCross", r.lkCross);
     push("lkDribble", r.lkDribble); push("lkCutin", r.lkCutin); push("egoOff", r.egoOff); push("egoDriver", r.egoDriver); push("muFit", r.muFit);
+    push("spPK", r.spPK); push("spFK", r.spFK); push("spCK", r.spCK);
   }
   const out = {};
   for (const k in cols) out[k] = stats(cols[k]);
@@ -167,7 +169,7 @@ async function runAll() {
 const KEYS = ["gpm", "shots", "conv", "homeWin", "draw", "invCV", "shareFW", "shareMF", "shareDF", "ratingMean", "ratingSD"];
 function fmt(m) { return m ? `${m.mean.toFixed(3)}±${m.ci.toFixed(3)}` : "—"; }
 const KEYS_ORIGIN = ["atks", "chBuild", "chOverlap", "chFeed", "chWin", "orMF", "orDF", "orFW", "orGK"];
-const KEYS_CHAIN = ["chain", "lkComb", "lkThrough", "lkCross", "lkDribble", "lkCutin", "egoOff", "egoDriver", "muFit"];
+const KEYS_CHAIN = ["chain", "lkComb", "lkThrough", "lkCross", "lkDribble", "lkCutin", "egoOff", "egoDriver", "muFit", "spPK", "spFK", "spCK"];
 function printTable(cells) {
   console.log(`\n中検証(Tier1)  N=${N}/セル  指標=平均±95%CI\n`);
   console.log(["cell".padEnd(20), ...KEYS.map(k => k.padStart(13))].join(""));

@@ -56,7 +56,7 @@
 - **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigueMax` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin` `link`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
 - **起点(オリジン)レイヤー**(開放play): tick毎に `midPower` 比で主導権チーム T を決め、`rollTurnover` で守備側の奪取(=カウンター)を判定。奪取なら攻撃が反転し channel="win"。それ以外は `pickChannel`(build/overlap/feed)＋`pickOriginPlayer` で**起点選手**を選ぶ(全選手が起点になりうる/MF優位)。`buildupSuccess` で攻撃が形になるか判定。専用ロングカウンター抽選は撤去し `rollTurnover` に一本化。`TUNING.origin`(turnoverBase/channelBase/styleBias/buildup/counterBonus)。
 - **連鎖チェーン**(起点→リンク×N→シュート): `runChain` が毎ステップ「シュート移行(深さ・つなぎ数で増加)/リンク」を判定。リンクは `LINKS` レジストリ(拡張可)で **combination(連結)/through/cross/dribble/cutin**。可能性は `linkAvailable`(ジオメトリ=幅/中央)、**選択は `linkWeight`(選手パラメータ＝個性)**。dribble/cutin は `(off,spd,tec)×スタミナ×type.drive` で重み付け＝**エゴイスト個性**(ドリブラー/ウインガーが自分で持ち込む)。受け手に対する守備者は `matchupDefender`(左右ミラー `100-lane`・静的レーン主体)で決定し `resolveLink` で競る。`TUNING.link`(maxLink/directShoot/progStep/base/egoStat/advanced)。
-  - **未実装(次段)**: セットプレー(`resolveLink` 失敗の reason=clear/tackle/(将来)foul をフックに、ファウル→FK/PK、クリア→CK を派生)。
+- **セットプレー**(別レイヤー・連鎖の副次結果から派生): フィニッシュ系リンク(dribble/cutin/cross/through)で `rollFoul` が当たると **PK/FK**(`setPiece`→`spShot` 直接 or `aerialBox` クロス)。危険なクリア/GKセーブから確率で **CK**(`setCorner`→`aerialBox`)。スローインは通常保持に吸収(イベント化せず)。`_spActive` で再帰防止。`TUNING.setpiece`(foulBase/boxChance/pkBase/fkDirectShare/cornerOnClear/cornerOnSave)。低頻度(実測 PK≈0.2/試合・CK≈0.5/試合)で味付け。
 - **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChain`(リンク連鎖) → 各リンクが演出しつつ `resolveLink`/`resolveShot` で判定 → ゴール/セーブ。
 - **変更の指針**:
   - 新しいリンク種別追加 → `LINKS` に1エントリ(+`linkWeight` に重み式、必要なら `linkAvailable`)。
