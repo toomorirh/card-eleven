@@ -361,13 +361,28 @@ function makeSignature(id){
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
 }
-// ===== 固有選手の入手: マイルストーン(実績)報酬 =====
-// 控えめ・アスピレーショナルに。各 one-time 実績で「シグネチャーパック(ランダム)」または
-// 「シグネチャー選択券(好きな1名)」を付与。達成済みは S.ms[id] で記録。リーグ優勝は別途(claimSeason)。
-// kind: "pack"=ランダムパック / "select"=選択券
-const MILESTONES=[
-  {id:"clear4",   test:()=>S.cleared>=4,            kind:"pack",   msg:"⚽ Lv4到達! シグネチャーパックを獲得!"},
-  {id:"coll40",   test:()=>S.coll.length>=40,       kind:"pack",   msg:"📚 コレクション40枚! シグネチャーパックを獲得!"},
-  {id:"clearAll", test:()=>S.cleared>=CLUBS.length, kind:"select", msg:"🏆 全クラブ制覇! シグネチャー選択券を獲得!"},
+// ===== 実績(トロフィー) =====
+// 控えめ・アスピレーショナルな一度きりの到達目標。達成で固有選手系の報酬を付与し S.ms[id] で記録。
+// reward は付与内容(sigPacks=ランダムパック / sigSelect=選択券 / championPacks=チャンピオンパック)。
+// test() は S を参照する判定。表示(実績画面)も同じ配列を使う(icon/title/desc/rewardLabel)。
+// 現在の編成の合計OVR(実績 ovr1000 の判定用)。配置済みカードの6ステ合計。
+function squadTotalOVR(){
+  const form=FORMS[S.form]||[];let tot=0;
+  form.forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(c)tot+=c.off+c.def+c.pow+c.tec+c.spd+c.sta;});
+  return tot;
+}
+const ACHIEVEMENTS=[
+  {id:"clear4",   icon:"⚽", title:"駆け出しの強豪",   desc:"ステージを Lv4 まで攻略する",
+   test:()=>S.cleared>=4,            prog:()=>`${Math.min(S.cleared,4)}/4 Lv`,
+   reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
+  {id:"ovr1000",  icon:"💪", title:"精鋭部隊",         desc:"編成の合計OVRを 1000 まで引き上げる",
+   test:()=>squadTotalOVR()>=1000,   prog:()=>`${squadTotalOVR()}/1000 OVR`,
+   reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
+  {id:"leagueWin",icon:"🏆", title:"リーグ制覇",       desc:"リーグ戦で初優勝する",
+   test:()=>(S.leagueWins||0)>=1,    prog:()=>`優勝 ${Math.min(S.leagueWins||0,1)}/1`,
+   reward:{sigPacks:1,championPacks:1}, rewardLabel:"シグネチャーパック+チャンピオンパック"},
+  {id:"clearAll", icon:"👑", title:"全土制覇",         desc:"全クラブを攻略する",
+   test:()=>S.cleared>=CLUBS.length, prog:()=>`${Math.min(S.cleared,CLUBS.length)}/${CLUBS.length} クラブ`,
+   reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
 ];
 

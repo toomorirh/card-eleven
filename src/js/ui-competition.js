@@ -110,7 +110,7 @@ function renderLeagueMode(){
   const fb=document.getElementById("fixtureBox");
   const tbl=document.getElementById("standings");
   if(!lg){
-    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ―</div><div class="lg">全9チームの総当たり(8節)。優勝で🏆+チャンピオンパック!</div>';
+    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ―</div><div class="lg">全9チームの総当たり(8節)。優勝で🏆+賞金🪙500(初優勝は実績でチャンピオンパック!)</div>';
     fb.innerHTML="";tbl.innerHTML="";
     const b=document.createElement("button");b.className="btn";b.textContent="シーズン開始";
     b.onclick=startSeason;fb.appendChild(b);
@@ -134,7 +134,7 @@ function renderLeagueMode(){
     w.textContent=champ.i===0?"🏆 優勝!!":`シーズン終了 ${meRank}位`;
     fb.appendChild(w);
     const b=document.createElement("button");b.className="btn";b.textContent="新シーズンを開始";
-    b.onclick=()=>{claimSeason(meRank);startSeason();};
+    b.onclick=()=>{startSeason();};  // 報酬は下の自動付与で1回だけ。ここでは再付与しない(二重付与バグ修正)
     fb.appendChild(b);
     if(!lg.claimed){claimSeason(meRank);lg.claimed=true;save();}
     return;
@@ -153,14 +153,13 @@ function renderLeagueMode(){
   b.onclick=()=>playLeagueRound();
   fb.appendChild(b);
 }
+// シーズン報酬: コインは順位別に毎回付与。パック類は実績(初優勝など)に一本化(checkAchievements)。
 function claimSeason(rank){
-  let reward=0,champ=false,msg="";
-  if(rank===1){reward=500;champ=true;msg="優勝賞金🪙500+チャンピオンパック+シグネチャーパック!";}
+  let reward=100,msg=`${rank}位 参加賞🪙100`;
+  if(rank===1){reward=500;msg="🏆 優勝賞金🪙500!";S.leagueWins=(S.leagueWins||0)+1;}
   else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
-  else{reward=100;msg=`${rank}位 参加賞🪙100`;}
-  S.coins+=reward;
-  if(champ){S.championPacks=(S.championPacks||0)+1;S.sigPacks=(S.sigPacks||0)+1;} // 優勝でシグネチャーパックも
-  coinUI();toast(msg);
+  S.coins+=reward;coinUI();toast(msg);
+  if(checkAchievements())save(); // 初優勝の実績(チャンピオンパック+シグネチャーパック)などを付与
 }
 function playLeagueRound(){
   const lg=S.league;

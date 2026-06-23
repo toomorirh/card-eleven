@@ -141,10 +141,6 @@ async function sigCutin(p){
   document.body.appendChild(o);
   await sleep(1150);o.remove();
 }
-// 固有選手の初回スキル発動でカットインを1回だけ再生(awaitで待つ)。非固有/再発動はno-op。
-async function sigCut(p){
-  if(p&&p.c&&p.c.skill&&p.c.sig&&!p._sigCut){p._sigCut=true;await sigCutin(p);}
-}
 async function wordCutin(p,T,word,gold,ms){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
@@ -165,12 +161,23 @@ async function maybeVs(a,A,d,D,label){
 }
 
 // ===== スキル発動の明示(実況テキスト + 固有カットイン) =====
-function skillFeed(p){ // 実況テキストのみ(カットインは sigCut が担当)
+function skillFeed(p){ // 実況テキストのみ
   if(!p.c.skill)return;
   feed(`✨ スキル発動!【${p.c.skill.name}】${p.c.name}`,"chance");
 }
-// 固有選手のスキル発動を実況+カットインで明示(カットインは await で順次再生)
-async function skillHit(p){if(p){skillFeed(p);if(typeof sigCut==="function")await sigCut(p);}}
+// スキル発動を明示。固有選手は実況もカットインも「1試合1回だけ」(_sigCut で重複防止)。
+// 通常スキルは局面ごとに実況(カットインなし)。
+async function skillHit(p){
+  if(!p||!p.c||!p.c.skill)return;
+  if(p.c.sig){
+    if(p._sigCut)return;            // 2回目以降は実況もカットインも出さない
+    p._sigCut=true;
+    skillFeed(p);
+    await sigCutin(p);
+    return;
+  }
+  skillFeed(p);
+}
 // チーム系スキル(teamChance/teamDef/mid)を、意味的に妥当な局面で「発動」として明示する。
 // 勝敗ロジックには影響しない演出専用(係数自体は eff/recalcAuras 側で常時掛かっている)。
 async function auraSkill(T,key,prob){

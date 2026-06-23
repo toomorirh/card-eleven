@@ -112,6 +112,8 @@ function renderPitch(){
       ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
+  // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
+  if(typeof checkAchievements==="function"&&checkAchievements())save();
 }
 function openPicker(i,sub){
   pickSlot=i;
@@ -123,7 +125,7 @@ function openPicker(i,sub){
   S.coll.filter(c=>!used.includes(c.id))
     .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||total(b)-total(a))
     .forEach(c=>{
-      const e=cardEl(c,true);
+      const e=cardEl(c); // 図鑑と同じフルカード(ステ数値が見える=入れ替え比較しやすい)
       if(c.id===cur)e.classList.add("sel");
       e.onclick=async()=>{
         if(c.id===cur)delete S.squad[i];else S.squad[i]=c.id;
@@ -181,5 +183,27 @@ function renderColl(){
   document.getElementById("collCount").textContent=`所持 ${S.coll.length}枚 / 表示 ${list.length}枚(カードをタップで詳細)`;
   const ord={l:0,sr:1,r:2,n:3};
   list.sort((a,b)=>ord[a.rar]-ord[b.rar]||total(b)-total(a)).forEach(c=>g.appendChild(cardEl(c)));
+}
+
+// ================= 実績(トロフィー) =================
+function renderAchievements(){
+  const list=document.getElementById("achList");if(!list)return;list.innerHTML="";
+  S.ms=S.ms||{};
+  const done=ACHIEVEMENTS.filter(a=>S.ms[a.id]).length;
+  const cnt=document.getElementById("achCount");
+  if(cnt)cnt.textContent=`達成 ${done} / ${ACHIEVEMENTS.length} ・ 固有選手の入手はすべて実績報酬です`;
+  ACHIEVEMENTS.forEach(a=>{
+    const got=!!S.ms[a.id];
+    const d=document.createElement("div");d.className="ach-card"+(got?" got":"");
+    let prog="";try{prog=a.prog?a.prog():"";}catch(e){}
+    d.innerHTML=`<div class="ach-ico">${got?a.icon:"🔒"}</div>
+      <div class="ach-body">
+        <div class="ach-title">${a.title}${got?'<span class="ach-badge">達成</span>':''}</div>
+        <div class="ach-desc">${a.desc}</div>
+        <div class="ach-rew">🎁 ${a.rewardLabel}</div>
+        ${got?'':`<div class="ach-prog">進捗 ${prog}</div>`}
+      </div>`;
+    list.appendChild(d);
+  });
 }
 
