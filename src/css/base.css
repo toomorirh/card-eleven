@@ -279,15 +279,32 @@ canvas.sprite{image-rendering:auto}
 .shake{animation:shake .5s}
 @keyframes shake{0%,100%{transform:none}20%{transform:translate(4px,-3px)}40%{transform:translate(-4px,3px)}
   60%{transform:translate(3px,2px)}80%{transform:translate(-3px,-2px)}}
-/* 固有選手スキルカットイン(虹色) */
-.cutin.sig .band{border-top-color:#ff5ea0;border-bottom-color:#ff5ea0;
-  background:linear-gradient(90deg,rgba(8,14,24,0),rgba(22,8,26,.96) 12%,rgba(22,8,26,.96) 88%,rgba(8,14,24,0))}
-.cutskill{font-family:'DotGothic16';font-size:30px;font-weight:900;color:#ffd25e;z-index:1;
-  text-shadow:0 0 10px #ff5ea0,0 0 22px rgba(255,210,94,.85);animation:sigpulse 1.15s ease-in-out both}
-@keyframes sigpulse{0%{transform:scale(2.4);opacity:0}22%{transform:scale(.95);opacity:1}
-  60%{text-shadow:0 0 24px #ff5ea0,0 0 34px rgba(255,210,94,1)}100%{opacity:1}}
-.goalrays.sig{background:repeating-conic-gradient(rgba(255,94,160,.22) 0 8deg,transparent 8deg 16deg)}
-@media (prefers-reduced-motion: reduce){.fromL,.fromR,.vsmark,.cutword,.goalrays,.shake,.cutskill{animation:none}}
+@media (prefers-reduced-motion: reduce){.fromL,.fromR,.vsmark,.cutword,.goalrays,.shake{animation:none}}
+
+/* 固有選手スキル: スポットライト/スローモー演出(ゴールの放射光+シェイクとは別系統) */
+.sigcut{position:fixed;inset:0;z-index:135;pointer-events:none;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;overflow:hidden;animation:sigFade 1.3s ease-out both}
+@keyframes sigFade{0%{opacity:0}10%{opacity:1}85%{opacity:1}100%{opacity:0}}
+/* 暗転ヴェール: 中央を残して周囲を落とす(時が止まったような集中) */
+.sigcut-veil{position:absolute;inset:0;background:radial-gradient(ellipse 44% 48% at 50% 46%,rgba(8,10,18,.12),rgba(4,6,12,.94) 75%)}
+/* スポット光: 選手の背後に柔らかいピンクの光輪 */
+.sigcut-spot{position:absolute;width:340px;height:340px;top:46%;left:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(255,185,212,.55),rgba(255,94,160,.14) 45%,transparent 70%);
+  animation:sigGlow 1.3s ease-in-out both}
+@keyframes sigGlow{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}25%{opacity:1}100%{opacity:.85;transform:translate(-50%,-50%) scale(1.14)}}
+/* 選手: ゆっくりズーム(スローモー) */
+.sigcut-fig{position:relative;z-index:1;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.7)) drop-shadow(0 0 16px rgba(255,94,160,.55));
+  animation:sigZoom 1.3s ease-out both}
+@keyframes sigZoom{0%{transform:scale(.86);opacity:0}18%{opacity:1}100%{transform:scale(1.07)}}
+/* 技名: 文字間を詰めながら静かに浮かぶ(爆発的なゴール文字とは対照的) */
+.sigcut-name{position:relative;z-index:1;margin-top:6px;font-family:'DotGothic16';font-size:30px;font-weight:900;
+  color:#ffe7a0;letter-spacing:2px;text-shadow:0 0 12px rgba(255,94,160,.9),0 2px 4px #000;
+  animation:sigName 1.3s ease-out both}
+@keyframes sigName{0%{opacity:0;transform:translateY(14px);letter-spacing:12px}32%{opacity:0}58%{opacity:1;letter-spacing:2px;transform:none}90%{opacity:1}100%{opacity:.9}}
+.sigcut-sub{position:relative;z-index:1;margin-top:4px;font-family:'DotGothic16';font-size:12px;color:#ff9ec4;
+  text-shadow:0 1px 3px #000;animation:sigName 1.45s ease-out both}
+@media (prefers-reduced-motion: reduce){.sigcut,.sigcut-spot,.sigcut-fig,.sigcut-name,.sigcut-sub{animation:none}}
 
 /* gacha */
 .packlist{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}

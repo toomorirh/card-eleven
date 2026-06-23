@@ -124,22 +124,19 @@ async function vsCutin(a,A,d,D,label){
   document.body.appendChild(o);
   await sleep(1000);o.remove();
 }
-// 固有選手のスキル発動カットイン。awaitで順次再生し、後続(シュート/GOAL等)の演出へ繋げる。
+// 固有選手のスキル発動カットイン(スポットライト/スローモー演出)。
+// ゴールの「回転放射光＋シェイク」とは別系統: 画面を暗転させ、選手にスポット光を当て、
+// ゆっくりズームしながら技名が静かに浮かぶ。awaitで順次再生し後続の演出へ繋げる。
 async function sigCutin(p){
   if(!p||!p.c||!p.c.skill)return;
-  const o=document.createElement("div");o.className="cutin sig";
-  o.innerHTML=`<div class="band"></div>
-   <div class="inner"><div class="fighter fromL"><div class="fph"></div>
-     <div class="fn">${p.c.flag} ${p.c.name}</div></div>
-   <div class="cutskill">✦ ${p.c.skill.name} ✦</div></div>
-   <div class="cutlabel">シグネチャースキル発動!</div>`;
-  o.querySelector(".fph").appendChild(spriteCanvas(p.c,118));
-  const r=document.createElement("div");r.className="goalrays sig";document.body.appendChild(r);
-  setTimeout(()=>r.remove(),1300);
-  const wrap=document.querySelector(".wrap");
-  if(wrap){wrap.classList.add("shake");setTimeout(()=>wrap.classList.remove("shake"),500);}
+  const o=document.createElement("div");o.className="sigcut";
+  o.innerHTML=`<div class="sigcut-veil"></div><div class="sigcut-spot"></div>
+   <div class="sigcut-fig"></div>
+   <div class="sigcut-name">✦ ${p.c.skill.name} ✦</div>
+   <div class="sigcut-sub">${p.c.flag} ${p.c.name} ・ シグネチャースキル</div>`;
+  o.querySelector(".sigcut-fig").appendChild(spriteCanvas(p.c,132));
   document.body.appendChild(o);
-  await sleep(1150);o.remove();
+  await sleep(1300);o.remove();
 }
 async function wordCutin(p,T,word,gold,ms){
   const o=document.createElement("div");o.className="cutin";
