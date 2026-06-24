@@ -82,10 +82,14 @@ def load_bodies(Image):
 
 
 def neck_anchor(cell_im, cw, neck_min=14):
-    """セル内ボディの首位置[x,y]を推定。上げた腕(細い run)を無視し、肩幅のある最初の行(=首/肩)の
-    最大 run の中心を首とする。"""
+    """セル内ボディの首位置[x,y]を推定。上げた腕(細い/離れた run)を無視し、
+    図形の重心xに近い肩幅のある最初の行(=首/肩)を首とする。"""
     a = cell_im.split()[3].load()
     W, H = cell_im.size
+    colsum = [sum(1 for y in range(H) if a[x, y] > 24) for x in range(W)]
+    tot = sum(colsum) or 1
+    cx = sum(x * colsum[x] for x in range(W)) / tot   # 図形全体の重心x(胴体寄り)
+    tol = cw * 0.22
     for y in range(H):
         runs, s = [], None
         for x in range(W):
@@ -95,11 +99,11 @@ def neck_anchor(cell_im, cw, neck_min=14):
                 runs.append((s, x - 1)); s = None
         if s is not None:
             runs.append((s, W - 1))
-        wide = [r for r in runs if r[1] - r[0] + 1 >= neck_min]
-        if wide:
-            r = max(wide, key=lambda r: r[1] - r[0])
-            return [(r[0] + r[1]) // 2, y]
-    return [cw // 2, 0]
+        near = [r for r in runs if r[1] - r[0] + 1 >= neck_min and abs((r[0] + r[1]) / 2 - cx) <= tol]
+        if near:                                       # 重心近傍の肩幅 run のある最初の行=首
+            r = max(near, key=lambda r: r[1] - r[0])
+            return [int((r[0] + r[1]) / 2), y]
+    return [int(cx), 0]
 
 
 def main():
