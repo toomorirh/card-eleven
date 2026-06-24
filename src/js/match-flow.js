@@ -387,6 +387,10 @@ function startWorldMatch(){
   S._worldMatch=true;
   _beginMatch(worldTeam(nation,tour.i),`${nation.flag} ${nation.name}`,nation.form,0,tour.i);
 }
+function startFriendMatch(team,coach,form){
+  S._friendMatch={coach};
+  _beginMatch(team,`👤 ${coach} 監督`,form,0,-1);
+}
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
 const teamCaptain=T=>T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
@@ -442,6 +446,19 @@ async function endMatch(){
     const b=document.createElement("button");b.className="btn";b.textContent="順位表へ戻る";
     b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();
       document.querySelector('#modeRow [data-m="league"]').click();};
+    e.appendChild(b);
+    await save();MC=null;return;
+  }
+  if(S._friendMatch){
+    const coach=S._friendMatch.coach;S._friendMatch=null;
+    const rec=S.friendRec||(S.friendRec={}); const e2=rec[coach]||(rec[coach]={w:0,d:0,l:0});
+    if(sh>sa)e2.w++;else if(sh===sa)e2.d++;else e2.l++;
+    const e=document.getElementById("matchEnd");
+    const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    e.innerHTML=`<div class="banner">🤝 vs ${coach}監督 ${head} ${sh}-${sa}</div>`;
+    showStatOverlay(M.home,M.away);
+    const b=document.createElement("button");b.className="btn";b.textContent="フレンド対戦へ戻る";
+    b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="friend"]').click();};
     e.appendChild(b);
     await save();MC=null;return;
   }

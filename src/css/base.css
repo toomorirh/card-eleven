@@ -413,6 +413,9 @@ canvas.sprite{image-rendering:auto}
 .wt-sig{font-size:10px;color:var(--gold);font-weight:900}
 .wt-res{font-family:'DotGothic16';font-size:12px;flex:0 0 auto;white-space:nowrap}
 .wt-res.W{color:#7dff9e}.wt-res.D{color:#cfdcea}.wt-res.L{color:#ff8e8e}.wt-res.cur{color:var(--gold)}
+/* フレンド対戦の入力欄 */
+.ci-input{width:100%;box-sizing:border-box;font-family:'M PLUS 1p',sans-serif;font-size:13px;
+  background:#0f1c2f;border:1px solid #2a3d56;border-radius:8px;color:#eef4fb;padding:8px;margin:2px 0;resize:none;word-break:break-all}
 .subrow{display:flex;align-items:center;gap:8px;background:#0f1c2f;border:1px solid #2a3d56;
   border-radius:8px;padding:8px 10px;margin:6px 0;cursor:pointer;font-size:12px}
 .subrow:active{background:#1a2c46}

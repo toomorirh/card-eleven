@@ -19,7 +19,7 @@
 4. [プレースタイル(タイプ)](#4-プレースタイルタイプ) — パラメータ定義・タイプ一覧
 5. [スキル](#5-スキル) — 効果キー・通常スキル・レジェンド専用
 6. [試合エンジン](#6-試合エンジン) — 基本式・閾値TH・スタイル別シーケンス・シュート判定・演出
-7. [ゲームモード](#7-ゲームモード) — ステージ攻略・リーグ戦・交代・ガチャUI・スマホUI・実績/固有選手の入手(7.6)・ワールドツアー(7.7)
+7. [ゲームモード](#7-ゲームモード) — ステージ攻略・リーグ戦・交代・ガチャUI・スマホUI・実績/固有選手の入手(7.6)・ワールドツアー(7.7)・フレンド対戦(7.8)
 8. [レジェンドパック](#8-レジェンドパック希少エンドコンテンツ)
 9. [アセット仕様(スプライト)](#9-アセット仕様スプライト)
 10. [カードデザイン(レアリティ別)](#10-カードデザインレアリティ別) — 枠/演出・カードレイアウト(10.1)
@@ -346,7 +346,16 @@
 - **進行(ラウンドテーブル=16連戦)**: `S.tour={i,res[]}`。`startWorldMatch`→試合→`endMatch` の world 分岐で **勝敗に関わらず `res[i]` 記録し `i++`**。16戦後は「新しいツアーを始める」で `tour` リセット。
 - **画面**: `renderWorld()`(`ui-competition.js`)が縦タイムライン(`.wt-card`)で 16カ国＋結果チップ(🏆勝/🤝分/😢敗)を表示。現在の対戦国をハイライト＋KickOff。国情報タップで `openWorldScout`(scoutモーダル共用)。
 - **報酬**: ①署名保有国に**勝利**で `TUNING.worldSigDrop`(15%)の低確率、その国の固有選手をドロップ(未所持優先)。②**全16勝**で実績 `worldTourPerfect`→シグネチャー選択券(一度きり)。
-- 偵察/開始の共通化: `renderScout(title,info,team)` を `openScout`(ステージ)/`openWorldScout` で共用。試合開始は `_beginMatch(away,name,form,lv,idx)` を `startMatch`/`startWorldMatch` で共用。
+- 偵察/開始の共通化: `renderScout(title,info,team)` を `openScout`(ステージ)/`openWorldScout` で共用。試合開始は `_beginMatch(away,name,form,lv,idx)` を `startMatch`/`startWorldMatch`/`startFriendMatch` で共用。
+
+### 7.8 フレンド対戦(チームコード共有・非同期/サーバ不要)
+`modeRow` の第4モード(`🤝`)。サーバを持たず、**編成をコード化したチャレンジURLを送り合って非同期対戦**する(カジュアル用途・コードは編集可能なので厳格な競争には非対応)。
+
+- **エクスポート**: `exportTeam()` がスタメン11(細分sub/レア/タイプ/look/6ステ/国籍/名前/スキルfx/固有sig/限界突破lb)＋陣形＋監督名(`S.coach`)を JSON→base64url 化。`challengeURL()` が `location...#team=<コード>` を生成(フラグメントなのでサーバに送られない)。
+- **インポート**: `importTeam(URL or コード)` が復元(`rebuildCard`: 固有は `makeSignature`＋共有ステ上書き、通常は素のカード生成)。陣形の各枠へ配置し `posFit` で pen を反映、`buildTeam` で相手チーム化。
+- **対戦**: `startFriendMatch(team,coach)` → 通常の試合エンジンで自チーム vs 相手チーム。`endMatch` のフレンド分岐で **`S.friendRec[coach]={w,d,l}`** に成績をローカル記録。
+- **チャレンジURL受信**: `boot.js` が `location.hash` の `team=` を検出し `_pendingChallenge` に保持、つづき/はじめから後にフレンド対戦モードへ誘導・貼り付け欄へ自動入力。
+- セーブ: `S.coach`/`S.friendRec` を追加(v9据え置き・欠落補完)。将来はQR化(コード圧縮＋小型エンコーダ内蔵)で拡張可能。
 
 ---
 

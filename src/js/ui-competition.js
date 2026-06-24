@@ -230,6 +230,83 @@ function renderWorld(){
     b.onclick=()=>{S.tour={i:0,res:[]};save();renderWorld();};foot.appendChild(b);
   }
 }
+// ================= フレンド対戦(チームコード共有・非同期/サーバ不要) =================
+// スタメン11+陣形+監督名をコード化→URLで共有。相手が開く/貼ると自チームvs相手チームを試合。
+const _b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const _b64d=s=>decodeURIComponent(escape(atob((s||"").replace(/-/g,"+").replace(/_/g,"/"))));
+function exportTeam(){
+  const cards=FORMS[S.form].map((sl,i)=>{
+    const c=S.coll.find(k=>k.id===S.squad[i]); if(!c)return 0;
+    return {s:c.sub,r:c.rar,t:c.type,h:(c.look&&c.look.headIdx)||0,b:(c.look&&c.look.bodyVar)||0,
+      st:[c.off,c.def,c.pow,c.tec,c.spd,c.sta],fl:c.flag,nm:c.name,
+      sg:c.sig||0,sk:c.skill?{n:c.skill.name,f:c.skill.fx}:0,lb:c.lb||0};
+  });
+  return _b64e(JSON.stringify({v:1,c:S.coach||"名無し監督",f:S.form,cards}));
+}
+function challengeURL(){return location.origin+location.pathname+"#team="+exportTeam();}
+function rebuildCard(cd){
+  if(cd.sg){const c=makeSignature(cd.sg)||makeCard("FW","l");
+    ["off","def","pow","tec","spd","sta"].forEach((k,i)=>{if(cd.st&&cd.st[i]!=null)c[k]=cd.st[i];});
+    if(cd.lb)c.lb=cd.lb; return c;}
+  return {id:uid++,name:cd.nm||"?",flag:cd.fl||"🏳️",pos:subGroup(cd.s),sub:cd.s,rar:cd.r||"n",type:cd.t,
+    look:{headIdx:cd.h||0,bodyVar:cd.b||0},
+    off:cd.st[0],def:cd.st[1],pow:cd.st[2],tec:cd.st[3],spd:cd.st[4],sta:cd.st[5],
+    skill:cd.sk?{name:cd.sk.n,desc:"",fx:cd.sk.f}:null,lb:cd.lb||undefined};
+}
+function importTeam(raw){
+  let code=(raw||"").trim();
+  const m=code.match(/team=([A-Za-z0-9_-]+)/); if(m)code=m[1]; // URL貼り付けにも対応
+  const data=JSON.parse(_b64d(code));
+  if(!data||data.v!==1||!Array.isArray(data.cards)||!data.cards.length)throw new Error("bad");
+  const form=FORMS[data.f]?data.f:"4-4-2", kp=KEYPOS[form]||{};
+  const cards=FORMS[form].map((sl,i)=>{
+    const cd=data.cards[i];
+    const c=cd?rebuildCard(cd):makeCard(subGroup(sl[0]),"n",null,sl[0]);
+    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
+  });
+  return {team:buildTeam(cards,"A",form), coach:(data.c||"名無し監督").slice(0,20), form};
+}
+let _pendingChallenge=null; // チャレンジURL(#team=)で来たコードを保持
+function renderFriend(){
+  document.getElementById("friendHead").innerHTML=
+    '<div class="banner" style="font-size:15px">― 🤝 フレンド対戦 ―</div>'
+    +'<div class="lg">自分のチームをURLで共有し、相手のURL/コードを貼って非同期で対戦。サーバ不要・カジュアル用(コードは編集可能)。</div>';
+  const body=document.getElementById("friendBody");body.innerHTML="";
+  const add=el=>body.appendChild(el), mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
+  // 監督名
+  let l=mk("div","lg");l.textContent="監督名(相手に表示):";add(l);
+  const nm=mk("input","ci-input");nm.maxLength=16;nm.placeholder="監督名";nm.value=S.coach||"";add(nm);
+  // 共有(URL生成)
+  const ex=mk("button","btn");ex.style.marginTop="8px";ex.textContent="🔗 自分のチームを共有(URL生成)";
+  const out=mk("div");out.style.marginTop="6px";
+  ex.onclick=()=>{ S.coach=nm.value.trim()||"名無し監督";save();
+    const url=challengeURL();out.innerHTML="";
+    const ta=mk("textarea","ci-input");ta.rows=3;ta.readOnly=true;ta.value=url;out.appendChild(ta);
+    const cp=mk("button","btn ghost");cp.style.marginTop="4px";cp.textContent="📋 コピー";
+    cp.onclick=()=>{ta.select();let ok=false;try{ok=document.execCommand("copy");}catch(e){}
+      if(navigator.clipboard)navigator.clipboard.writeText(url).then(()=>toast("URLをコピーしました")).catch(()=>toast(ok?"コピーしました":"長押しでコピー"));
+      else toast(ok?"コピーしました":"長押しでコピー");};
+    out.appendChild(cp);
+  };
+  add(ex);add(out);
+  // 取り込み(対戦)
+  l=mk("div","lg");l.style.marginTop="12px";l.textContent="相手のURL/コードを貼り付けて対戦:";add(l);
+  const imp=mk("textarea","ci-input");imp.rows=3;imp.placeholder="https://.../#team=... または コード";
+  if(_pendingChallenge)imp.value=location.origin+location.pathname+"#team="+_pendingChallenge;
+  add(imp);
+  const go=mk("button","btn");go.style.marginTop="6px";go.textContent="⚔️ この相手と対戦";
+  go.onclick=()=>{ let r;try{r=importTeam(imp.value);}catch(e){toast("コードを読み取れませんでした");return;}
+    if(!_checkSquad())return; _pendingChallenge=null; startFriendMatch(r.team,r.coach,r.form); };
+  add(go);
+  // 対戦成績
+  const rec=S.friendRec||{},keys=Object.keys(rec);
+  if(keys.length){
+    const rh=mk("div","banner");rh.style.cssText="font-size:14px;margin-top:14px";rh.textContent="― 対戦成績 ―";add(rh);
+    keys.forEach(k=>{const r=rec[k],d=mk("div","wt-card");
+      d.innerHTML=`<div class="wt-info"><div class="wt-name">${k}</div><div class="lv">${r.w||0}勝 ${r.d||0}分 ${r.l||0}敗</div></div>`;add(d);});
+  }
+}
 // ホーム表示時に「現在アクティブなモード」を再描画(タブ戻り時に古い表示が残らないように)。
 function renderHome(){
   const on=document.querySelector("#modeRow [data-m].on");
@@ -238,6 +315,7 @@ function renderHome(){
   if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
+  else if(m==="friend")renderFriend();
   else renderLeague();
 }
 // モード切替(stage / league / world)
@@ -247,5 +325,6 @@ document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
   document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
   document.getElementById("worldMode").style.display=m==="world"?"block":"none";
-  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else renderLeague();
+  document.getElementById("friendMode").style.display=m==="friend"?"block":"none";
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="friend")renderFriend();else renderLeague();
 });
