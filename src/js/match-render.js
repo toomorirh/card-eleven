@@ -185,7 +185,7 @@ async function kickoffCutin(hc,ac,awayName){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
-    <div class="side l"><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">マイチーム 主将</div></div>
+    <div class="side l"><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">${myName()} 主将</div></div>
     <div class="ctr"><span class="vsmark kickoff">⚽ KICK OFF</span></div>
     <div class="side r"><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
    </div>`;

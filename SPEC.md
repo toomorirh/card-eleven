@@ -355,7 +355,14 @@
 - **インポート**: `importTeam(URL or コード)` が復元(`rebuildCard`: 固有は `makeSignature`＋共有ステ上書き、通常は素のカード生成)。陣形の各枠へ配置し `posFit` で pen を反映、`buildTeam` で相手チーム化。
 - **対戦**: `startFriendMatch(team,coach)` → 通常の試合エンジンで自チーム vs 相手チーム。`endMatch` のフレンド分岐で **`S.friendRec[coach]={w,d,l}`** に成績をローカル記録。
 - **チャレンジURL受信**: `boot.js` が `location.hash` の `team=` を検出し `_pendingChallenge` に保持、つづき/はじめから後にフレンド対戦モードへ誘導・貼り付け欄へ自動入力。
-- セーブ: `S.coach`/`S.friendRec` を追加(v9据え置き・欠落補完)。将来はQR化(コード圧縮＋小型エンコーダ内蔵)で拡張可能。
+- セーブ: `S.coach`/`S.teamName`/`S.favId`/`S.friendRec` を追加(v9据え置き・欠落補完)。将来はQR化(コード圧縮＋小型エンコーダ内蔵)で拡張可能。
+
+### 7.9 プロフィール(監督名・チーム名・お気に入り)
+対戦相手に個性を伝えるための識別情報。`S.coach`(監督名)/`S.teamName`(チーム名)/`S.favId`(お気に入りカードid)。
+- **新規開始**: `はじめから`→ `openProfile(true)`(`#profileModal`)で監督名・チーム名を入力→「はじめる」で `newGame` 後に名前を載せる。
+- **編集**: フレンド対戦画面の「👤 編集」→ `openProfile(false)` で名前編集＋**所持カードからお気に入りを選択**(グリッドをタップ、選択は `.sel`)。`saveProfile` で保存。
+- **適用**: チーム名は試合の自陣表示(`mHome`)・KICK OFFカットイン・リーグ順位表(`lgName(0)`)に反映(`myName()`)。
+- **共有**: フレンド対戦のコードに監督名(`c`)・チーム名(`tn`)・お気に入り(`fav`=カード直列化)を含め、取り込み時に**相手プロフィール(チーム名/監督/お気に入り選手カード)をプレビュー表示**してからキックオフ。
 
 ---
 

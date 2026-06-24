@@ -23,7 +23,7 @@ function setupTitleButtons(exists){
   cont.onclick=async()=>{ await loadGame(); coinUI(); show("home"); _gotoChallenge(); };
   nw.onclick=async()=>{
     if(await hasSave()&&!confirm("はじめからプレイすると、現在のセーブデータは消えます。よろしいですか?"))return;
-    await newGame(); coinUI(); show("home"); _gotoChallenge();
+    openProfile(true); // 監督名/チーム名を設定 →「はじめる」でデッキ生成しホームへ
   };
 }
 document.body.classList.add("on-title"); // 起動時はタイトル表示=下部メニュー非表示

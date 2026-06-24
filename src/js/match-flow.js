@@ -206,7 +206,7 @@ async function setCorner(A,D,min){
     await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
   }finally{_spActive=false;}
 }
-const teamName=T=>T.side==="H"?"マイチーム":((MC&&MC.name)||"相手");
+const teamName=T=>T.side==="H"?myName():((MC&&MC.name)||"相手");
 // ボルテージ加算(イベントで熱気が上がる)。0.7初到達で「ヒートアップ」を1回告知。
 function addVolt(x){
   if(!MC)return;
@@ -353,6 +353,7 @@ function _beginMatch(away,name,form,lv,idx){
   document.querySelectorAll(".tactics [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t==="bal"));
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
   document.getElementById("mAway").textContent=name;
+  document.getElementById("mHome").textContent=myName(); // 自チーム名(プロフィール)
   document.getElementById("sH").textContent=0;document.getElementById("sA").textContent=0;
   document.getElementById("feed").innerHTML="";document.getElementById("matchEnd").innerHTML="";
   const clk=document.getElementById("clock");if(clk){clk.textContent="0分";clk.classList.remove("late");}
@@ -387,9 +388,9 @@ function startWorldMatch(){
   S._worldMatch=true;
   _beginMatch(worldTeam(nation,tour.i),`${nation.flag} ${nation.name}`,nation.form,0,tour.i);
 }
-function startFriendMatch(team,coach,form){
-  S._friendMatch={coach};
-  _beginMatch(team,`👤 ${coach} 監督`,form,0,-1);
+function startFriendMatch(team,coach,tn,form){
+  S._friendMatch={coach,teamName:tn};
+  _beginMatch(team, tn||`${coach}監督`, form, 0, -1);
 }
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
@@ -450,12 +451,13 @@ async function endMatch(){
     await save();MC=null;return;
   }
   if(S._friendMatch){
-    const coach=S._friendMatch.coach;S._friendMatch=null;
+    const fm=S._friendMatch;S._friendMatch=null;
+    const coach=fm.coach, tn=fm.teamName||coach;
     const rec=S.friendRec||(S.friendRec={}); const e2=rec[coach]||(rec[coach]={w:0,d:0,l:0});
     if(sh>sa)e2.w++;else if(sh===sa)e2.d++;else e2.l++;
     const e=document.getElementById("matchEnd");
     const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
-    e.innerHTML=`<div class="banner">🤝 vs ${coach}監督 ${head} ${sh}-${sa}</div>`;
+    e.innerHTML=`<div class="banner">🤝 vs ${tn} ${head} ${sh}-${sa}</div>`;
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="フレンド対戦へ戻る";
     b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="friend"]').click();};
