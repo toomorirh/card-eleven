@@ -105,6 +105,6 @@ function show(s){
   document.body.classList.toggle("on-title",s==="title"); // タイトル中は下部メニュー/コインを隠す
   if(s==="title")renderTitleHero();
   if(s==="team")renderPitch();if(s==="coll")renderColl();if(s==="home")renderHome();
-  if(s==="gacha")renderGacha();if(s==="ach")renderAchievements();
+  if(s==="gacha")renderGacha();if(s==="office")renderOffice();
 }
 

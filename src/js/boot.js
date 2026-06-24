@@ -12,8 +12,9 @@ window.addEventListener("unhandledrejection",ev=>showErr(ev.reason));
 // チャレンジURL(#team=...)で来た場合、フレンド対戦モードへ誘導する。
 function _gotoChallenge(){
   if(typeof _pendingChallenge==="undefined"||!_pendingChallenge)return;
-  const wb=document.querySelector('#modeRow [data-m="friend"]'); if(wb)wb.click();
-  toast("⚔️ 挑戦状が届いています!監督名を確認して対戦!");
+  if(typeof gotoOffice==="function")gotoOffice("match");
+  else{const b=document.querySelector('[data-s="office"]'); if(b)b.click();}
+  toast("⚔️ 挑戦状が届いています!監督室の「🤝対戦」で確認して対戦!");
 }
 // タイトルの「つづきから/はじめから」を配線。セーブの有無でボタン表示を切り替える。
 function setupTitleButtons(exists){

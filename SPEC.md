@@ -329,7 +329,7 @@
 - セーブデータ互換: v9スキーマ据え置き、UIレイアウトは CSS/DOM のみの変更。
 
 ### 7.6 実績(トロフィー)と固有選手の入手
-固有選手はコインやガチャでは買えず、**実績(トロフィー)の達成でのみ**手に入る、控えめでアスピレーショナルな到達目標。実績は一度きりで、ランダムパック / 選択券(指名獲得) / チャンピオンパックなどを報酬として付与する。専用の**実績画面**(`scr-ach`・タブ🏅)で達成状況・条件・報酬・進捗を一覧できる。
+固有選手はコインやガチャでは買えず、**実績(トロフィー)の達成でのみ**手に入る、控えめでアスピレーショナルな到達目標。実績は一度きりで、ランダムパック / 選択券(指名獲得) / チャンピオンパックなどを報酬として付与する。達成状況・条件・報酬・進捗は**監督室**(`scr-office`)の「🏅実績」サブタブ(`renderAchievements`・`achList`)で一覧できる。
 
 - **定義**: `ACHIEVEMENTS` 配列(`data.js`)で**データ駆動**。各エントリ `{id, icon, title, desc, test:()=>bool, prog:()=>string, reward, rewardLabel}`。`reward` は付与内容 `{sigPacks?, sigSelect?, championPacks?}`。追加は1要素足すだけで判定・画面表示の両方に反映。
 - **判定**: `checkAchievements()`(`state.js`)が未達成(`!S.ms[id]`)かつ `test()` 真のものに `grantReward(reward)` を適用し、達成済みを `S.ms[id]=1` で記録(冪等=二重付与しない)。付与時は `toast`(実績解除「タイトル」報酬名)で通知。
@@ -349,19 +349,26 @@
 - 偵察/開始の共通化: `renderScout(title,info,team)` を `openScout`(ステージ)/`openWorldScout` で共用。試合開始は `_beginMatch(away,name,form,lv,idx)` を `startMatch`/`startWorldMatch`/`startFriendMatch` で共用。
 
 ### 7.8 フレンド対戦(チームコード共有・非同期/サーバ不要)
-`modeRow` の第4モード(`🤝`)。サーバを持たず、**編成をコード化したチャレンジURLを送り合って非同期対戦**する(カジュアル用途・コードは編集可能なので厳格な競争には非対応)。
+**監督室**(フッタータブ🎩=旧🏅実績・`scr-office`)の「🤝 対戦」サブタブに集約。サーバを持たず、**編成をコード化したチャレンジURLを送り合って非同期対戦**する(カジュアル用途・コードは編集可能なので厳格な競争には非対応)。`renderFriend` が共有(QR/URL/コピー)＋取り込み(相手確認→キックオフ)一式を `#ofMatch`(`friendHead`/`friendBody`)へ描画。
 
 - **エクスポート(コンパクト)**: `exportTeam()` がスタメン11＋お気に入りを**ビット詰めバイナリ→base64url**化。1カード=61bit(sub4/rar2/type2/head5/bodyVar2/6ステ各5/flag4/sig5/skill1/name6)。監督名・チーム名のみ可変長UTF8で先頭に格納(識別バイト`0xC2`)。**約154文字**(旧JSON比≈8%)でQRに載るサイズ。`challengeURL()` が `location...#team=<コード>`(フラグメント=サーバ非送出)を生成。名前/スキルはインデックス参照(`NAMES`/`SKILLS`/`LSKILLS`)、固有選手は sig id から `makeSignature` で復元(共有ステで上書き)。
 - **インポート**: `importTeam(URL or コード)` が復元(`rebuildCard`: 固有は `makeSignature`＋共有ステ上書き、通常は素のカード生成)。陣形の各枠へ配置し `posFit` で pen を反映、`buildTeam` で相手チーム化。
 - **対戦**: `startFriendMatch(team,coach)` → 通常の試合エンジンで自チーム vs 相手チーム。`endMatch` のフレンド分岐で **`S.friendRec[coach]={w,d,l}`** に成績をローカル記録。
 - **QRコード**: 共有URL生成時に **QRを `<canvas>` 表示**(`qrcode-generator` 2.0.4 MITを `src/js/qr.js` にインライン=オフライン)。相手はスマホのカメラ/QRアプリで読めば開くだけで対戦。`qr.js` は `build.py` のJSにのみ含め(テスト連結 `_setup.js` には入れない)、`renderFriend` から遅延使用(未定義でも try/catch)。生成QRは `jsqr` でデコード往復一致を確認済み(開発時検証)。
-- **チャレンジURL受信**: `boot.js` が `location.hash` の `team=` を検出し `_pendingChallenge` に保持、つづき/はじめから後にフレンド対戦モードへ誘導・貼り付け欄へ自動入力。
-- セーブ: `S.coach`/`S.teamName`/`S.favId`/`S.friendRec` を追加(v9据え置き・欠落補完)。将来はQR化(コード圧縮＋小型エンコーダ内蔵)で拡張可能。
+- **チャレンジURL受信**: `boot.js` が `location.hash` の `team=` を検出し `_pendingChallenge` に保持、つづき/はじめから後に `gotoOffice("match")` で**監督室の「🤝対戦」へ誘導**・貼り付け欄へ自動入力。
+- **読取失敗メッセージ**: 旧フォーマット(base64-JSON)のページで新コード(先頭`0xC2`)を読むと弾かれるため、トーストで「送信側・受信側を同じ最新版で開いてください」を明示。
+- セーブ: `S.coach`/`S.teamName`/`S.favId`/`S.friendRec` を追加(v9据え置き・欠落補完)。
+
+### 7.8.1 監督室(プロフィール＋対戦情報の集約・`scr-office`)
+フッターの旧「🏅 実績」を「🎩 監督室」に置換。プロフィール表示と対戦関連を1画面に集約し、対戦導線を短縮する。
+- **ヘッダ**(`officeHead`・`renderOffice`): チーム名(`myName()`)・監督名・お気に入り・**フレンド勝率**(`friendRec` 全戦のW/(W+D+L))・**実績達成数**(`done/総数`)＋「👤 編集」(`openProfile(false)`)。
+- **サブタブ**(`#ofTabs`・`_selectOfTab`): `🤝対戦`(=7.8の `renderFriend`)/`📊戦績`(`renderFriendRec`: `friendRec` を相手別に一覧)/`🏅実績`(`renderAchievements`・旧実績画面を移設、`achCount`/`achList` は `#ofAch` 内)。
+- `gotoOffice(tab)` でフッタータブ経由 `show("office")`→`renderOffice`→指定サブタブを表示(試合後の「監督室へ戻る」・挑戦状受信で使用)。`modeRow` からフレンドモードは廃止。
 
 ### 7.9 プロフィール(監督名・チーム名・お気に入り)
 対戦相手に個性を伝えるための識別情報。`S.coach`(監督名)/`S.teamName`(チーム名)/`S.favId`(お気に入りカードid)。
 - **新規開始**: `はじめから`→ `openProfile(true)`(`#profileModal`)で監督名・チーム名を入力→「はじめる」で `newGame` 後に名前を載せる。
-- **編集**: フレンド対戦画面の「👤 編集」→ `openProfile(false)` で名前編集＋**所持カードからお気に入りを選択**(グリッドをタップ、選択は `.sel`)。`saveProfile` で保存。
+- **編集**: 監督室ヘッダの「👤 編集」→ `openProfile(false)` で名前編集＋**所持カードからお気に入りを選択**(グリッドをタップ、選択は `.sel`)。`saveProfile` で保存。
 - **適用**: チーム名は試合の自陣表示(`mHome`)・KICK OFFカットイン・リーグ順位表(`lgName(0)`)に反映(`myName()`)。
 - **共有**: フレンド対戦のコードに監督名(`c`)・チーム名(`tn`)・お気に入り(`fav`=カード直列化)を含め、取り込み時に**相手プロフィール(チーム名/監督/お気に入り選手カード)をプレビュー表示**してからキックオフ。
 

@@ -459,8 +459,8 @@ async function endMatch(){
     const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
     e.innerHTML=`<div class="banner">🤝 vs ${tn} ${head} ${sh}-${sa}</div>`;
     showStatOverlay(M.home,M.away);
-    const b=document.createElement("button");b.className="btn";b.textContent="フレンド対戦へ戻る";
-    b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="friend"]').click();};
+    const b=document.createElement("button");b.className="btn";b.textContent="監督室へ戻る";
+    b.onclick=()=>{MC=null;gotoOffice("match");};
     e.appendChild(b);
     await save();MC=null;return;
   }

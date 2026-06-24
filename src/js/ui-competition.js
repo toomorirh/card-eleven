@@ -309,11 +309,6 @@ function renderFriend(){
     +'<div class="lg">自分のチームをURLで共有し、相手のURL/コードを貼って非同期で対戦。サーバ不要・カジュアル用(コードは編集可能)。</div>';
   const body=document.getElementById("friendBody");body.innerHTML="";
   const add=el=>body.appendChild(el), mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
-  // 自分のプロフィール表示 + 編集
-  const pf=mk("div","wt-card");
-  pf.innerHTML=`<div class="wt-info"><div class="wt-name">${myName()}</div><div class="lv">監督: ${S.coach||"未設定"}${S.favId&&S.coll.find(c=>c.id===S.favId)?` ・ お気に入り: ${S.coll.find(c=>c.id===S.favId).name}`:""}</div></div>`;
-  const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
-  pf.appendChild(ed);add(pf);
   // 共有(URL生成)
   const ex=mk("button","btn");ex.style.marginTop="8px";ex.textContent="🔗 自分のチームを共有(URL生成)";
   const out=mk("div");out.style.marginTop="6px";
@@ -355,14 +350,50 @@ function renderFriend(){
     prev.appendChild(ko);
   };
   add(go);add(prev);
-  // 対戦成績
-  const rec=S.friendRec||{},keys=Object.keys(rec);
-  if(keys.length){
-    const rh=mk("div","banner");rh.style.cssText="font-size:14px;margin-top:14px";rh.textContent="― 対戦成績 ―";add(rh);
-    keys.forEach(k=>{const r=rec[k],d=mk("div","wt-card");
-      d.innerHTML=`<div class="wt-info"><div class="wt-name">${k}</div><div class="lv">${r.w||0}勝 ${r.d||0}分 ${r.l||0}敗</div></div>`;add(d);});
-  }
 }
+// ===== 監督室(プロフィール集約 + サブタブ: 対戦/戦績/実績) =====
+let _ofTab="match"; // 監督室の現在サブタブ
+function renderOffice(){
+  S.ms=S.ms||{};
+  const rec=S.friendRec||{}; let w=0,d=0,l=0;
+  Object.keys(rec).forEach(k=>{const r=rec[k];w+=r.w||0;d+=r.d||0;l+=r.l||0;});
+  const tot=w+d+l, wr=tot?Math.round(w/tot*100):0;
+  const done=ACHIEVEMENTS.filter(a=>S.ms[a.id]).length;
+  const fav=S.favId&&S.coll.find(c=>c.id===S.favId);
+  const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
+  const head=document.getElementById("officeHead");head.innerHTML="";
+  const card=mk("div","wt-card");
+  card.innerHTML=`<div class="wt-info">`
+    +`<div class="wt-name">${myName()}</div>`
+    +`<div class="lv">監督: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
+    +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}勝${d}分${l}敗)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
+    +`</div>`;
+  const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
+  card.appendChild(ed);head.appendChild(card);
+  document.querySelectorAll('#ofTabs [data-o]').forEach(b=>b.onclick=()=>_selectOfTab(b.dataset.o));
+  _selectOfTab(_ofTab);
+}
+function _selectOfTab(o){
+  _ofTab=o;
+  document.querySelectorAll('#ofTabs [data-o]').forEach(x=>x.classList.toggle("on",x.dataset.o===o));
+  document.getElementById("ofMatch").style.display=o==="match"?"block":"none";
+  document.getElementById("ofRec").style.display=o==="rec"?"block":"none";
+  document.getElementById("ofAch").style.display=o==="ach"?"block":"none";
+  if(o==="match")renderFriend();
+  else if(o==="rec")renderFriendRec();
+  else if(o==="ach")renderAchievements();
+}
+function renderFriendRec(){
+  const box=document.getElementById("ofRec");box.innerHTML="";
+  const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
+  const h=mk("div","banner");h.style.cssText="font-size:14px";h.textContent="― フレンド対戦戦績 ―";box.appendChild(h);
+  const rec=S.friendRec||{},keys=Object.keys(rec);
+  if(!keys.length){const e=mk("div","lg");e.textContent="まだフレンド対戦の記録がありません。「🤝対戦」から挑戦しましょう。";box.appendChild(e);return;}
+  keys.forEach(k=>{const r=rec[k],dd=mk("div","wt-card");
+    dd.innerHTML=`<div class="wt-info"><div class="wt-name">${k}</div><div class="lv">${r.w||0}勝 ${r.d||0}分 ${r.l||0}敗</div></div>`;box.appendChild(dd);});
+}
+// 監督室の指定サブタブへ移動(フッタータブ経由でshow("office")→renderOffice)。
+function gotoOffice(tab){ if(tab)_ofTab=tab; const b=document.querySelector('[data-s="office"]'); if(b)b.click(); }
 // ホーム表示時に「現在アクティブなモード」を再描画(タブ戻り時に古い表示が残らないように)。
 function renderHome(){
   const on=document.querySelector("#modeRow [data-m].on");
@@ -371,7 +402,6 @@ function renderHome(){
   if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
-  else if(m==="friend")renderFriend();
   else renderLeague();
 }
 // モード切替(stage / league / world)
@@ -381,6 +411,5 @@ document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
   document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
   document.getElementById("worldMode").style.display=m==="world"?"block":"none";
-  document.getElementById("friendMode").style.display=m==="friend"?"block":"none";
-  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="friend")renderFriend();else renderLeague();
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else renderLeague();
 });
