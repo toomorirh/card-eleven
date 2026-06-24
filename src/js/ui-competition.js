@@ -344,7 +344,7 @@ function renderFriend(){
   add(imp);
   const prev=mk("div");prev.style.marginTop="8px";
   const go=mk("button","btn");go.style.marginTop="6px";go.textContent="🔎 相手を確認";
-  go.onclick=()=>{ let r;try{r=importTeam(imp.value);}catch(e){toast("コードを読み取れませんでした");return;}
+  go.onclick=()=>{ let r;try{r=importTeam(imp.value);}catch(e){toast("コードを読み取れませんでした(送信側・受信側を同じ最新版で開いてください)");return;}
     prev.innerHTML="";
     const h=mk("div","banner");h.style.fontSize="14px";h.textContent=`🆚 ${r.teamName}`;prev.appendChild(h);
     const ci=mk("div","lg");ci.innerHTML=`監督: <b>${r.coach}</b>`;prev.appendChild(ci);
