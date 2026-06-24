@@ -81,14 +81,24 @@ def load_bodies(Image):
     return out
 
 
-def neck_anchor(cell_im, cw):
-    """セル内ボディの首位置[x,y]を推定: 最上段の非透明行(=首/肩の上端)の中心x。"""
+def neck_anchor(cell_im, cw, neck_min=14):
+    """セル内ボディの首位置[x,y]を推定。上げた腕(細い run)を無視し、肩幅のある最初の行(=首/肩)の
+    最大 run の中心を首とする。"""
     a = cell_im.split()[3].load()
     W, H = cell_im.size
     for y in range(H):
-        xs = [x for x in range(W) if a[x, y] > 24]
-        if len(xs) >= 3:
-            return [int(sum(xs) / len(xs)), y]
+        runs, s = [], None
+        for x in range(W):
+            if a[x, y] > 24:
+                s = x if s is None else s
+            elif s is not None:
+                runs.append((s, x - 1)); s = None
+        if s is not None:
+            runs.append((s, W - 1))
+        wide = [r for r in runs if r[1] - r[0] + 1 >= neck_min]
+        if wide:
+            r = max(wide, key=lambda r: r[1] - r[0])
+            return [(r[0] + r[1]) // 2, y]
     return [cw // 2, 0]
 
 
