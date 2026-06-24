@@ -28,7 +28,7 @@ function cardEl(c,mini){
   d.className="card "+c.rar+(mini?" mini":"");
   const sk=c.skill?`<div class="sk">✦${c.skill.name}</div>`:`<div class="sk" style="opacity:.35">スキルなし</div>`;
   const ovr=c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-  const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b${c[k]>=20?' class="mx"':''}>${c[k]}</b></div>`;
+  const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
   <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
@@ -182,8 +182,55 @@ function renderColl(){
   const list=S.coll.filter(c=>collNatFilter==="all"||c.flag===collNatFilter);
   document.getElementById("collCount").textContent=`所持 ${S.coll.length}枚 / 表示 ${list.length}枚(カードをタップで詳細)`;
   const ord={l:0,sr:1,r:2,n:3};
-  list.sort((a,b)=>ord[a.rar]-ord[b.rar]||total(b)-total(a)).forEach(c=>g.appendChild(cardEl(c)));
+  list.sort((a,b)=>ord[a.rar]-ord[b.rar]||total(b)-total(a)).forEach(c=>{
+    const el=cardEl(c);el.onclick=()=>openCardModal(c);g.appendChild(el);
+  });
 }
+// ================= カード詳細(売却 / 限界突破) =================
+const inSquad=c=>Object.values(S.squad).includes(c.id);
+// 限界突破に使える重複(同一シグネ・自分以外・編成外)
+function lbDups(c){return c.sig?S.coll.filter(x=>x!==c&&x.sig===c.sig&&!inSquad(x)):[];}
+function openCardModal(c){
+  const m=document.getElementById("cardModal");
+  const body=document.getElementById("cardModalBody");body.innerHTML="";body.appendChild(cardEl(c));
+  const acts=document.getElementById("cardModalActions");acts.innerHTML="";
+  const info=document.getElementById("cardModalInfo");
+  if(c.sig){
+    const dups=lbDups(c).length;
+    info.innerHTML=`固有選手は<b>重複を消費して限界突破</b>できます(20未満の能力を+1〜3・上限20)。重複: ${dups}枚`;
+    const b=document.createElement("button");b.className="btn"+(dups>0?"":" ghost");
+    b.textContent=dups>0?`⭐ 限界突破 (重複${dups}枚)`:"限界突破(重複なし)";
+    if(dups>0)b.onclick=()=>limitBreak(c);
+    acts.appendChild(b);
+  }else{
+    const v=SELL_VALUE[c.rar]||20, sq=inSquad(c);
+    info.innerHTML=sq?`この選手は<b>編成中</b>のため売却できません(外してから)。`:`不要なら売却してコインに換えられます。`;
+    const b=document.createElement("button");b.className="btn"+(sq?" ghost":"");
+    b.textContent=`💰 売却 (🪙${v})`;
+    if(!sq)b.onclick=()=>{if(confirm(`${c.name} を 🪙${v} で売却しますか?`))sellCard(c,v);};
+    acts.appendChild(b);
+  }
+  m.classList.add("on");
+}
+function limitBreak(c){
+  const dup=lbDups(c)[0];
+  if(!dup){toast("使える重複がありません");return;}
+  const keys=["off","def","pow","tec","spd","sta"].filter(k=>c[k]<20);
+  if(!keys.length){toast("全能力が最大です!");return;}
+  const k=rnd(keys), inc=Math.min(20-c[k],ri(1,3));
+  c[k]+=inc; c.lb=c.lb||{}; c.lb[k]=(c.lb[k]||0)+inc;
+  S.coll.splice(S.coll.indexOf(dup),1);   // 重複を1枚消費
+  save();renderColl();openCardModal(c);
+  toast(`⭐ 限界突破! ${STAT_LABEL[k]} +${inc} (${c[k]})`);
+}
+function sellCard(c,v){
+  if(inSquad(c)){toast("編成中の選手は売却できません");return;}
+  S.coll.splice(S.coll.indexOf(c),1);
+  S.coins+=v;coinUI();save();
+  document.getElementById("cardModal").classList.remove("on");
+  renderColl();toast(`💰 売却! +🪙${v}`);
+}
+document.getElementById("cardModalClose").onclick=()=>document.getElementById("cardModal").classList.remove("on");
 
 // ================= 実績(トロフィー) =================
 function renderAchievements(){

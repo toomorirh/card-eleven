@@ -82,6 +82,9 @@ canvas.sprite{image-rendering:auto}
 .card .rlab{position:absolute;z-index:3;font-family:'DotGothic16';font-size:8px;font-weight:700;color:#9fb2c6;line-height:1;white-space:nowrap;display:flex;align-items:center;gap:2px;text-shadow:0 1px 2px #000}
 .card .rlab b{font-size:10px;font-weight:900;color:#fff}
 .card .rlab b.mx{color:#ffd24a;text-shadow:0 0 6px rgba(255,210,74,.85)}
+.card .rlab b.lb{color:#6fe7d0;text-shadow:0 0 6px rgba(111,231,208,.9)} /* 限界突破で強化した能力 */
+/* カード詳細モーダル(売却/限界突破) */
+#cardModal .cm-body{display:flex;justify-content:center;margin-top:6px}
 .card .rl-of{top:-2px;left:50%;transform:translateX(-50%)}
 .card .rl-df{top:24%;right:0}
 .card .rl-po{bottom:24%;right:0}

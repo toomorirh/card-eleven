@@ -96,6 +96,7 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
   return cv;
 }
 const RARS={n:"★",r:"★★",sr:"★★★",l:"LEGEND"};
+const SELL_VALUE={n:20,r:60,sr:180,l:400}; // 重複カード売却額(レア別)。固有選手は売却不可。
 const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};
 const STAT_COL={off:"#ff6b6b",def:"#5db4ff",pow:"#ffae57",tec:"#7fdb8e",spd:"#4fd6e0",sta:"#c79bff"}; // ステータス別ゲージ色
 const STAT_SHORT={off:"OF",def:"DF",pow:"PO",tec:"TE",spd:"SP",sta:"ST"}; // カード表示用の略称(視認性重視)
