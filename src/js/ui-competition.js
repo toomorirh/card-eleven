@@ -230,6 +230,16 @@ function renderWorld(){
     b.onclick=()=>{S.tour={i:0,res:[]};save();renderWorld();};foot.appendChild(b);
   }
 }
+// ホーム表示時に「現在アクティブなモード」を再描画(タブ戻り時に古い表示が残らないように)。
+function renderHome(){
+  const on=document.querySelector("#modeRow [data-m].on");
+  const m=on?on.dataset.m:"stage";
+  const wb=document.querySelector('#modeRow [data-m="world"]');
+  if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
+  if(m==="league")renderLeagueMode();
+  else if(m==="world")renderWorld();
+  else renderLeague();
+}
 // モード切替(stage / league / world)
 document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
