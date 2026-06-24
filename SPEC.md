@@ -351,7 +351,7 @@
 ### 7.8 フレンド対戦(チームコード共有・非同期/サーバ不要)
 `modeRow` の第4モード(`🤝`)。サーバを持たず、**編成をコード化したチャレンジURLを送り合って非同期対戦**する(カジュアル用途・コードは編集可能なので厳格な競争には非対応)。
 
-- **エクスポート**: `exportTeam()` がスタメン11(細分sub/レア/タイプ/look/6ステ/国籍/名前/スキルfx/固有sig/限界突破lb)＋陣形＋監督名(`S.coach`)を JSON→base64url 化。`challengeURL()` が `location...#team=<コード>` を生成(フラグメントなのでサーバに送られない)。
+- **エクスポート(コンパクト)**: `exportTeam()` がスタメン11＋お気に入りを**ビット詰めバイナリ→base64url**化。1カード=61bit(sub4/rar2/type2/head5/bodyVar2/6ステ各5/flag4/sig5/skill1/name6)。監督名・チーム名のみ可変長UTF8で先頭に格納(識別バイト`0xC2`)。**約154文字**(旧JSON比≈8%)でQRに載るサイズ。`challengeURL()` が `location...#team=<コード>`(フラグメント=サーバ非送出)を生成。名前/スキルはインデックス参照(`NAMES`/`SKILLS`/`LSKILLS`)、固有選手は sig id から `makeSignature` で復元(共有ステで上書き)。
 - **インポート**: `importTeam(URL or コード)` が復元(`rebuildCard`: 固有は `makeSignature`＋共有ステ上書き、通常は素のカード生成)。陣形の各枠へ配置し `posFit` で pen を反映、`buildTeam` で相手チーム化。
 - **対戦**: `startFriendMatch(team,coach)` → 通常の試合エンジンで自チーム vs 相手チーム。`endMatch` のフレンド分岐で **`S.friendRec[coach]={w,d,l}`** に成績をローカル記録。
 - **チャレンジURL受信**: `boot.js` が `location.hash` の `team=` を検出し `_pendingChallenge` に保持、つづき/はじめから後にフレンド対戦モードへ誘導・貼り付け欄へ自動入力。

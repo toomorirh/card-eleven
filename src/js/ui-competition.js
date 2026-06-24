@@ -232,40 +232,75 @@ function renderWorld(){
   }
 }
 // ================= フレンド対戦(チームコード共有・非同期/サーバ不要) =================
-// スタメン11+陣形+監督名をコード化→URLで共有。相手が開く/貼ると自チームvs相手チームを試合。
-const _b64e=s=>btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-const _b64d=s=>decodeURIComponent(escape(atob((s||"").replace(/-/g,"+").replace(/_/g,"/"))));
-const serCard=c=>({s:c.sub,r:c.rar,t:c.type,h:(c.look&&c.look.headIdx)||0,b:(c.look&&c.look.bodyVar)||0,
-  st:[c.off,c.def,c.pow,c.tec,c.spd,c.sta],fl:c.flag,nm:c.name,sg:c.sig||0,sk:c.skill?{n:c.skill.name,f:c.skill.fx}:0,lb:c.lb||0});
+// スタメン11+お気に入り+陣形+監督名/チーム名を「ビット詰めバイナリ→base64url」で短縮共有(QR向け)。
+// 1カード=61bit。監督名/チーム名のみ可変長UTF8(先頭にバイト整列で格納)、以降はビットストリーム。
+const _SUBS=["CF","ST","LWG","RWG","OMF","CMF","DMF","LMF","RMF","LSB","CB","RSB","GK"];
+const _RARS=["n","r","sr","l"];
+const _FORMS=Object.keys(FORMS);
+const _u8=s=>new TextEncoder().encode(s||"");
+const _us=b=>new TextDecoder().decode(b);
+const _b64u=a=>btoa(String.fromCharCode.apply(null,a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const _unb64u=s=>{const t=atob((s||"").replace(/-/g,"+").replace(/_/g,"/"));const a=new Uint8Array(t.length);for(let i=0;i<t.length;i++)a[i]=t.charCodeAt(i);return a;};
+function _BW(){return {b:[],c:0,n:0,
+  push(v,bits){for(let i=bits-1;i>=0;i--){this.c=(this.c<<1)|((v>>i)&1);if(++this.n===8){this.b.push(this.c);this.c=0;this.n=0;}}},
+  done(){if(this.n)this.b.push(this.c<<(8-this.n));return this.b;}};}
+function _BR(bytes){return {bytes,bit:0,
+  read(bits){let v=0;for(let i=0;i<bits;i++){const byte=this.bytes[this.bit>>3]||0,bv=(byte>>(7-(this.bit&7)))&1;v=(v<<1)|bv;this.bit++;}return v;}};}
+function _encCard(w,c){
+  const pos=subGroup(c.sub);
+  const sig=c.sig?Math.max(0,SIGNATURES.findIndex(s=>s.id===c.sig)+1):0;
+  let skCh=0;
+  if(!c.sig&&c.rar!=="n"&&c.skill){const a=c.rar==="l"?LSKILLS[pos]:SKILLS[pos][c.rar];const i=a.findIndex(s=>s[0]===c.skill.name);skCh=i>0?1:0;}
+  w.push(Math.max(0,_SUBS.indexOf(c.sub)),4);
+  w.push(Math.max(0,_RARS.indexOf(c.rar)),2);
+  w.push(Math.max(0,Object.keys(TYPES[pos]).indexOf(c.type)),2);
+  w.push((c.look&&c.look.headIdx)||0,5);
+  w.push((c.look&&c.look.bodyVar)||0,2);
+  ["off","def","pow","tec","spd","sta"].forEach(k=>w.push(Math.min(31,Math.max(0,c[k]|0)),5));
+  w.push(Math.max(0,FLAGS.indexOf(c.flag)),4);
+  w.push(sig,5);
+  w.push(skCh,1);
+  w.push(c.sig?0:Math.max(0,NAMES.indexOf(c.name)),6);
+}
+function _decCard(r){
+  const sub=_SUBS[r.read(4)]||"CMF", rar=_RARS[r.read(2)]||"n", pos=subGroup(sub);
+  const tIdx=r.read(2), head=r.read(5), bv=r.read(2);
+  const st=[r.read(5),r.read(5),r.read(5),r.read(5),r.read(5),r.read(5)];
+  const flagIdx=r.read(4), sig=r.read(5), skCh=r.read(1), nameIdx=r.read(6);
+  if(sig>0&&SIGNATURES[sig-1]){const c=makeSignature(SIGNATURES[sig-1].id)||makeCard("FW","l");
+    ["off","def","pow","tec","spd","sta"].forEach((k,i)=>c[k]=st[i]); return c;}
+  const tk=Object.keys(TYPES[pos]); const type=tk[tIdx]||tk[0];
+  let sk=null; if(rar!=="n"){const a=rar==="l"?LSKILLS[pos]:SKILLS[pos][rar];const e=a[skCh]||a[0];sk={name:e[0],desc:e[1],fx:e[2]};}
+  return {id:uid++,name:NAMES[nameIdx]||"?",flag:FLAGS[flagIdx]||"🏳️",pos,sub,rar,type,
+    look:{headIdx:head,bodyVar:bv}, off:st[0],def:st[1],pow:st[2],tec:st[3],spd:st[4],sta:st[5], skill:sk};
+}
 function exportTeam(){
-  const cards=FORMS[S.form].map((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);return c?serCard(c):0;});
+  const coach=_u8((S.coach||"名無し監督").slice(0,16)), team=_u8((S.teamName||"マイチーム").slice(0,16));
+  const w=_BW();
+  w.push(Math.max(0,_FORMS.indexOf(S.form)),3);
   const favC=S.favId&&S.coll.find(k=>k.id===S.favId);
-  return _b64e(JSON.stringify({v:1,c:S.coach||"名無し監督",tn:S.teamName||"マイチーム",f:S.form,fav:favC?serCard(favC):0,cards}));
+  w.push(favC?1:0,1);
+  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]));});
+  if(favC)_encCard(w,favC);
+  const bits=w.done();
+  const head=[0xC2,coach.length,...coach,team.length,...team]; // 0xC2=v2バイナリ識別
+  return _b64u(Uint8Array.from(head.concat(bits)));
 }
 function challengeURL(){return location.origin+location.pathname+"#team="+exportTeam();}
-function rebuildCard(cd){
-  if(cd.sg){const c=makeSignature(cd.sg)||makeCard("FW","l");
-    ["off","def","pow","tec","spd","sta"].forEach((k,i)=>{if(cd.st&&cd.st[i]!=null)c[k]=cd.st[i];});
-    if(cd.lb)c.lb=cd.lb; return c;}
-  return {id:uid++,name:cd.nm||"?",flag:cd.fl||"🏳️",pos:subGroup(cd.s),sub:cd.s,rar:cd.r||"n",type:cd.t,
-    look:{headIdx:cd.h||0,bodyVar:cd.b||0},
-    off:cd.st[0],def:cd.st[1],pow:cd.st[2],tec:cd.st[3],spd:cd.st[4],sta:cd.st[5],
-    skill:cd.sk?{name:cd.sk.n,desc:"",fx:cd.sk.f}:null,lb:cd.lb||undefined};
-}
 function importTeam(raw){
   let code=(raw||"").trim();
   const m=code.match(/team=([A-Za-z0-9_-]+)/); if(m)code=m[1]; // URL貼り付けにも対応
-  const data=JSON.parse(_b64d(code));
-  if(!data||data.v!==1||!Array.isArray(data.cards)||!data.cards.length)throw new Error("bad");
-  const form=FORMS[data.f]?data.f:"4-4-2", kp=KEYPOS[form]||{};
-  const cards=FORMS[form].map((sl,i)=>{
-    const cd=data.cards[i];
-    const c=cd?rebuildCard(cd):makeCard(subGroup(sl[0]),"n",null,sl[0]);
-    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
-      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
-  });
-  return {team:buildTeam(cards,"A",form), coach:(data.c||"名無し監督").slice(0,20),
-    teamName:(data.tn||"相手チーム").slice(0,20), fav:data.fav?rebuildCard(data.fav):null, form};
+  const bytes=_unb64u(code);
+  if(bytes[0]!==0xC2)throw new Error("bad");
+  let p=1; const cl=bytes[p++], coach=_us(bytes.slice(p,p+cl)); p+=cl;
+  const tl=bytes[p++], team=_us(bytes.slice(p,p+tl)); p+=tl;
+  const r=_BR(bytes.slice(p));
+  const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
+  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r);
+    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
+  const fav=favFlag?_decCard(r):null;
+  return {team:buildTeam(cards,"A",form), coach:(coach||"名無し監督").slice(0,20),
+    teamName:(team||"相手チーム").slice(0,20), fav, form};
 }
 let _pendingChallenge=null; // チャレンジURL(#team=)で来たコードを保持
 function renderFriend(){
