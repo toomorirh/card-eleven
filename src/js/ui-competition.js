@@ -319,6 +319,16 @@ function renderFriend(){
   const out=mk("div");out.style.marginTop="6px";
   ex.onclick=()=>{
     const url=challengeURL();out.innerHTML="";
+    // QRコード(相手はスマホのカメラ等で読めば、開くだけで対戦できる)
+    try{ if(typeof qrcode!=="undefined"){
+      const qr=qrcode(0,"M");qr.addData(url);qr.make();
+      const n=qr.getModuleCount(),sc=4,pad=4,sz=(n+pad*2)*sc;
+      const cv=mk("canvas");cv.width=cv.height=sz;cv.style.cssText="display:block;margin:4px auto;width:"+Math.min(sz,260)+"px;image-rendering:pixelated;background:#fff;border-radius:6px";
+      const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,sz,sz);x.fillStyle="#000";
+      for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))x.fillRect((c+pad)*sc,(r+pad)*sc,sc,sc);
+      out.appendChild(cv);
+      const cap=mk("div","lg");cap.style.textAlign="center";cap.textContent="↑ QRを相手のカメラで読み取り(or 下のURLを共有)";out.appendChild(cap);
+    }}catch(e){}
     const ta=mk("textarea","ci-input");ta.rows=3;ta.readOnly=true;ta.value=url;out.appendChild(ta);
     const cp=mk("button","btn ghost");cp.style.marginTop="4px";cp.textContent="📋 コピー";
     cp.onclick=()=>{ta.select();let ok=false;try{ok=document.execCommand("copy");}catch(e){}
