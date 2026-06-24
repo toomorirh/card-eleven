@@ -83,7 +83,7 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
     ctx.drawImage(BODY_IMG,(bi%4)*BCW,(bi>>2)*BCH,BCW,BCH,0,by,BCW,BCH);
     const a=BODY_ANCHOR[bi];
     const HH=54,HW=Math.round(HH*HCW/HCH);
-    ctx.drawImage(HEAD_IMG,(L.headIdx%8)*HCW,(L.headIdx>>3)*HCH,HCW,HCH,a[0]-(HW>>1),by+a[1]-HH+20,HW,HH);
+    ctx.drawImage(HEAD_IMG,(L.headIdx%8)*HCW,(L.headIdx>>3)*HCH,HCW,HCH,a[0]-(HW>>1),by+a[1]-HH+12,HW,HH);
   }catch(e){ // 画像が使えない端末でも簡易シルエットで続行
     const kit=(c.pos==="GK"?GK_C:KIT_C)[Math.min(L.kit,(c.pos==="GK"?GK_C:KIT_C).length-1)][0];
     ctx.fillStyle=SKIN_C[L.skin];ctx.fillRect(46,18,40,40);          // 頭
