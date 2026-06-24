@@ -27,7 +27,7 @@ if(typeof window!=="undefined"&&window.GEN_IMG){for(const p in window.GEN_IMG){(
 const _GEN_ALL=[].concat(...Object.values(GEN_IMG_EL));
 const SPR_READY=Promise.all([imgReady(HEAD_IMG),imgReady(BODY_IMG),...Object.values(SIG_IMG_EL).map(imgReady),..._GEN_ALL.map(imgReady)]);
 const withTimeout=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(r,ms))]);
-const BODY_ANCHOR=[[67, 9], [74, 9], [64, 9], [51, 55], [54, 16], [66, 11], [59, 10], [74, 33], [54, 15], [66, 10], [56, 10], [64, 9], [65, 9], [65, 9], [73, 11], [75, 9]]; // 各ボディの首位置(肌色検出で算出)
+const BODY_ANCHOR=[[67, 9], [74, 9], [64, 9], [49, 55], [54, 16], [66, 11], [59, 10], [74, 33], [54, 15], [66, 10], [56, 10], [64, 9], [65, 9], [65, 9], [73, 11], [75, 9]]; // 各ボディの首位置(肌色検出で算出)
 const HCW=100,HCH=96,BCW=132,BCH=118,POSCOL={FW:0,MF:1,DF:2,GK:3};
 // ===== ドット絵パーツ(顔=肌×髪型×髪色 / ユニフォーム(GK専用色+グローブ) / シューズ) =====
 const SKIN_C=["#f5cfa0","#e3b07a","#c98850","#8d5a33"];
