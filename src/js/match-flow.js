@@ -342,11 +342,13 @@ function startLeagueMatch(idx,name){
   S._leagueMatch=true;
   startMatch(idx);
 }
-function startMatch(idx){
+function _checkSquad(){
   const filled=FORMS[S.form].filter((_,i)=>S.squad[i]!=null).length;
-  if(filled<11){toast(`スタメンが${filled}/11人です!編成画面で揃えよう`);
-    document.querySelector('[data-s="team"]').click();return;}
-  const club=CLUBS[idx], name=club.name, lv=club.lv, form=club.form;
+  if(filled<11){toast(`スタメンが${filled}/11人です!編成画面で揃えよう`);document.querySelector('[data-s="team"]').click();return false;}
+  return true;
+}
+// 共通: 試合画面セットアップ → KICK OFF → ループ開始。away/name/form/lv(0=ラベル無)/idx を受ける。
+function _beginMatch(away,name,form,lv,idx){
   S.tactic="bal";S.style="center";
   document.querySelectorAll(".tactics [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t==="bal"));
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
@@ -357,21 +359,33 @@ function startMatch(idx){
   hideStatOverlay();
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
-
-  const home=myTeam(),away=oppTeam(lv,club);
+  const home=myTeam();
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
   document.getElementById("subN").textContent=3;
   buildField();
-  feed(`⚽ キックオフ! vs ${name}(Lv.${lv})`);
+  feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
   feed(`相手のフォーメーション:【${form}】`);
   if(FORM_DESC[form])feed(`📋 ${FORM_DESC[form]}`,"chance");
   feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
-  const srs=away.players.filter(p=>p.c.rar==="sr"||p.c.rar==="l");
-  if(srs.length)feed(`⚠ 要注意:相手の${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);
-  // KICK OFF カットイン(両チーム主将=最高OVR)を再生してから試合ループ開始
+  if(away.chemN>=3)feed(`⚠ 相手は ${away.chemNat}${natName(away.chemNat)}勢${away.chemN}人! 国籍ボーナス +${Math.round((away.chem-1)*100)}%`,"chance");
+  const srs=away.players.filter(p=>p.c.sig||p.c.rar==="l");
+  if(srs.length)feed(`⚠ 要注意:${srs.map(p=>p.c.name+"【"+p.c.skill.name+"】").join("、")}`);
   (async()=>{ await kickoffCutin(teamCaptain(home),teamCaptain(away),name); runLoop(); })();
+}
+function startMatch(idx){
+  if(!_checkSquad())return;
+  const club=CLUBS[idx];
+  _beginMatch(oppTeam(club.lv,club),club.name,club.form,club.lv,idx);
+}
+function startWorldMatch(){
+  if(!_checkSquad())return;
+  const tour=S.tour||(S.tour={i:0,res:[]});
+  if(tour.i>=WORLD_NATIONS.length)return;
+  const nation=WORLD_NATIONS[tour.i];
+  S._worldMatch=true;
+  _beginMatch(worldTeam(nation,tour.i),`${nation.flag} ${nation.name}`,nation.form,0,tour.i);
 }
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
@@ -429,6 +443,37 @@ async function endMatch(){
     b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();
       document.querySelector('#modeRow [data-m="league"]').click();};
     e.appendChild(b);
+    await save();MC=null;return;
+  }
+  if(S._worldMatch){
+    S._worldMatch=false;
+    const tour=S.tour||(S.tour={i:0,res:[]});
+    const nation=WORLD_NATIONS[tour.i];
+    const r=sh>sa?"W":sh===sa?"D":"L";
+    tour.res[tour.i]=r;
+    const e=document.getElementById("matchEnd");
+    const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    let drop="";
+    if(r==="W"){ // 署名保有国に勝利 → 低確率で固有選手ドロップ(未所持優先)
+      const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
+      if(sigs.length&&Math.random()<TUNING.worldSigDrop){
+        const own=new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));
+        const pool=sigs.filter(s=>!own.has(s.id)); const cand=pool.length?pool:sigs;
+        const pick=cand[ri(0,cand.length-1)];
+        S.coll.push(makeSignature(pick.id));
+        drop=`<div class="banner" style="font-size:14px;color:#ff9ec4">🌟 ${nation.name}撃破! 固有選手「${pick.name}」を獲得!!</div>`;
+        feed(`🌟 ${nation.name}を撃破!固有選手「${pick.name}」を獲得!`,"goal");
+      }
+    }
+    tour.i++;
+    const last=tour.i>=WORLD_NATIONS.length;
+    if(last&&tour.res.every(x=>x==="W"))S.tourPerfect=1; // 全勝で実績(選択券)
+    e.innerHTML=`<div class="banner">${head} ${sh}-${sa}</div>`+drop;
+    showStatOverlay(M.home,M.away);
+    const b=document.createElement("button");b.className="btn";b.textContent=last?"ツアー結果へ":"次の国へ";
+    b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="world"]').click();};
+    e.appendChild(b);
+    checkAchievements();
     await save();MC=null;return;
   }
   let msg,reward;

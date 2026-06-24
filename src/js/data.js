@@ -150,6 +150,7 @@ const TUNING={
     cornerOnClear:0.11,   // 危険なクリアがCKになる割合
     cornerOnSave:0.10,    // GKセーブがCKになる割合
   },
+  worldSigDrop:0.15,    // ワールドツアー: 署名保有国に勝利時、固有選手がドロップする確率
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
   // 序盤=低い→キックオフ直後の唐突な演出を防ぐ。動くと上がり、停滞で冷める。時間で下限が上昇。
   volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10},
@@ -299,6 +300,27 @@ const CLUBS=[
   {name:"ボルシア・ハーフェン",   lv:6, form:"5-3-2",   seed:1008},
   {name:"スポルティング・ヴァルデス", lv:7, form:"4-3-1-2", seed:1003},
   {name:"レアーレ・カステロ",     lv:8, form:"4-2-3-1", seed:1003},
+];
+// ===== ワールドツアー(全16カ国・強豪国代表) =====
+// 解放: ステージ全クラブ制覇後。全選手が同一国籍=ケミストリー満タン、平均OVRは終盤ほど上昇(約88→100)。
+// シグネチャー保有国(flag一致)はその固有選手が先発する。順序は概ね弱→強(終盤=署名多数で最難関)。
+const WORLD_NATIONS=[
+  {flag:"🇲🇽",name:"メキシコ",      form:"4-3-3",   seed:2001},
+  {flag:"🇺🇾",name:"ウルグアイ",    form:"4-4-2",   seed:2002},
+  {flag:"🇨🇴",name:"コロンビア",    form:"4-2-3-1", seed:2003},
+  {flag:"🇯🇵",name:"日本",          form:"4-2-3-1", seed:2004},
+  {flag:"🇧🇪",name:"ベルギー",      form:"3-5-2",   seed:2005},
+  {flag:"🇳🇴",name:"ノルウェー",    form:"4-4-2",   seed:2006},
+  {flag:"🇭🇷",name:"クロアチア",    form:"4-3-1-2", seed:2007},
+  {flag:"🇪🇸",name:"スペイン",      form:"4-3-3",   seed:2008},
+  {flag:"🇬🇧",name:"イングランド",  form:"4-4-2",   seed:2009},
+  {flag:"🇳🇱",name:"オランダ",      form:"4-3-3",   seed:2010},
+  {flag:"🇵🇹",name:"ポルトガル",    form:"4-3-3",   seed:2011},
+  {flag:"🇮🇹",name:"イタリア",      form:"3-5-2",   seed:2012},
+  {flag:"🇩🇪",name:"ドイツ",        form:"4-2-3-1", seed:2013},
+  {flag:"🇦🇷",name:"アルゼンチン",  form:"4-4-2",   seed:2014},
+  {flag:"🇫🇷",name:"フランス",      form:"4-2-3-1", seed:2015},
+  {flag:"🇧🇷",name:"ブラジル",      form:"4-3-3",   seed:2016},
 ];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
@@ -450,6 +472,9 @@ const ACHIEVEMENTS=[
    reward:{sigPacks:1,championPacks:1}, rewardLabel:"シグネチャーパック+チャンピオンパック"},
   {id:"clearAll", icon:"👑", title:"全土制覇",         desc:"全クラブを攻略する",
    test:()=>S.cleared>=CLUBS.length, prog:()=>`${Math.min(S.cleared,CLUBS.length)}/${CLUBS.length} クラブ`,
+   reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
+  {id:"worldTourPerfect", icon:"🌐", title:"世界制覇",  desc:"ワールドツアーを全勝で攻略する",
+   test:()=>(S.tourPerfect||0)>=1,   prog:()=>`全勝 ${(S.tourPerfect||0)>=1?1:0}/1`,
    reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
 ];
 

@@ -19,7 +19,7 @@
 4. [プレースタイル(タイプ)](#4-プレースタイルタイプ) — パラメータ定義・タイプ一覧
 5. [スキル](#5-スキル) — 効果キー・通常スキル・レジェンド専用
 6. [試合エンジン](#6-試合エンジン) — 基本式・閾値TH・スタイル別シーケンス・シュート判定・演出
-7. [ゲームモード](#7-ゲームモード) — ステージ攻略・リーグ戦・交代・ガチャUI・スマホUI・実績/固有選手の入手(7.6)
+7. [ゲームモード](#7-ゲームモード) — ステージ攻略・リーグ戦・交代・ガチャUI・スマホUI・実績/固有選手の入手(7.6)・ワールドツアー(7.7)
 8. [レジェンドパック](#8-レジェンドパック希少エンドコンテンツ)
 9. [アセット仕様(スプライト)](#9-アセット仕様スプライト)
 10. [カードデザイン(レアリティ別)](#10-カードデザインレアリティ別) — 枠/演出・カードレイアウト(10.1)
@@ -328,10 +328,19 @@
 - **定義**: `ACHIEVEMENTS` 配列(`data.js`)で**データ駆動**。各エントリ `{id, icon, title, desc, test:()=>bool, prog:()=>string, reward, rewardLabel}`。`reward` は付与内容 `{sigPacks?, sigSelect?, championPacks?}`。追加は1要素足すだけで判定・画面表示の両方に反映。
 - **判定**: `checkAchievements()`(`state.js`)が未達成(`!S.ms[id]`)かつ `test()` 真のものに `grantReward(reward)` を適用し、達成済みを `S.ms[id]=1` で記録(冪等=二重付与しない)。付与時は `toast`(実績解除「タイトル」報酬名)で通知。
 - **呼び出し箇所**: ①ステージ攻略の試合終了後(`match-flow.js` の `endMatch`)②`loadGame` 時(旧セーブの遡及付与)③編成変更時(`renderPitch` 末尾=合計OVR系の判定)④リーグ報酬確定時(`claimSeason`)。
-- **現行ラインナップ**: `clear4`(Lv4到達→Sパック) / `ovr1000`(編成の合計OVR≧1000→Sパック、`squadTotalOVR()` で判定) / `leagueWin`(リーグ初優勝=`S.leagueWins≥1`→Sパック+チャンピオンパック) / `clearAll`(全クラブ制覇→選択券)。
+- **現行ラインナップ**: `clear4`(Lv4到達→Sパック) / `ovr1000`(編成の合計OVR≧1000→Sパック、`squadTotalOVR()` で判定) / `leagueWin`(リーグ初優勝=`S.leagueWins≥1`→Sパック+チャンピオンパック) / `clearAll`(全クラブ制覇→選択券) / `worldTourPerfect`(ワールドツアー全勝=`S.tourPerfect≥1`→選択券)。
 - **リーグ報酬の分離**: コインは順位別に**毎シーズン**付与(優勝🪙500/3位以内250/参加100)。パック類は実績に一本化し、**初優勝**でのみチャンピオンパック+Sパックを付与(`claimSeason` が `S.leagueWins++` → `checkAchievements`)。「新シーズン開始」ボタンは報酬を再付与しない(以前の二重付与バグを修正)。
 - 画面表示: `renderAchievements()`(`ui-roster.js`)が達成済み🏆(`.ach-card.got` 金枠)/未達成🔒(`prog()` の進捗表示)を一覧。
-- セーブ: `S.sigSelect`/`S.leagueWins`/`S.ms` を追加(v9据え置き。欠落フィールドは `||0`・`||{}` 補完で旧セーブ互換)。
+- セーブ: `S.sigSelect`/`S.leagueWins`/`S.ms`/`S.tour`/`S.tourPerfect` を追加(v9据え置き。欠落フィールドは `||0`・`||{}` 補完で旧セーブ互換)。
+
+### 7.7 ワールドツアー
+全クラブ制覇(`S.cleared>=CLUBS.length`)で `modeRow` に解放される第3モード(`🌍`)。**強豪国代表16カ国**(`WORLD_NATIONS`)を連戦する。
+
+- **相手**: `worldTeam(nation,idx)`(`match-core.js`)。**全選手が同一国籍**=ケミストリー満タン(+6%)、平均OVRは `idx` で上昇(約90→100)。**署名保有国はその固有選手が先発**(位置一致枠へ注入)。`seed` でロスター固定(偵察=本番一致)。
+- **進行(ラウンドテーブル=16連戦)**: `S.tour={i,res[]}`。`startWorldMatch`→試合→`endMatch` の world 分岐で **勝敗に関わらず `res[i]` 記録し `i++`**。16戦後は「新しいツアーを始める」で `tour` リセット。
+- **画面**: `renderWorld()`(`ui-competition.js`)が縦タイムライン(`.wt-card`)で 16カ国＋結果チップ(🏆勝/🤝分/😢敗)を表示。現在の対戦国をハイライト＋KickOff。国情報タップで `openWorldScout`(scoutモーダル共用)。
+- **報酬**: ①署名保有国に**勝利**で `TUNING.worldSigDrop`(15%)の低確率、その国の固有選手をドロップ(未所持優先)。②**全16勝**で実績 `worldTourPerfect`→シグネチャー選択券(一度きり)。
+- 偵察/開始の共通化: `renderScout(title,info,team)` を `openScout`(ステージ)/`openWorldScout` で共用。試合開始は `_beginMatch(away,name,form,lv,idx)` を `startMatch`/`startWorldMatch` で共用。
 
 ---
 

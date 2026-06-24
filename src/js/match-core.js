@@ -96,6 +96,36 @@ function oppTeam(lv,club){
   if(restore)restore();
   return t;
 }
+// ワールドツアーの相手国代表。全選手が同一国籍(=ケミ満タン)・高OVR(idxで上昇)。
+// その国のシグネチャーを位置の合う枠へ注入。seedでロスター固定(偵察=本番一致)。
+function worldTeam(nation,idx){
+  const form=nation.form||"4-3-3";
+  const restore=seedRandom(nation.seed||1);
+  const avg=15.3+(idx||0)*0.10;                 // 1選手平均ステ(合計 idx0≈92 → idx15≈101、OVR約90→100)
+  const kp=KEYPOS[form]||{};
+  const cards=FORMS[form].map((sl,i)=>{
+    const a=avg+ri(-1,1)*0.5;
+    const c=makeCard(subGroup(sl[0]),"sr",null,sl[0]);
+    c.flag=nation.flag;
+    scaleTo(c,Math.round(a*6));
+    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
+      keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
+  });
+  // シグネチャー注入: 同じ細分sub優先 → 同pos → 任意の未注入枠へ
+  if(typeof SIGNATURES!=="undefined"&&typeof makeSignature==="function"){
+    SIGNATURES.filter(s=>s.flag===nation.flag).forEach(sig=>{
+      let i=cards.findIndex(p=>!p._sig&&p.subRole===sig.sub);
+      if(i<0)i=cards.findIndex(p=>!p._sig&&subGroup(p.subRole)===sig.pos);
+      if(i<0)i=cards.findIndex(p=>!p._sig);
+      if(i>=0){const sc=makeSignature(sig.id);
+        cards[i]={c:sc,role:sc.pos,subRole:sc.sub,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
+          keyStat:cards[i].keyStat,keyMul:cards[i].keyMul,_sig:1};}
+    });
+  }
+  const t=buildTeam(cards,"A",form);
+  if(restore)restore();
+  return t;
+}
 function oppPickStyle(t){
   const wide=t.players.filter(p=>p.role!=="GK"&&(p.x<=30||p.x>=70));
   const fws=t.players.filter(p=>p.role==="FW"),mfs=t.players.filter(p=>p.role==="MF");

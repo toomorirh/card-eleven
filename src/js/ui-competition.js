@@ -28,19 +28,18 @@ function renderLeague(){
     l.appendChild(d);
   });
   if(S.cleared>=CLUBS.length){
-    const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!王者だ!";
+    const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!ワールドツアー解放!";
     l.prepend(w);
   }
+  // ワールドツアーは全クラブ制覇で解放
+  const wb=document.querySelector('#modeRow [data-m="world"]');
+  if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none";
 }
 // 偵察(事前調査): 相手の固定ロスターをフルサイズのフォーメーション図で表示(数値はOVRのみ)。
-// 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。
-function openScout(idx){
-  const club=CLUBS[idx];
-  const away=oppTeam(club.lv,club);            // seed固定なのでプレビュー=本番と同一の11人
-  const avg=clubAvgOVR(club);
-  document.getElementById("scoutTitle").textContent=`偵察: ${club.name}`;
-  document.getElementById("scoutInfo").innerHTML=
-    `平均OVR <b style="color:var(--gold)">${avg}</b> ／ 陣形 <b>${club.form}</b><br><span class="lc-desc">${FORM_DESC[club.form]||""}</span>`;
+// 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。ステージ/ワールド共用。
+function renderScout(title,infoHtml,away){
+  document.getElementById("scoutTitle").textContent=title;
+  document.getElementById("scoutInfo").innerHTML=infoHtml;
   const wrap=document.getElementById("scoutList");wrap.innerHTML="";
   const pitch=document.createElement("div");pitch.className="pitch scoutpitch";
   pitch.innerHTML='<div class="circle"></div>';
@@ -55,7 +54,20 @@ function openScout(idx){
     pitch.appendChild(s);
   });
   wrap.appendChild(pitch);
-  document.getElementById("scoutModal").classList.add("on"); // 情報専用(試合開始はステージのKickOffから)
+  document.getElementById("scoutModal").classList.add("on"); // 情報専用(試合開始はKickOffから)
+}
+function openScout(idx){
+  const club=CLUBS[idx], away=oppTeam(club.lv,club); // seed固定=プレビュー=本番一致
+  renderScout(`偵察: ${club.name}`,
+    `平均OVR <b style="color:var(--gold)">${clubAvgOVR(club)}</b> ／ 陣形 <b>${club.form}</b><br><span class="lc-desc">${FORM_DESC[club.form]||""}</span>`, away);
+}
+function openWorldScout(k){
+  const nation=WORLD_NATIONS[k], away=worldTeam(nation,k);
+  const tot=away.players.reduce((s,p)=>s+p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta,0);
+  const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
+  renderScout(`偵察: ${nation.flag} ${nation.name}`,
+    `平均OVR <b style="color:var(--gold)">${Math.round(tot/away.players.length)}</b> ／ 陣形 <b>${nation.form}</b> ／ 国籍ボーナス <b style="color:var(--gold)">+${Math.round((away.chem-1)*100)}%</b>`
+    +(sigs.length?`<br><span class="lc-desc">⚠ 固有選手: ${sigs.map(s=>s.name).join("、")}</span>`:""), away);
 }
 document.getElementById("scoutClose").onclick=()=>document.getElementById("scoutModal").classList.remove("on");
 
@@ -186,11 +198,44 @@ function finishLeagueRound(myHS,myAS){
   (lg._pending||[]).forEach(([hi,ai])=>{const[hs,as]=simCpu(lgLevel(LG_CLUBS[hi]),lgLevel(LG_CLUBS[ai]));applyResult(lg.table,hi,ai,hs,as);});
   lg._pending=null;lg.round++;save();
 }
-// モード切替
+// ================= ワールドツアー =================
+function renderWorld(){
+  const tour=S.tour||(S.tour={i:0,res:[]});
+  const done=tour.i>=WORLD_NATIONS.length;
+  const wins=tour.res.filter(x=>x==="W").length;
+  document.getElementById("worldHead").innerHTML=
+    `<div class="banner" style="font-size:15px">― 🌍 ワールドツアー ${Math.min(tour.i+(done?0:1),WORLD_NATIONS.length)}/${WORLD_NATIONS.length} ―</div>`
+    +`<div class="lg">強豪国代表(平均OVR90↑・国籍ボーナス満)を${WORLD_NATIONS.length}連戦。勝敗に関わらず次へ進む。${wins}勝</div>`;
+  const list=document.getElementById("worldList");list.innerHTML="";
+  WORLD_NATIONS.forEach((nation,k)=>{
+    const res=tour.res[k], cur=(k===tour.i)&&!done, locked=k>tour.i;
+    const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
+    const d=document.createElement("div");
+    d.className="wt-card"+(res?" played":"")+(cur?" cur":"")+(locked?" lock":"");
+    const chip=res?`<span class="wt-res ${res}">${res==="W"?"🏆 勝":res==="D"?"🤝 分":"😢 敗"}</span>`:(cur?`<span class="wt-res cur">▶ 挑戦</span>`:`<span class="wt-res">🔒</span>`);
+    d.innerHTML=`<div class="wt-flag">${nation.flag}</div>
+      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} ${(!locked)?'<span class="scout-hint">🔍</span>':''}</div>
+      <div class="lv">${cur?"挑戦中":locked?"未到達":"対戦済"}・陣形 ${nation.form}</div></div>${chip}`;
+    if(!locked)d.querySelector(".wt-info").onclick=()=>openWorldScout(k);
+    if(cur){const ko=document.createElement("button");ko.className="btn ko-btn";ko.textContent="KickOff";ko.onclick=()=>startWorldMatch();d.appendChild(ko);}
+    list.appendChild(d);
+  });
+  const foot=document.getElementById("worldFoot");foot.innerHTML="";
+  if(done){
+    const perfect=tour.res.every(x=>x==="W");
+    const w=document.createElement("div");w.className="banner";
+    w.textContent=perfect?"🌐 全勝!世界制覇!!":`ツアー終了 ${wins}勝${tour.res.filter(x=>x==="D").length}分${tour.res.filter(x=>x==="L").length}敗`;
+    foot.appendChild(w);
+    const b=document.createElement("button");b.className="btn";b.textContent="新しいツアーを始める";
+    b.onclick=()=>{S.tour={i:0,res:[]};save();renderWorld();};foot.appendChild(b);
+  }
+}
+// モード切替(stage / league / world)
 document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
-  const lg=b.dataset.m==="league";
-  document.getElementById("stageMode").style.display=lg?"none":"block";
-  document.getElementById("leagueMode").style.display=lg?"block":"none";
-  if(lg)renderLeagueMode();else renderLeague();
+  const m=b.dataset.m;
+  document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
+  document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
+  document.getElementById("worldMode").style.display=m==="world"?"block":"none";
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else renderLeague();
 });
