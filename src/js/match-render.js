@@ -140,7 +140,7 @@ async function sigCutin(p){
   await sleep(1300);o.remove();
 }
 async function wordCutin(p,T,word,gold,ms,big){
-  const o=document.createElement("div");o.className="cutin";
+  const o=document.createElement("div");o.className="cutin csc";
   o.innerHTML=`<div class="band"></div>
    <div class="wc-fig"></div>
    <div class="cutword${gold?" gold":""}${big?" big":""}">${word}</div>`;
@@ -172,7 +172,7 @@ async function pkCutin(a,d){
 }
 // セットプレーのカットイン(語句型・縦中央スタック): 蹴る選手の絵+種別名+名前。
 async function spCutin(p,title){
-  const o=document.createElement("div");o.className="cutin";
+  const o=document.createElement("div");o.className="cutin csc";
   o.innerHTML=`<div class="band"></div>
    <div class="wc-fig"></div>
    <div class="cutword sp">${title}</div>
@@ -194,7 +194,7 @@ async function kickoffCutin(hc,ac,awayName){
 }
 // GAME SET カットイン: 中央に「GAME SET」+最終スコア(縦中央スタック)。
 async function gameSetCutin(sh,sa){
-  const o=document.createElement("div");o.className="cutin gameset";
+  const o=document.createElement("div");o.className="cutin gameset csc";
   o.innerHTML=`<div class="band"></div><div class="cutword">GAME SET</div><div class="cutlabel">${sh} - ${sa}</div>`;
   document.body.appendChild(o);await sleep(1500);o.remove();
 }
