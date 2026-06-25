@@ -238,8 +238,10 @@ async function crossCutin(p){
 async function tacCutin(tac,mgr){
   const o=document.createElement("div");o.className="cutin csc tac";
   o.innerHTML=`<div class="band"></div>
+   <div class="wc-fig"></div>
    <div class="cutword">🎓 監督の采配!</div>
    <div class="cutlabel">【${tac.name}】${mgr?mgr.title:""}</div>`;
+  if(mgr&&typeof mgrPortrait==="function")o.querySelector(".wc-fig").appendChild(mgrPortrait(mgr,104));
   const w=document.querySelector(".wrap");if(w){w.classList.add("shake");setTimeout(()=>w.classList.remove("shake"),550);}
   document.body.appendChild(o);await sleep(1050);o.remove();
 }

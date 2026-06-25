@@ -58,7 +58,9 @@ async function loadGame(){                                       // つづきか
   const v=await readSave();
   if(!v){applyDefaults();await save();return;}
   try{S=JSON.parse(v);uid=S.nextId||1000;}catch(e){applyDefaults();await save();return;}
-  S.mgrOwned=S.mgrOwned||[];S.mgrActive=S.mgrActive||"";S.introLetters=S.introLetters||0; // 名将(v9据え置き・欠落補完)
+  S.mgrOwned=(S.mgrOwned||[]).filter(id=>MANAGERS.some(m=>m.id===id)); // 名将(v9据え置き・欠落補完/旧id除去)
+  S.mgrActive=S.mgrActive||"";S.introLetters=S.introLetters||0;
+  if(!MANAGERS.some(m=>m.id===S.mgrActive))S.mgrActive="";
   if(S.v!==9){migrate();await save();}
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }

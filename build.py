@@ -99,11 +99,21 @@ def _gen_block():
     return "window.GEN_IMG={%s};" % body
 
 
+def _mgr_block():
+    """src/assets/manager/ce_mg_managers.png(4x2=8名のシート)を base64 データURI化し
+    `window.MGR_SHEET="data:..."` を生成。無ければ空文字(★無し相当)。"""
+    f = ROOT / "src" / "assets" / "manager" / "ce_mg_managers.png"
+    if not f.is_file():
+        return 'window.MGR_SHEET="";'
+    b64 = base64.b64encode(f.read_bytes()).decode("ascii")
+    return 'window.MGR_SHEET="data:image/png;base64,%s";' % b64
+
+
 def _assemble_js():
-    """JS本体を結合し、先頭の "use strict"; 直後に SIG_IMG / GEN_IMG ブロックを差し込む
+    """JS本体を結合し、先頭の "use strict"; 直後に SIG_IMG / GEN_IMG / MGR_SHEET ブロックを差し込む
     (strictモードを保ちつつ、data.js のプリロードより前に画像プールを定義する)。"""
     body = _join("js", JS_FILES)
-    inject = _sig_block() + "\n" + _gen_block()
+    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block()
     first_nl = body.find("\n")
     if first_nl == -1:
         return body + "\n" + inject

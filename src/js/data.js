@@ -203,23 +203,39 @@ function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 // boost: 自チームの対象ポジ×ステを乗算強化(eff集約点で適用)。pos:"all"|role(FW/MF/DF/GK)、stat:"all"|off/def/pow/tec/spd/sta。
 // cost: 起用(交代)ごとのレンタル料(コイン)。tac: 采配シグネ(条件付き戦略アクション・Phase2で実装)。
 //   cond=[[subRole,stat,しきい値],…] 全て満たすと chance で発動。
+// 画像は src/assets/manager/ce_mg_managers.png(4列×2行=8名)。col/row=シート内グリッド位置。
 const MANAGERS=[
-  {id:"atk", name:"ドミニク・ロッサ",   title:"攻撃の名将", cost:300, boost:{pos:"FW", stat:"off", mul:1.07},
-    tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.35}},
-  {id:"def", name:"ハンス・ベルガー",   title:"堅守の名将", cost:300, boost:{pos:"DF", stat:"def", mul:1.07},
-    tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
-  {id:"mid", name:"パオロ・コンティ",   title:"司令塔の名将", cost:320, boost:{pos:"MF", stat:"tec", mul:1.07},
+  {id:"poss",      col:0,row:0, name:"ペップ・グアルディオラ",   title:"ポゼッションの巨匠",   cost:340, boost:{pos:"MF", stat:"tec", mul:1.07},
     tac:{name:"電光タクト",     from:"omf", cond:[["OMF","tec",20]], chance:0.30}},
-  {id:"spd", name:"エリック・ストランド", title:"快速の名将", cost:280, boost:{pos:"all", stat:"spd", mul:1.05},
+  {id:"press",     col:1,row:0, name:"ユルゲン・クロップ",       title:"情熱のゲーゲンプレス", cost:320, boost:{pos:"all", stat:"spd", mul:1.05},
+    tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.32}},
+  {id:"maestro",   col:2,row:0, name:"カルロ・アンチェロッティ", title:"百戦錬磨の名匠",       cost:380, boost:{pos:"all", stat:"all", mul:1.03}},
+  {id:"specialist",col:3,row:0, name:"ジョゼ・モウリーニョ",     title:"守備の戦術家",         cost:340, boost:{pos:"DF", stat:"def", mul:1.07},
     tac:{name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",20]], chance:0.30}},
-  {id:"sta", name:"ロベルト・フェリ",   title:"不屈の名将", cost:280, boost:{pos:"all", stat:"sta", mul:1.08}},
-  {id:"all", name:"ジャン・モリス",     title:"万能の名将", cost:380, boost:{pos:"all", stat:"all", mul:1.03}},
+  {id:"boss",      col:0,row:1, name:"アレックス・ファーガソン", title:"常勝の指揮官",         cost:300, boost:{pos:"all", stat:"sta", mul:1.08}},
+  {id:"galactico", col:1,row:1, name:"ジネディーヌ・ジダン",     title:"静かなる勝負師",       cost:320, boost:{pos:"FW", stat:"off", mul:1.07}},
+  {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, boost:{pos:"all", stat:"tec", mul:1.04}},
+  {id:"cholo",     col:3,row:1, name:"ディエゴ・シメオネ",       title:"闘将",                 cost:320, boost:{pos:"all", stat:"def", mul:1.05},
+    tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
 ];
 const MGR_POS_JP={all:"全選手",FW:"FW",MF:"MF",DF:"DF",GK:"GK"};
 const MGR_STAT_JP={all:"全能力",off:"攻撃",def:"守備",pow:"パワー",tec:"テクニック",spd:"スピード",sta:"スタミナ"};
 function managerById(id){return MANAGERS.find(m=>m.id===id)||null;}
 function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerById(S.mgrActive):null;}
 function mgrBoostDesc(m){const b=m.boost;return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
+// 監督ポートレート: シート(4x2)から該当セルの上部正方形(頭+胴)を切り出した canvas を返す。
+const MGR_IMG=new Image();
+if(typeof window!=="undefined"&&window.MGR_SHEET)MGR_IMG.src=window.MGR_SHEET;
+function mgrPortrait(m,size){
+  size=size||56;
+  const cv=document.createElement("canvas");cv.width=cv.height=size;cv.className="mgrpic";
+  const ctx=cv.getContext("2d");ctx.imageSmoothingQuality="high";
+  const draw=()=>{const W=MGR_IMG.naturalWidth,H=MGR_IMG.naturalHeight;if(!W||!m)return;
+    const cw=W/4,ch=H/2;ctx.clearRect(0,0,size,size);
+    ctx.drawImage(MGR_IMG,m.col*cw,m.row*ch,cw,cw,0,0,size,size);}; // 上部正方形=頭+胴
+  if(MGR_IMG.complete&&MGR_IMG.naturalWidth)draw();else MGR_IMG.addEventListener("load",draw);
+  return cv;
+}
 
 // スキル定義: fxキー => 試合エンジン内で参照
 // save:GKセーブ / duelD:守備マッチアップ / duelSpd等:該当タイプの攻撃マッチアップ

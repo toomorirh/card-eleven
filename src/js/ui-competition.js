@@ -400,7 +400,9 @@ function renderManagers(){
   const act=activeManager();
   const cur=mk("div","wt-card");
   if(act){
-    cur.innerHTML=`<div class="wt-info"><div class="wt-name">${act.title}</div><div class="lv">${act.name} ・ 🔼 ${mgrBoostDesc(act)}${act.tac?` ・ 采配「${act.tac.name}」`:""}</div></div>`;
+    cur.appendChild(mgrPortrait(act,54));
+    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${act.title}</div><div class="lv">${act.name} ・ 🔼 ${mgrBoostDesc(act)}${act.tac?` ・ 采配「${act.tac.name}」`:""}</div>`;
+    cur.appendChild(info);
     const dz=mk("button","btn ghost");dz.textContent="解任";dz.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
     dz.onclick=()=>{S.mgrActive="";save();renderOffice();toast("名将を解任しました");};
     cur.appendChild(dz);
@@ -419,7 +421,9 @@ function renderManagers(){
   if(!owned.length){const e=mk("div","lg");e.textContent="まだ名将が紹介されていません。紹介状でスカウトしましょう。";box.appendChild(e);}
   owned.forEach(m=>{
     const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
-    d.innerHTML=`<div class="wt-info"><div class="wt-name">${m.title}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${m.tac?` ・ 采配「${m.tac.name}」`:""}</div></div>`;
+    d.appendChild(mgrPortrait(m,48));
+    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.title}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${m.tac?` ・ 采配「${m.tac.name}」`:""}</div>`;
+    d.appendChild(info);
     const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
     b.textContent=isAct?"起用中":`レンタル 🪙${m.cost}`;
     if(!isAct)b.onclick=()=>rentManager(m.id);
