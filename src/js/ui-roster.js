@@ -159,11 +159,16 @@ document.getElementById("fmModal").onclick=e=>{if(e.target.id==="fmModal")e.targ
 document.getElementById("autoBtn").onclick=async()=>{
   S.squad={};const pool=[...S.coll];
   FORMS[S.form].forEach((sl,i)=>{
-    const sub=sl[0];
-    pool.sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||total(b)-total(a));
+    const sub=sl[0],grp=subGroup(sub);
+    // ①大区分(FW/MF/DF/GK)一致を最優先 → ②同区分内はOVR優先(細分不一致でも高OVRを上に)
+    // → ③同OVRなら細分一致(exact>near>far)をタイブレーク
+    pool.sort((a,b)=>
+      ((subGroup(b.sub)===grp)-(subGroup(a.sub)===grp))
+      || (total(b)-total(a))
+      || (posFit(b.sub,sub)-posFit(a.sub,sub)));
     const c=pool.shift();if(c)S.squad[i]=c.id;
   });
-  await save();renderPitch();toast("おまかせ編成完了!");
+  await save();renderPitch();toast("自動編成完了!");
 };
 
 // ================= 図鑑 =================
