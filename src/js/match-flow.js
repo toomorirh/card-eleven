@@ -380,6 +380,7 @@ function _beginMatch(away,name,form,lv,idx){
   feed(`相手のフォーメーション:【${form}】`);
   if(FORM_DESC[form])feed(`📋 ${FORM_DESC[form]}`,"chance");
   feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
+  if(home.mgr)feed(`🎓 名将『${home.mgr.title}』起用中! ${mgrBoostDesc(home.mgr)}`,"chance");
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   if(away.chemN>=3)feed(`⚠ 相手は ${away.chemNat}${natName(away.chemNat)}勢${away.chemN}人! 国籍ボーナス +${Math.round((away.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.sig||p.c.rar==="l");

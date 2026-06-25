@@ -26,6 +26,7 @@ function recalcAuras(t){
 function buildTeam(cards,side,form){
   const t={players:cards,tactic:"bal",style:"center",score:0,side,form};
   cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0};});
+  if(side==="H")t.mgr=activeManager(); // 名将ブーストは自チームのみ
   recalcAuras(t);
   return t;
 }
@@ -146,9 +147,16 @@ function situ(p,T,opT,min){
   return m;
 }
 // 有効値: 全マッチアップ・シュート・GK守備の単一集約点(pen×疲労×状況×ケミ×キーポジ)
+// 名将ブースト: 自チーム(T.mgr)のみ、対象ポジ×ステを乗算(勝敗式に少し有利)。
+function mgrMul(p,k,T){
+  const m=T&&T.mgr; if(!m)return 1;
+  const b=m.boost; if(!b)return 1;
+  const posOk=b.pos==="all"||p.role===b.pos, statOk=b.stat==="all"||b.stat===k;
+  return posOk&&statOk?(b.mul||1):1;
+}
 function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
-  return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1)*km;
+  return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T);
 }
 function fx(p){return p.c.skill?p.c.skill.fx:{};}
 function midPower(T,opT,min){

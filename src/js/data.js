@@ -199,6 +199,28 @@ const TYPE_FLAVOR={
 };
 function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 
+// ===== 名将(レンタル監督) =====
+// boost: 自チームの対象ポジ×ステを乗算強化(eff集約点で適用)。pos:"all"|role(FW/MF/DF/GK)、stat:"all"|off/def/pow/tec/spd/sta。
+// cost: 起用(交代)ごとのレンタル料(コイン)。tac: 采配シグネ(条件付き戦略アクション・Phase2で実装)。
+//   cond=[[subRole,stat,しきい値],…] 全て満たすと chance で発動。
+const MANAGERS=[
+  {id:"atk", name:"ドミニク・ロッサ",   title:"攻撃の名将", cost:300, boost:{pos:"FW", stat:"off", mul:1.07},
+    tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.35}},
+  {id:"def", name:"ハンス・ベルガー",   title:"堅守の名将", cost:300, boost:{pos:"DF", stat:"def", mul:1.07},
+    tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
+  {id:"mid", name:"パオロ・コンティ",   title:"司令塔の名将", cost:320, boost:{pos:"MF", stat:"tec", mul:1.07},
+    tac:{name:"電光タクト",     from:"omf", cond:[["OMF","tec",20]], chance:0.30}},
+  {id:"spd", name:"エリック・ストランド", title:"快速の名将", cost:280, boost:{pos:"all", stat:"spd", mul:1.05},
+    tac:{name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",20]], chance:0.30}},
+  {id:"sta", name:"ロベルト・フェリ",   title:"不屈の名将", cost:280, boost:{pos:"all", stat:"sta", mul:1.08}},
+  {id:"all", name:"ジャン・モリス",     title:"万能の名将", cost:380, boost:{pos:"all", stat:"all", mul:1.03}},
+];
+const MGR_POS_JP={all:"全選手",FW:"FW",MF:"MF",DF:"DF",GK:"GK"};
+const MGR_STAT_JP={all:"全能力",off:"攻撃",def:"守備",pow:"パワー",tec:"テクニック",spd:"スピード",sta:"スタミナ"};
+function managerById(id){return MANAGERS.find(m=>m.id===id)||null;}
+function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerById(S.mgrActive):null;}
+function mgrBoostDesc(m){const b=m.boost;return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
+
 // スキル定義: fxキー => 試合エンジン内で参照
 // save:GKセーブ / duelD:守備マッチアップ / duelSpd等:該当タイプの攻撃マッチアップ
 // shoot:シュート成功 / mid:支配率(個人) / teamChance:チャンス創出 / teamDef:チーム守備
