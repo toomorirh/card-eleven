@@ -396,13 +396,14 @@ canvas.sprite{image-rendering:auto}
  40%{transform:translate(calc(-50% - 60px),24px);opacity:1}
  56%,100%{transform:translate(calc(-50% - 300px),24px);opacity:0}}
 @keyframes pasW2{0%,50%{opacity:0}
- 55%{transform:translate(calc(-50% + 230px),-50%);opacity:0}
- 74%{transform:translate(calc(-50% + 58px),-50%);opacity:1}
- 100%{transform:translate(calc(-50% + 54px),-50%);opacity:1}}
+ 55%{transform:translate(calc(-50% + 250px),-50%);opacity:0}
+ 74%{transform:translate(calc(-50% - 4px),-50%);opacity:1}
+ 100%{transform:translate(calc(-50% - 8px),-50%);opacity:1}}
+/* 受け手は右から入り、右に着地(左→右のパスの流れ) */
 @keyframes pasR{0%,60%{opacity:0}
- 64%{transform:translate(calc(-50% - 230px),-50%);opacity:0}
- 82%{transform:translate(calc(-50% - 98px),-50%);opacity:1}
- 100%{transform:translate(calc(-50% - 98px),-50%);opacity:1}}
+ 64%{transform:translate(calc(-50% + 250px),-50%);opacity:0}
+ 82%{transform:translate(calc(-50% + 116px),-50%);opacity:1}
+ 100%{transform:translate(calc(-50% + 116px),-50%);opacity:1}}
 .cutin.pass .afig.k{animation:pasK 1.25s ease both}
 .cutin.pass .afig.r{animation:pasR 1.25s ease both}
 .cutin.pass .aword.w1{animation:pasW1 1.25s ease both}
