@@ -232,6 +232,17 @@ canvas.sprite{image-rendering:auto}
   padding:8px 10px;font-size:12px;line-height:1.8}
 .feed .goal{color:var(--gold);font-weight:900}
 .feed .chance{color:var(--cyan)}
+/* 試合結果(リザルト)は画面下部に固定=スクロール不要で結果と戻るボタンが常に見える。
+   内容が空の時は非表示。試合画面を離れると親(scr-match)が非表示になり自動的に消える。 */
+#matchEnd:empty{display:none}
+#matchEnd:not(:empty){position:fixed;left:0;right:0;bottom:0;z-index:140;
+  display:flex;flex-direction:column;align-items:center;gap:9px;max-height:72vh;overflow-y:auto;
+  padding:13px 16px calc(15px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(0deg,rgba(6,11,20,.99),rgba(10,17,30,.97));
+  border-top:2px solid var(--gold);box-shadow:0 -8px 28px rgba(0,0,0,.55);animation:sheetUp .35s both}
+@keyframes sheetUp{from{transform:translateY(105%)}to{transform:translateY(0)}}
+#matchEnd:not(:empty) .banner{font-size:18px;margin:0}
+#matchEnd:not(:empty) .btn{max-width:340px;margin:0}
 .tactics{display:flex;gap:6px;margin:8px 0}
 .tactics button{flex:1;padding:10px 4px;border-radius:8px;border:1px solid #2a3d56;background:var(--night2);
   color:var(--ink);font-family:inherit;font-weight:900;font-size:12px;cursor:pointer}
