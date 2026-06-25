@@ -137,6 +137,14 @@ canvas.sprite{image-rendering:auto}
 .natchip.on{background:var(--cyan);color:#06222a;border-color:transparent}
 .natchip span{font-size:9px;background:rgba(0,0,0,.2);padding:0 5px;border-radius:8px;font-weight:900}
 .natchip.on span{background:rgba(0,0,0,.16)}
+/* クラブ: 国籍/ソートのドロップダウン + まとめ売却 */
+.collctrl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 2px}
+.collsel{font-family:'M PLUS 1p',sans-serif;font-size:11px;font-weight:700;padding:4px 8px;border-radius:10px;
+  border:1px solid #2a3d56;background:#0f1c2f;color:#dce8f5;cursor:pointer;-webkit-appearance:none;appearance:none;max-width:48%}
+.collsell{font-family:'M PLUS 1p',sans-serif;font-weight:800;font-size:12px;padding:5px 12px;border-radius:10px;
+  border:1px solid var(--gold);background:rgba(232,194,90,.14);color:var(--gold);cursor:pointer;flex:1 1 auto}
+.collsell:active{transform:scale(.97)}
+.collsell.dis{opacity:.4;pointer-events:none;border-color:#2a3d56;background:#0f1c2f;color:#7d8ea0}
 
 /* pitch */
 .pitch{position:relative;width:100%;aspect-ratio:3/4;border-radius:12px;overflow:hidden;margin:10px 0;
