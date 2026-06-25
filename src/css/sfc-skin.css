@@ -102,10 +102,13 @@ h1{text-shadow:3px 3px 0 #06301c}
 .statTbl tr.mom td:first-child{background:#3a2c06}
 .statTbl tr.lowform td{color:#ff8a7a}
 .fieldwrap{position:relative;width:100%}
-.statOverlay{display:none;position:absolute;left:0;right:0;top:0;bottom:0;z-index:20;background:rgba(8,14,26,.94);
-  overflow-y:auto;padding:10px 8px}
+/* 試合後スタッツ: 全画面スクロール(11人を窮屈な枠内でなく画面全体で見られる)。
+   下部の結果シート(#matchEnd, z140)に被らないよう padding-bottom で余白を確保。 */
+.statOverlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(8,14,26,.96);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 8px 116px}
 .statOverlay.on{display:block}
-.statTabs{display:flex;gap:6px;margin:2px 0 8px}
+.statTabs{display:flex;gap:6px;position:sticky;top:0;z-index:1;
+  background:rgba(8,14,26,.97);padding:6px 0;margin:0 0 8px}
 .statTabs button{flex:1;padding:7px 0;font-family:'DotGothic16';font-size:12px;border:1px solid #2a3d56;
   background:#0f1c2f;color:#8fa3b8;cursor:pointer}
 .statTabs button.on{background:var(--gold);color:#11202f;border-color:var(--gold)}
