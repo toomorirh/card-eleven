@@ -176,6 +176,28 @@ const TYPES={
      commander:{n:"コマンダー",adv:2,wide:0,roam:1,chase:0,poss:1.15,run:0,drive:0.2}}};
 function rollType(pos){return rnd(Object.keys(TYPES[pos]));}
 function typeOf(c){const g=TYPES[c.pos];return g[c.type]||g[Object.keys(g)[0]];}
+// ===== タイプ別カットイン・フレーバー(演出のみ・勝敗ロジックには無関係) =====
+// cat=系統色(atk=暖色/mid=司令塔シアン/def=守備青)。各アクションの語句が無ければ汎用にフォールバック。
+// drive/cutin=持ち込み突破 pass=パス成功 cross=クロス atkWin=マッチアップ攻撃勝ち defWin=守備勝ち save=セーブ
+const CAT_COL={atk:"#ffd24a",mid:"#54d6c8",def:"#7fc0ff"};
+const CAT_ICON={atk:"⚔",mid:"✦",def:"🛡"};
+const TYPE_FLAVOR={
+  striker  :{cat:"atk", drive:"強引にこじ開ける!", atkWin:"ねじ込んだ!"},
+  post     :{cat:"atk", drive:"収めて反転突破!", atkWin:"収めて勝負!"},
+  dribbler :{cat:"atk", drive:"切り裂く突破!", cutin:"鮮やかなカットイン!", atkWin:"抜き去った!"},
+  shadow   :{cat:"atk", drive:"するりと突破!", cutin:"音もなく侵入!", atkWin:"隙を突いた!"},
+  maker    :{cat:"mid", pass:"司令塔のラストパス!", atkWin:"間を通した!"},
+  b2b      :{cat:"mid", drive:"力強く前進!", pass:"推進力のパス!", atkWin:"押し切った!"},
+  winger   :{cat:"atk", drive:"サイドを置き去り!", cutin:"内へ切れ込む!", cross:"鋭いクロス!", atkWin:"振り切った!"},
+  anchor   :{cat:"mid", pass:"正確な楔のパス!", defWin:"刈り取った!", atkWin:"楔を通した!"},
+  stopper  :{cat:"def", defWin:"ブロック!", atkWin:"力でこじ開けた!"},
+  cover    :{cat:"def", defWin:"カバーリング!"},
+  sb       :{cat:"atk", drive:"オーバーラップ突破!", cross:"駆け上がってクロス!", defWin:"対人で完封!"},
+  liner    :{cat:"def", save:"鉄壁のセーブ!"},
+  sweeper  :{cat:"def", save:"飛び出して防いだ!"},
+  commander:{cat:"def", save:"統率のセーブ!"},
+};
+function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 
 // スキル定義: fxキー => 試合エンジン内で参照
 // save:GKセーブ / duelD:守備マッチアップ / duelSpd等:該当タイプの攻撃マッチアップ

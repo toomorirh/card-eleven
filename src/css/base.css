@@ -379,6 +379,11 @@ canvas.sprite{image-rendering:auto}
 .cutin.act .streak{position:absolute;left:0;right:0;top:50%;height:118px;transform:translateY(-50%);z-index:0;
   background:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 2px,transparent 2px 10px);
   opacity:.5;animation:streakMove .45s linear infinite}
+/* タイプ名タグ(帯上部・系統色)。位置はtransformで固定するためアニメはfadeのみ(transformを上書きしない) */
+.cutin.act .ctag{position:absolute;left:50%;top:50%;transform:translate(-50%,-78px);z-index:3;
+  font-family:'DotGothic16';font-size:12px;font-weight:700;color:currentColor;
+  background:rgba(6,12,22,.6);border:1px solid;padding:1px 9px;border-radius:9px;white-space:nowrap;animation:tagIn .3s both}
+@keyframes tagIn{from{opacity:0}to{opacity:1}}
 @keyframes streakMove{from{background-position:0 0}to{background-position:-44px 0}}
 /* ドリブル(右へ駆け抜ける) */
 @keyframes drbFig{0%{transform:translate(calc(-50% - 210px),-50%);opacity:0}

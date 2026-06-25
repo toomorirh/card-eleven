@@ -26,7 +26,7 @@ async function egoRun(ctx,type){
     carrier.stat.duelW++;
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
-    await dribbleCutin(carrier,type==="cutin"?"カットイン成功!":"ドリブル突破!"); // 左→右へ駆け抜けるスピード演出
+    await dribbleCutin(carrier,type); // 左→右へ駆け抜けるスピード演出(語句/色はタイプ別)
     await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3);
     await tryShot(carrier,A,D,min,false,null,null,null,"ego");
     return {shot:true};

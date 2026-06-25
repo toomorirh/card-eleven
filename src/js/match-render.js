@@ -129,7 +129,13 @@ async function vsCutin(a,A,d,D,label,won){
     await sleep(560);
     const sides=o.querySelectorAll(".side"), win=sides[won?0:1], lose=sides[won?1:0];
     win.classList.add("win"); lose.classList.add("lose");
-    o.querySelector(".ctr").innerHTML=`<span class="vsmark res ${won?"atk":"def"}">${won?"突破!":"STOP!"}</span>`;
+    // 決着語/色は勝者のタイプ別フレーバー(攻=突破系暖色 / 守=ブロック系青)
+    const fl=typeFlavor((won?a:d).c), cat=won?(fl.cat||"atk"):"def";
+    const word=won?(fl.atkWin||"突破!"):(fl.defWin||"STOP!");
+    const col=CAT_COL[cat]||CAT_COL.atk;
+    const m=document.createElement("span");m.className="vsmark res";m.textContent=word;
+    m.style.color=col;m.style.textShadow="0 0 13px "+col+"e0";
+    const ctr=o.querySelector(".ctr");ctr.innerHTML="";ctr.appendChild(m);
     await sleep(680);
   }else{
     await sleep(1000);
@@ -199,21 +205,33 @@ function _actFrame(extraCls){
 }
 function _afig(card,cls,sz){const d=document.createElement("div");d.className="afig"+(cls?" "+cls:"");d.appendChild(spriteCanvas(card,sz||92));return d;}
 function _aword(text,cls){const d=document.createElement("div");d.className="aword"+(cls?" "+cls:"");d.textContent=text;return d;}
-// ドリブル/カットイン突破: 選手が左から登場→右へゾーンを駆け抜けてワイプアウト、突破語句が追従。
-async function dribbleCutin(p,word){
-  const o=_actFrame("drb");o.appendChild(_afig(p.c,"",96));o.appendChild(_aword(word,"ok"));
+// タイプ系統色を語句に乗せる(演出フレーバー)。
+function _catColor(el,cat){const col=CAT_COL[cat]||CAT_COL.atk;el.style.color=col;el.style.textShadow="0 0 16px "+col+"cc,0 2px 4px #000";}
+// 帯上部に色分けタイプ名タグ(例: ⚔ ドリブラー)。
+function _ctag(card){const fl=typeFlavor(card),cat=fl.cat||"atk";
+  const d=document.createElement("div");d.className="ctag";d.textContent=(CAT_ICON[cat]||"")+" "+typeOf(card).n;d.style.color=CAT_COL[cat]||CAT_COL.atk;return d;}
+// ドリブル/カットイン突破: 選手が左→右へ駆け抜けワイプアウト、突破語句が追従。語句/色はタイプ別。
+async function dribbleCutin(p,kind){
+  const fl=typeFlavor(p.c),cat=fl.cat||"atk";
+  const word=fl[kind]||fl.drive||(kind==="cutin"?"カットイン成功!":"ドリブル突破!");
+  const o=_actFrame("drb");const w=_aword(word,"ok");_catColor(w,cat);
+  o.appendChild(_afig(p.c,"",96));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
-// パス成功: 蹴り手+種別が左に登場→左へワイプ→右から「パス成功!」→追って左に受け手が登場。
+// パス成功: 蹴り手+種別が左→左へワイプ→右から成功語(出し手タイプ別)→追って右に受け手。
 async function passCutin(kicker,receiver,typeWord){
-  const o=_actFrame("pass");
-  o.appendChild(_afig(kicker.c,"k",92));o.appendChild(_aword(typeWord,"w1"));o.appendChild(_aword("パス成功!","w2 ok"));
+  const fl=typeFlavor(kicker.c),cat=fl.cat||"mid";
+  const o=_actFrame("pass");const w2=_aword(fl.pass||"パス成功!","w2 ok");_catColor(w2,cat);
+  o.appendChild(_afig(kicker.c,"k",92));o.appendChild(_aword(typeWord,"w1"));o.appendChild(w2);
   if(receiver)o.appendChild(_afig(receiver.c,"r",92));
+  o.appendChild(_ctag(kicker.c));
   document.body.appendChild(o);await sleep(1250);o.remove();
 }
-// クロス: 上げ手が左に登場+スピード感(ドリブル流用・語句のみ差し替え)。
+// クロス: 上げ手が左に登場+スピード感。語句/色はタイプ別(ウインガー/攻撃的SBで変化)。
 async function crossCutin(p){
-  const o=_actFrame("drb");o.appendChild(_afig(p.c,"",92));o.appendChild(_aword("クロス!",""));
+  const fl=typeFlavor(p.c),cat=fl.cat||"atk";
+  const o=_actFrame("drb");const w=_aword(fl.cross||"クロス!","");_catColor(w,cat);
+  o.appendChild(_afig(p.c,"",92));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
 // KICK OFF カットイン: 両チームの主将(最高OVR)を左右に、中央に「KICK OFF」。
