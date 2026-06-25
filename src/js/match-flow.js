@@ -178,6 +178,7 @@ async function _setPiece(kind,A,D,min){
   if(kind==="pk"){
     recordSet(MC,"pk");
     feed(`${who}🎯 PK獲得! <b>${taker.c.name}</b>がスポットへ`,"goal");
+    movePlayer(taker,gx-dir*11,50,0.4); // キッカーもスポットへ(ボールだけが動く違和感を解消)
     await ballTo(gx-dir*8,50,0.4);
     await pkCutin(taker,pickGK(D)); // キッカー vs GK の一騎打ち
     const g=await spShot(taker,A,D,min,TUNING.setpiece.pkBase,"PK!!","pk");
@@ -189,13 +190,16 @@ async function _setPiece(kind,A,D,min){
   if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
     feed(`${who}⚡ 直接FKのチャンス! <b>${taker.c.name}</b>`,"chance");
     await spCutin(taker,"直接フリーキック");
+    movePlayer(taker,gx-dir*23,50,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)
     await ballTo(gx-dir*20,50,0.45);
     const g=await spShot(taker,A,D,min,1.15,"直接FK!!","fk");
     if(g)recordSet(MC,"fk",true);
   }else{
     feed(`${who}🏃 FKからのクロス! <b>${taker.c.name}</b>が蹴る`,"chance");
     await spCutin(taker,"フリーキック");
-    await ballTo(gx-dir*22,curP(taker).y,0.45);
+    const fy=curP(taker).y;
+    movePlayer(taker,gx-dir*25,fy,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)
+    await ballTo(gx-dir*22,fy,0.45);
     await aerialBox(A,D,min,taker,{a:1.05,d:1,bonus:1},who); // 得点はtryShot内で計上
   }
 }
@@ -207,7 +211,9 @@ async function setCorner(A,D,min){
     const who=A.side==="A"?"🔴 ":"", kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
     feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
     await spCutin(kicker,"コーナーキック");
-    await ballTo(gx-dir*2,curP(kicker).y<50?8:92,0.45);
+    const cy=curP(kicker).y<50?8:92;
+    movePlayer(kicker,gx-dir*5,cy,0.45); // キッカーもコーナーへ走り込む(ボールだけが動く違和感を解消)
+    await ballTo(gx-dir*2,cy,0.45);
     await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
   }finally{_spActive=false;}
 }
