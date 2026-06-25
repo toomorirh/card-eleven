@@ -278,13 +278,10 @@ canvas.sprite{image-rendering:auto}
 .fn{font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fst{font-family:'DotGothic16';font-size:11px;color:var(--gold);text-align:center}
 /* マッチアップ勝敗の結果表示(DF演出): 勝者を発光・敗者を暗転、中央に決着語 */
-.cutin .side .fph{position:relative}
 .cutin .side{transition:opacity .28s ease, filter .28s ease}
 .cutin .side.win .fph{filter:drop-shadow(0 0 15px rgba(255,216,74,.95))}
 .cutin .side.win .fn{color:var(--gold)}
 .cutin .side.lose{opacity:.4;filter:grayscale(.65) brightness(.72)}
-.wbadge{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:22px;
-  text-shadow:0 0 8px rgba(0,0,0,.8);animation:vspop .35s both;z-index:3}
 .vsmark.res{font-size:30px}
 .vsmark.res.atk{color:var(--gold);text-shadow:0 0 12px rgba(232,194,90,.9)}
 .vsmark.res.def{color:#6fb3ff;text-shadow:0 0 13px rgba(120,180,255,.85)}

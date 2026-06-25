@@ -129,7 +129,6 @@ async function vsCutin(a,A,d,D,label,won){
     await sleep(560);
     const sides=o.querySelectorAll(".side"), win=sides[won?0:1], lose=sides[won?1:0];
     win.classList.add("win"); lose.classList.add("lose");
-    const b=document.createElement("div");b.className="wbadge";b.textContent="✓";win.querySelector(".fph").appendChild(b);
     o.querySelector(".ctr").innerHTML=`<span class="vsmark res ${won?"atk":"def"}">${won?"突破!":"STOP!"}</span>`;
     await sleep(680);
   }else{
