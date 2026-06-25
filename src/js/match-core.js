@@ -158,6 +158,13 @@ function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
   return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T);
 }
+// 名将の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
+function mgrTacOf(team){return (team&&team.side==="H"&&team.mgr&&team.mgr.tac)?team.mgr.tac:null;}
+function tacCondMet(tac,team){return tac.cond.every(([sub,st,th])=>team.players.some(p=>p.subRole===sub&&p.c[st]>=th));}
+function tacFromMatch(tac,carrier){const f=tac.from,sr=carrier&&carrier.subRole;
+  return f==="sb"?(sr==="LSB"||sr==="RSB"):f==="cb"?sr==="CB":f==="omf"?sr==="OMF":f==="wg"?(sr==="LWG"||sr==="RWG"):false;}
+// 采配の実行者(from に一致する自チーム選手)。攻撃采配で対象にボールを集めるのに使う。
+function tacExecutor(team,tac){const c=team.players.filter(p=>tacFromMatch(tac,p));return c.length?rnd(c):null;}
 function fx(p){return p.c.skill?p.c.skill.fx:{};}
 function midPower(T,opT,min){
   let m=0;

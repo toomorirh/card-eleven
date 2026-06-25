@@ -98,6 +98,29 @@ const LINKS={
   // カットイン(終端・エゴ): 幅から中へ切れ込んで自らシュート。
   cutin:{ run:ctx=>egoRun(ctx,"cutin") },
 };
+// 名将の攻撃采配の発動判定(攻撃開始時): 自チーム・攻撃采配・条件達成・確率。
+function mgrOffTacFires(A){
+  const tac=mgrTacOf(A); if(!tac||tac.from==="cb")return null; // cb(密集ブロック)は守備采配=tryShot側
+  if(!tacCondMet(tac,A))return null;
+  return Math.random()<tac.chance?tac:null;
+}
+async function mgrTacAction(A,D,min,carrier,tac,who){
+  feed(`${who}🎓 監督の采配!【${tac.name}】が炸裂!`,"goal");
+  addVolt(TUNING.volt.shot);
+  await tacCutin(tac,A.mgr);
+  if(tac.from==="sb"){ // アーリークロス → 空中戦(采配ボーナス)
+    await ballTo(curP(carrier).x,curP(carrier).y,0.2);
+    await aerialBox(A,D,min,carrier,{a:1.3,d:1,bonus:1.3},who);
+    return;
+  }
+  // 電光タクト / 電撃カウンター: 抜け出すランナーへ決定的スルー → 1対1
+  const dir=dirOf(A),gx=goalXOf(A), r=pickTarget(A)||carrier; r.stat.inv++;
+  const ly=28+ri(0,44);
+  movePlayer(r,gx-dir*12,ly,0.4); await ballTo(gx-dir*12,ly,0.4); hot(r);
+  feed(`${who}⚡ <b>${r.c.name}</b>が抜け出した!`,"chance");
+  await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);
+  await tryShot(r,A,D,min,false,null,null,carrier);
+}
 // 連鎖チェーン: 起点→リンク×N→シュート。深さ/つなぎ数でシュート移行率が増え自然終端。
 async function runChain(channel,A,D,min,origin){
   const counter=channel==="win"?TUNING.origin.counterBonus:1;
@@ -251,6 +274,18 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 }
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
+  // 名将の采配シグネ(守備): 相手のシュートを自チームCBがブロック(密集ブロック)
+  if(A.side==="A"&&MC&&MC.home){
+    const dtac=mgrTacOf(MC.home);
+    if(dtac&&dtac.from==="cb"&&tacCondMet(dtac,MC.home)&&Math.random()<dtac.chance){
+      const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
+      cb.stat.tkl++;cb.stat.inv++;
+      feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
+      await tacCutin(dtac,MC.home.mgr);
+      await ballTo(goalXOf(A)-dirOf(A)*16,50,0.45); // 弾き出し
+      return;
+    }
+  }
   atk.stat.shots++;
   addVolt(TUNING.volt.shot); // シュートで熱気が上がる
   const gk=pickGK(D);
@@ -321,6 +356,12 @@ async function tickAsync(){
   if(M._lastAtk===T.side){M._streak=(M._streak||1)+1;}else{M._streak=1;M._lastAtk=T.side;}
   if(M._streak===3){feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
   const dir=dirOf(T);
+  // 名将の攻撃采配: 自チーム攻撃時、条件達成かつ確率で対象選手(SB/OMF/WG)にボールを集めて発動
+  if(T===M.home){
+    const otac=mgrOffTacFires(T), exec=otac&&tacExecutor(T,otac);
+    if(exec){ exec.stat.inv++; await ballTo(curP(exec).x+dir*2,curP(exec).y,0.4); updateField();
+      await mgrTacAction(T,D,M.min,exec,otac,""); return; }
+  }
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   origin.stat.inv++;
   await ballTo(curP(origin).x+dir*2,curP(origin).y,0.4); // 起点へボールが収まる

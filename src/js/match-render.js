@@ -234,6 +234,15 @@ async function crossCutin(p){
   o.appendChild(_afig(p.c,"",92));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
+// 名将の采配シグネ発動カットイン(中央スタック・金): 「🎓 監督の采配!」+【戦術名】監督名。
+async function tacCutin(tac,mgr){
+  const o=document.createElement("div");o.className="cutin csc tac";
+  o.innerHTML=`<div class="band"></div>
+   <div class="cutword">🎓 監督の采配!</div>
+   <div class="cutlabel">【${tac.name}】${mgr?mgr.title:""}</div>`;
+  const w=document.querySelector(".wrap");if(w){w.classList.add("shake");setTimeout(()=>w.classList.remove("shake"),550);}
+  document.body.appendChild(o);await sleep(1050);o.remove();
+}
 // KICK OFF カットイン: 両チームの主将(最高OVR)を左右に、中央に「KICK OFF」。
 async function kickoffCutin(hc,ac,awayName){
   const o=document.createElement("div");o.className="cutin";
