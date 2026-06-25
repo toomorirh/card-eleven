@@ -110,7 +110,9 @@ function hot(p,ms){
 }
 
 // ===== カットイン =====
-async function vsCutin(a,A,d,D,label){
+// VSカットイン。won(真偽)を渡すと対決後に勝者を発光・敗者を暗転し、中央に決着語を表示
+// (won=攻撃側=左の勝ち / !won=守備側=右の勝ち=DF演出)。won未指定なら従来のフェイスオフのみ。
+async function vsCutin(a,A,d,D,label,won){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
@@ -123,7 +125,17 @@ async function vsCutin(a,A,d,D,label){
   ph[0].appendChild(spriteCanvas(a.c,92));
   ph[1].appendChild(spriteCanvas(d.c,92));
   document.body.appendChild(o);
-  await sleep(1000);o.remove();
+  if(typeof won==="boolean"){
+    await sleep(560);
+    const sides=o.querySelectorAll(".side"), win=sides[won?0:1], lose=sides[won?1:0];
+    win.classList.add("win"); lose.classList.add("lose");
+    const b=document.createElement("div");b.className="wbadge";b.textContent="✓";win.querySelector(".fph").appendChild(b);
+    o.querySelector(".ctr").innerHTML=`<span class="vsmark res ${won?"atk":"def"}">${won?"突破!":"STOP!"}</span>`;
+    await sleep(680);
+  }else{
+    await sleep(1000);
+  }
+  o.remove();
 }
 // 固有選手のスキル発動カットイン(スポットライト/スローモー演出)。
 // ゴールの「回転放射光＋シェイク」とは別系統: 画面を暗転させ、選手にスポット光を当て、
@@ -154,8 +166,8 @@ async function wordCutin(p,T,word,gold,ms,big){
   document.body.appendChild(o);
   await sleep(ms);o.remove();
 }
-async function maybeVs(a,A,d,D,label){
-  if(["sr","l"].includes(a.c.rar)||["sr","l"].includes(d.c.rar)||Math.random()<0.18)await vsCutin(a,A,d,D,label);
+async function maybeVs(a,A,d,D,label,won){
+  if(["sr","l"].includes(a.c.rar)||["sr","l"].includes(d.c.rar)||Math.random()<0.18)await vsCutin(a,A,d,D,label,won);
 }
 // PK専用カットイン: キッカー vs GK の一騎打ち(緊張のフェイスオフ)。
 async function pkCutin(a,d){

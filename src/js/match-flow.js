@@ -20,8 +20,9 @@ async function egoRun(ctx,type){
   movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
   await ballTo(ex-dir*3,ey,0.4);hot(carrier);hot(df);
   const foul=rollFoul(df,type); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
-  await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)");
-  if(resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus)){
+  const won=resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
+  await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)",won);
+  if(won){
     carrier.stat.duelW++;
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
@@ -65,8 +66,9 @@ const LINKS={
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
     await ballTo(lx,ly,0.5);hot(r);hot(df);
     const foul=rollFoul(df,"through"); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
-    await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)");
-    if(resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus)){
+    const won=resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
+    await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)",won);
+    if(won){
       r.stat.duelW++;
       feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
       if(skillShow())await passCutin(carrier,r,"スルーパス"); // パス左流れ演出(熱気で頻度調整)
