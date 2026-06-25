@@ -354,6 +354,50 @@ canvas.sprite{image-rendering:auto}
 .tok.sk-mid{filter:drop-shadow(0 0 7px rgba(120,255,170,.95))}
 @media (prefers-reduced-motion: reduce){.cutword.big,.goalrays.big,.shake-big,.crowd,#clock.late,.pop{animation:none}}
 
+/* ===== アクション系カットイン(スピード型) ===== */
+/* ドリブル=右流れ(選手が左→右へゾーンを駆け抜け、語句が追従)/ パス=左流れ(蹴り手左→左へワイプ→右から成功→左に受け手) */
+.cutin.act .afig{position:absolute;left:50%;top:50%;z-index:1;filter:drop-shadow(0 6px 12px rgba(0,0,0,.7))}
+.cutin.act .aword{position:absolute;left:50%;top:50%;z-index:2;white-space:nowrap;
+  font-family:'DotGothic16';font-size:27px;font-weight:900;color:#fff;text-shadow:0 0 14px rgba(84,214,200,.85),0 2px 4px #000}
+.cutin.act .aword.ok{color:var(--gold);text-shadow:0 0 18px rgba(232,194,90,.95),0 2px 4px #000}
+.cutin.act .streak{position:absolute;left:0;right:0;top:50%;height:118px;transform:translateY(-50%);z-index:0;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 2px,transparent 2px 10px);
+  opacity:.5;animation:streakMove .45s linear infinite}
+@keyframes streakMove{from{background-position:0 0}to{background-position:-44px 0}}
+/* ドリブル(右へ駆け抜ける) */
+@keyframes drbFig{0%{transform:translate(calc(-50% - 210px),-50%);opacity:0}
+ 18%{transform:translate(calc(-50% - 92px),-50%);opacity:1}
+ 50%{transform:translate(calc(-50% - 64px),-50%);opacity:1}
+ 100%{transform:translate(calc(-50% + 430px),-50%);opacity:0}}
+@keyframes drbWord{0%{transform:translate(calc(-50% + 150px),-50%);opacity:0}
+ 28%{transform:translate(calc(-50% + 58px),-50%);opacity:1}
+ 50%{transform:translate(calc(-50% + 70px),-50%);opacity:1}
+ 100%{transform:translate(calc(-50% + 470px),-50%);opacity:0}}
+.cutin.drb .afig{animation:drbFig .95s ease-in both}
+.cutin.drb .aword{animation:drbWord .95s ease-in both}
+/* パス(左へワイプ→右から成功→左に受け手) */
+@keyframes pasK{0%{transform:translate(calc(-50% - 220px),-50%);opacity:0}
+ 18%{transform:translate(calc(-50% - 104px),-50%);opacity:1}
+ 40%{transform:translate(calc(-50% - 104px),-50%);opacity:1}
+ 56%,100%{transform:translate(calc(-50% - 320px),-50%);opacity:0}}
+@keyframes pasW1{0%{transform:translate(calc(-50% - 150px),24px);opacity:0}
+ 22%{transform:translate(calc(-50% - 60px),24px);opacity:1}
+ 40%{transform:translate(calc(-50% - 60px),24px);opacity:1}
+ 56%,100%{transform:translate(calc(-50% - 300px),24px);opacity:0}}
+@keyframes pasW2{0%,50%{opacity:0}
+ 55%{transform:translate(calc(-50% + 230px),-50%);opacity:0}
+ 74%{transform:translate(calc(-50% + 58px),-50%);opacity:1}
+ 100%{transform:translate(calc(-50% + 54px),-50%);opacity:1}}
+@keyframes pasR{0%,60%{opacity:0}
+ 64%{transform:translate(calc(-50% - 230px),-50%);opacity:0}
+ 82%{transform:translate(calc(-50% - 98px),-50%);opacity:1}
+ 100%{transform:translate(calc(-50% - 98px),-50%);opacity:1}}
+.cutin.pass .afig.k{animation:pasK 1.25s ease both}
+.cutin.pass .afig.r{animation:pasR 1.25s ease both}
+.cutin.pass .aword.w1{animation:pasW1 1.25s ease both}
+.cutin.pass .aword.w2{animation:pasW2 1.25s ease both}
+@media (prefers-reduced-motion: reduce){.cutin.act .afig,.cutin.act .aword,.cutin.act .streak{animation:none}}
+
 /* gacha */
 .packlist{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
 .packtile{position:relative;border-radius:14px;padding:14px 10px 12px;cursor:pointer;text-align:center;overflow:hidden;

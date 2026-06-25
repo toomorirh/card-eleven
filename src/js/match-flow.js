@@ -25,7 +25,7 @@ async function egoRun(ctx,type){
     carrier.stat.duelW++;
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
-    await wordCutin(carrier,A,type==="cutin"?"カットイン成功!":"ドリブル突破!",false,650); // エゴ突破フラッシュ(種別別)
+    await dribbleCutin(carrier,type==="cutin"?"カットイン成功!":"ドリブル突破!"); // 左→右へ駆け抜けるスピード演出
     await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3);
     await tryShot(carrier,A,D,min,false,null,null,null,"ego");
     return {shot:true};
@@ -49,6 +49,7 @@ const LINKS={
     if(resolveLink("combination",mate,df,A,D,min,tf.a,tf.d,tf.bonus)){
       mate.stat.duelW++;
       feed(`${who}🔄 <b>${carrier.c.name}</b>→<b>${mate.c.name}</b> ワンツーで前進!`,"chance");
+      if(skillShow())await passCutin(carrier,mate,"ワンツー"); // パス左流れ演出(熱気で頻度調整)
       await skillAny(mate,["duelTec","mid"]);
       return {receiver:mate,assist:carrier};
     }
@@ -68,6 +69,7 @@ const LINKS={
     if(resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus)){
       r.stat.duelW++;
       feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
+      if(skillShow())await passCutin(carrier,r,"スルーパス"); // パス左流れ演出(熱気で頻度調整)
       if(fx(r).duelSpd)await skillHit(r);
       await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);
       await tryShot(r,A,D,min,false,null,null,carrier);
@@ -82,6 +84,7 @@ const LINKS={
     const {A,D,min,tf,who,carrier}=ctx;
     carrier.stat.inv++;
     feed(`${who}🏃 <b>${carrier.c.name}</b>がクロスを上げる!`,"chance");
+    if(skillShow())await crossCutin(carrier); // クロスのスピード演出(熱気で頻度調整)
     await ballTo(curP(carrier).x,curP(carrier).y,0.25);
     const r=await aerialBox(A,D,min,carrier,tf,who);
     if(r.shot)return {shot:true};

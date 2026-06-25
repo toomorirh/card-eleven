@@ -180,6 +180,31 @@ async function spCutin(p,title){
   o.querySelector(".wc-fig").appendChild(spriteCanvas(p.c,92));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
+// ===== アクション系カットイン(スピード型) =====
+function _actFrame(extraCls){
+  const o=document.createElement("div");o.className="cutin act "+extraCls;
+  o.innerHTML='<div class="band"></div><div class="streak"></div>';
+  return o;
+}
+function _afig(card,cls,sz){const d=document.createElement("div");d.className="afig"+(cls?" "+cls:"");d.appendChild(spriteCanvas(card,sz||92));return d;}
+function _aword(text,cls){const d=document.createElement("div");d.className="aword"+(cls?" "+cls:"");d.textContent=text;return d;}
+// ドリブル/カットイン突破: 選手が左から登場→右へゾーンを駆け抜けてワイプアウト、突破語句が追従。
+async function dribbleCutin(p,word){
+  const o=_actFrame("drb");o.appendChild(_afig(p.c,"",96));o.appendChild(_aword(word,"ok"));
+  document.body.appendChild(o);await sleep(950);o.remove();
+}
+// パス成功: 蹴り手+種別が左に登場→左へワイプ→右から「パス成功!」→追って左に受け手が登場。
+async function passCutin(kicker,receiver,typeWord){
+  const o=_actFrame("pass");
+  o.appendChild(_afig(kicker.c,"k",92));o.appendChild(_aword(typeWord,"w1"));o.appendChild(_aword("パス成功!","w2 ok"));
+  if(receiver)o.appendChild(_afig(receiver.c,"r",92));
+  document.body.appendChild(o);await sleep(1250);o.remove();
+}
+// クロス: 上げ手が左に登場+スピード感(ドリブル流用・語句のみ差し替え)。
+async function crossCutin(p){
+  const o=_actFrame("drb");o.appendChild(_afig(p.c,"",92));o.appendChild(_aword("クロス!",""));
+  document.body.appendChild(o);await sleep(950);o.remove();
+}
 // KICK OFF カットイン: 両チームの主将(最高OVR)を左右に、中央に「KICK OFF」。
 async function kickoffCutin(hc,ac,awayName){
   const o=document.createElement("div");o.className="cutin";
