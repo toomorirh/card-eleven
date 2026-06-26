@@ -61,6 +61,8 @@ function slotEffOVR(c,sub,i){
   ks.forEach(k=>{let v=c[k]*pen;if(keyStat===k)v*=KEY_MUL;sum+=v;});
   return Math.round(sum);
 }
+// 編成スロットが監督の采配条件(KP)に該当するか。一致したcond[sub,stat,th]を返す(無ければnull)。
+function slotTacCond(sub){const am=activeManager();const t=am&&am.tac;return t?t.cond.find(([cs])=>cs===sub)||null:null;}
 function renderPitch(){
   const p=document.getElementById("pitch");
   p.querySelectorAll(".slot").forEach(e=>e.remove());
@@ -81,7 +83,10 @@ function renderPitch(){
       else if(fit>POSFIT.group){fitCls="fit-mild";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}    // 同分類・細分違い(本来の細分を表示)
       else{fitCls="fit-bad";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}                          // 大分類違い
     }
-    const head=`<div class="slothead ${role} ${fitCls}">${sub}${fitMark}</div>`+(key?`<div class="keytag">⭐${STAT_SHORT[key]}+${Math.round((KEY_MUL-1)*100)}%</div>`:"");
+    const cc=slotTacCond(sub); // 監督の采配KP(該当ポジなら必要ステを表示)
+    const kpTag=cc?`<div class="kptag${c&&c[cc[1]]>=cc[2]?" met":""}">KP ${STAT_SHORT[cc[1]]}${cc[2]}</div>`:"";
+    if(cc)d.classList.add("kp");
+    const head=`<div class="slothead ${role} ${fitCls}">${sub}${fitMark}</div>`+(key?`<div class="keytag">⭐${STAT_SHORT[key]}+${Math.round((KEY_MUL-1)*100)}%</div>`:"")+kpTag;
     if(c){
       d.classList.add("filled");
       const ovr=slotEffOVR(c,sub,i);
@@ -112,8 +117,26 @@ function renderPitch(){
       ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
+  renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
+}
+// 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
+function squadHasCond(sub,st,th){return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=S.coll.find(k=>k.id===S.squad[i]);return c&&c[st]>=th;});}
+function renderManagerAdvice(){
+  const box=document.getElementById("mgrAdvice");if(!box)return;box.innerHTML="";
+  const m=activeManager();
+  if(!m){box.style.display="none";return;}
+  box.style.display="";
+  box.appendChild(mgrPortrait(m,86));
+  const bub=document.createElement("div");bub.className="mgr-bubble";
+  let html=`<div class="mgr-name">🎯 ${m.title}</div>「${mgrBoostDesc(m)}を引き上げろ！」`;
+  if(m.tac){
+    const ready=m.tac.cond.every(([sub,st,th])=>squadHasCond(sub,st,th));
+    const conds=m.tac.cond.map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
+    html+=`<div class="mgr-tac${ready?" met":""}">采配「${m.tac.name}」: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}</div>`;
+  }
+  bub.innerHTML=html;box.appendChild(bub);
 }
 function openPicker(i,sub){
   pickSlot=i;

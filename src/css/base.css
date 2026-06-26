@@ -147,6 +147,19 @@ canvas.sprite{image-rendering:auto}
 .collsell.dis{opacity:.4;pointer-events:none;border-color:#2a3d56;background:#0f1c2f;color:#7d8ea0}
 /* 監督ポートレート(シート切り出し・全身) */
 .mgrpic{flex:0 0 auto;border-radius:8px;border:1px solid #2a3d56;background:#0a1422;margin-right:9px;image-rendering:auto}
+/* 編成: 監督アドバイス(全身絵+吹き出し) */
+.mgr-advice{display:flex;align-items:flex-end;gap:9px;margin:6px 0 2px;text-align:left}
+.mgr-advice .mgrpic{margin:0;border:1px solid var(--gold)}
+.mgr-bubble{position:relative;flex:1;background:#0f1c2f;border:1px solid #2a3d56;border-radius:10px;padding:7px 10px;font-size:12px;color:#dce8f5;line-height:1.5}
+.mgr-bubble:before{content:"";position:absolute;left:-7px;bottom:16px;border:7px solid transparent;border-right-color:#0f1c2f}
+.mgr-bubble .mgr-name{font-weight:900;color:var(--gold);font-size:12px;margin-bottom:1px}
+.mgr-bubble .mgr-tac{margin-top:3px;color:#8fa3b8;font-size:11px}
+.mgr-bubble .mgr-tac.met{color:var(--cyan);font-weight:700}
+/* 編成: 監督采配のキープレイヤー(KP)タグ */
+.kptag{display:inline-block;font-family:'DotGothic16';font-size:8px;font-weight:900;line-height:1.3;padding:0 4px;border-radius:6px;
+  background:rgba(120,180,255,.18);color:#9fc4ff;border:1px solid #4a6fa5}
+.kptag.met{background:rgba(232,194,90,.22);color:var(--gold);border-color:var(--gold)}
+.slot.kp .slotring{box-shadow:0 0 0 2px rgba(120,180,255,.5)}
 /* 監督スカウト結果演出 */
 .mgr-reveal{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;
   background:rgba(6,11,20,.93);animation:fadeIn .3s both}
