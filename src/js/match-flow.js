@@ -107,7 +107,7 @@ function mgrOffTacFires(A){
 async function mgrTacAction(A,D,min,carrier,tac,who){
   feed(`${who}🎓 監督の采配!【${tac.name}】が炸裂!`,"goal");
   addVolt(TUNING.volt.shot);
-  await tacCutin(tac,A.mgr);
+  await tacCutin(tac,A.mgr,carrier);
   if(tac.from==="sb"){ // アーリークロス → 空中戦(采配ボーナス)
     await ballTo(curP(carrier).x,curP(carrier).y,0.2);
     await aerialBox(A,D,min,carrier,{a:1.3,d:1,bonus:1.3},who);
@@ -281,7 +281,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
       const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
       cb.stat.tkl++;cb.stat.inv++;
       feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
-      await tacCutin(dtac,MC.home.mgr);
+      await tacCutin(dtac,MC.home.mgr,cb);
       await ballTo(goalXOf(A)-dirOf(A)*16,50,0.45); // 弾き出し
       return;
     }

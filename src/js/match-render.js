@@ -234,16 +234,15 @@ async function crossCutin(p){
   o.appendChild(_afig(p.c,"",92));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
-// 名将の采配シグネ発動カットイン(中央スタック・金): 「🎓 監督の采配!」+【戦術名】監督名。
-async function tacCutin(tac,mgr){
-  const o=document.createElement("div");o.className="cutin csc tac";
-  o.innerHTML=`<div class="band"></div>
-   <div class="wc-fig"></div>
-   <div class="cutword">🎓 監督の采配!</div>
-   <div class="cutlabel">【${tac.name}】${mgr?mgr.title:""}</div>`;
-  if(mgr&&typeof mgrPortrait==="function")o.querySelector(".wc-fig").appendChild(mgrPortrait(mgr,104));
+// 名将の采配シグネ発動カットイン: 監督の全身絵を左に表示→左へスワイプ退場→発動選手(exec)が右から登場。
+async function tacCutin(tac,mgr,exec){
+  const o=_actFrame("tacx");
+  if(mgr&&typeof mgrPortrait==="function"){const mf=document.createElement("div");mf.className="afig tm";mf.appendChild(mgrPortrait(mgr,152));o.appendChild(mf);}
+  o.appendChild(_aword("🎓 監督の采配!","tw ok"));
+  o.appendChild(_aword(`【${tac.name}】${mgr?mgr.title:""}`,"tw2"));
+  if(exec&&exec.c){const ef=document.createElement("div");ef.className="afig te";ef.appendChild(spriteCanvas(exec.c,108));o.appendChild(ef);}
   const w=document.querySelector(".wrap");if(w){w.classList.add("shake");setTimeout(()=>w.classList.remove("shake"),550);}
-  document.body.appendChild(o);await sleep(1050);o.remove();
+  document.body.appendChild(o);await sleep(1300);o.remove();
 }
 // KICK OFF カットイン: 両チームの主将(最高OVR)を左右に、中央に「KICK OFF」。
 async function kickoffCutin(hc,ac,awayName){
