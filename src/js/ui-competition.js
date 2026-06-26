@@ -172,9 +172,9 @@ function claimSeason(rank){
   if(rank===1){reward=500;msg="🏆 優勝賞金🪙500!";S.leagueWins=(S.leagueWins||0)+1;}
   else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
   S.coins+=reward;coinUI();toast(msg);
-  const letters=rank===1?2:1; // 周回報酬: シーズン完了で紹介状(優勝は2枚)→名将スカウトに使う
+  const letters=rank===1?2:1; // 周回報酬: シーズン完了で紹介状(優勝は2枚)→ガチャの監督スカウトに使う
   S.introLetters=(S.introLetters||0)+letters;
-  toast(`✉️ 名将の紹介状 +${letters}(計${S.introLetters}) ・ 監督室「名将」でスカウト`);
+  toast(`✉️ 監督の紹介状 +${letters}(計${S.introLetters}) ・ ガチャ「監督スカウト」で獲得`);
   if(checkAchievements())save(); // 初優勝の実績(チャンピオンパック+シグネチャーパック)などを付与
 }
 function playLeagueRound(){
@@ -345,7 +345,7 @@ function renderFriend(){
   go.onclick=()=>{ let r;try{r=importTeam(imp.value);}catch(e){toast("コードを読み取れませんでした(送信側・受信側を同じ最新版で開いてください)");return;}
     prev.innerHTML="";
     const h=mk("div","banner");h.style.fontSize="14px";h.textContent=`🆚 ${r.teamName}`;prev.appendChild(h);
-    const ci=mk("div","lg");ci.innerHTML=`監督: <b>${r.coach}</b>`;prev.appendChild(ci);
+    const ci=mk("div","lg");ci.innerHTML=`オーナー: <b>${r.coach}</b>`;prev.appendChild(ci);
     if(r.fav){const fl=mk("div","lg");fl.textContent="お気に入り選手:";prev.appendChild(fl);
       const fc=mk("div");fc.style.cssText="display:flex;justify-content:center";fc.appendChild(cardEl(r.fav));prev.appendChild(fc);}
     const ko=mk("button","btn");ko.style.marginTop="6px";ko.textContent="⚔️ キックオフ";
@@ -368,9 +368,9 @@ function renderOffice(){
   const card=mk("div","wt-card");
   card.innerHTML=`<div class="wt-info">`
     +`<div class="wt-name">${myName()}</div>`
-    +`<div class="lv">監督: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
+    +`<div class="lv">オーナー: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}勝${d}分${l}敗)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
-    +`<div class="lv">🎓 名将: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:"未起用"} ・ ✉️${S.introLetters||0}</div>`
+    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:"未契約"} ・ ✉️${S.introLetters||0}</div>`
     +`</div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
   card.appendChild(ed);head.appendChild(card);
@@ -389,62 +389,57 @@ function _selectOfTab(o){
   else if(o==="mgr")renderManagers();
   else if(o==="ach")renderAchievements();
 }
-// ===== 名将(レンタル監督): スカウト(紹介状ガチャ)+カタログ+レンタル(起用ごとにコイン・1名交代制) =====
+// ===== 監督(契約): 紹介済みの監督から起用する1名を選ぶ(契約=起用ごとにコイン・交代制)。スカウトはガチャ側。 =====
 function renderManagers(){
   const box=document.getElementById("ofMgr");box.innerHTML="";
   S.mgrOwned=S.mgrOwned||[];
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
-  const head=mk("div","banner");head.style.cssText="font-size:14px";head.textContent="― 🎓 名将(レンタル監督) ―";box.appendChild(head);
-  const lead=mk("div","lg");lead.textContent="名将を起用すると自チームが少し強化されます(起用は1名・交代制)。";box.appendChild(lead);
+  const head=mk("div","banner");head.style.cssText="font-size:14px";head.textContent="― 🎯 監督(契約) ―";box.appendChild(head);
+  const lead=mk("div","lg");lead.innerHTML="監督を契約・起用すると自チームが少し強化されます(起用は1名・交代制)。新しい監督は<b>ガチャ</b>の「監督スカウト」で。";box.appendChild(lead);
   // 現在の起用
   const act=activeManager();
   const cur=mk("div","wt-card");
   if(act){
-    cur.appendChild(mgrPortrait(act,54));
+    cur.appendChild(mgrPortrait(act,76));
     const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${act.title}</div><div class="lv">${act.name} ・ 🔼 ${mgrBoostDesc(act)}${act.tac?` ・ 采配「${act.tac.name}」`:""}</div>`;
     cur.appendChild(info);
     const dz=mk("button","btn ghost");dz.textContent="解任";dz.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
-    dz.onclick=()=>{S.mgrActive="";save();renderOffice();toast("名将を解任しました");};
+    dz.onclick=()=>{S.mgrActive="";save();renderOffice();toast("監督を解任しました");};
     cur.appendChild(dz);
-  }else cur.innerHTML=`<div class="wt-info"><div class="wt-name">名将 未起用</div><div class="lv">カタログからレンタルしてチームを強化</div></div>`;
+  }else cur.innerHTML=`<div class="wt-info"><div class="wt-name">監督 未契約</div><div class="lv">下の一覧から契約してチームを強化</div></div>`;
   box.appendChild(cur);
-  // スカウト(紹介状ガチャ)
-  const sc=mk("div","lg");sc.style.marginTop="10px";sc.innerHTML=`✉️ 紹介状: <b>${S.introLetters||0}</b>枚 <span style="color:#8fa3b8">(リーグのシーズン完了で入手)</span>`;box.appendChild(sc);
-  const allOwned=S.mgrOwned.length>=MANAGERS.length;
-  const scb=mk("button","btn"+(((S.introLetters||0)>=1&&!allOwned)?"":" ghost"));
-  scb.textContent=allOwned?"全名将を紹介済み":((S.introLetters||0)>=1?"🔎 名将をスカウト(紹介状1枚)":"紹介状が足りません");
-  if((S.introLetters||0)>=1&&!allOwned)scb.onclick=()=>scoutManager();
-  box.appendChild(scb);
-  // カタログ
-  const ch=mk("div","banner");ch.style.cssText="font-size:13px;margin-top:14px";ch.textContent="― カタログ(レンタル) ―";box.appendChild(ch);
+  // 契約候補(紹介済み監督の一覧)
+  const ch=mk("div","banner");ch.style.cssText="font-size:13px;margin-top:14px";ch.textContent="― 契約候補 ―";box.appendChild(ch);
   const owned=MANAGERS.filter(m=>S.mgrOwned.includes(m.id));
-  if(!owned.length){const e=mk("div","lg");e.textContent="まだ名将が紹介されていません。紹介状でスカウトしましょう。";box.appendChild(e);}
+  if(!owned.length){const e=mk("div","lg");e.innerHTML="まだ監督がいません。<b>ガチャ</b>の「監督スカウト」(✉️紹介状)で獲得しましょう。";box.appendChild(e);}
   owned.forEach(m=>{
     const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
-    d.appendChild(mgrPortrait(m,48));
+    d.appendChild(mgrPortrait(m,62));
     const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.title}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${m.tac?` ・ 采配「${m.tac.name}」`:""}</div>`;
     d.appendChild(info);
     const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
-    b.textContent=isAct?"起用中":`レンタル 🪙${m.cost}`;
+    b.textContent=isAct?"起用中":`契約 🪙${m.cost}`;
     if(!isAct)b.onclick=()=>rentManager(m.id);
     d.appendChild(b);box.appendChild(d);
   });
 }
+// 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
 function scoutManager(){
-  if((S.introLetters||0)<1){toast("紹介状が足りません");return;}
+  if((S.introLetters||0)<1){toast("紹介状が足りません");return null;}
   const pool=MANAGERS.filter(m=>!S.mgrOwned.includes(m.id));
-  if(!pool.length){toast("すべての名将を紹介済みです");return;}
+  if(!pool.length){toast("すべての監督をスカウト済みです");return null;}
   S.introLetters--; const m=pool[ri(0,pool.length-1)];
-  S.mgrOwned.push(m.id);save();renderOffice();
-  toast(`✉️ 名将「${m.title} ${m.name}」を紹介! カタログからレンタル可能`);
+  S.mgrOwned.push(m.id);save();
+  toast(`✉️ 監督「${m.title} ${m.name}」をスカウト! 監督室で契約できます`);
+  return m;
 }
 function rentManager(id){
   const m=managerById(id);if(!m)return;
   if(S.mgrActive===id){toast("すでに起用中です");return;}
   if(S.coins<m.cost){toast(`コインが足りません(🪙${m.cost}必要)`);return;}
-  if(!confirm(`${m.title}「${m.name}」を 🪙${m.cost} でレンタル起用しますか?\n効果: ${mgrBoostDesc(m)}`))return;
+  if(!confirm(`${m.title}「${m.name}」と 🪙${m.cost} で契約し起用しますか?\n効果: ${mgrBoostDesc(m)}`))return;
   S.coins-=m.cost;S.mgrActive=id;coinUI();save();renderOffice();
-  toast(`🎓 ${m.title}を起用! ${mgrBoostDesc(m)}`);
+  toast(`🎯 ${m.title}を起用! ${mgrBoostDesc(m)}`);
 }
 function renderFriendRec(){
   const box=document.getElementById("ofRec");box.innerHTML="";

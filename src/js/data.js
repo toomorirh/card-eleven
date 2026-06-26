@@ -223,16 +223,17 @@ const MGR_STAT_JP={all:"全能力",off:"攻撃",def:"守備",pow:"パワー",tec
 function managerById(id){return MANAGERS.find(m=>m.id===id)||null;}
 function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerById(S.mgrActive):null;}
 function mgrBoostDesc(m){const b=m.boost;return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
-// 監督ポートレート: シート(4x2)から該当セルの上部正方形(頭+胴)を切り出した canvas を返す。
+// 監督ポートレート: シート(4x2)から該当セルの全身を切り出した canvas を返す(高さ指定・幅はセル比)。
 const MGR_IMG=new Image();
 if(typeof window!=="undefined"&&window.MGR_SHEET)MGR_IMG.src=window.MGR_SHEET;
-function mgrPortrait(m,size){
-  size=size||56;
-  const cv=document.createElement("canvas");cv.width=cv.height=size;cv.className="mgrpic";
+const MGR_CELL_W=252, MGR_CELL_H=529; // シート1セルの実寸(全身)
+function mgrPortrait(m,h){
+  h=h||72; const w=Math.round(h*MGR_CELL_W/MGR_CELL_H);
+  const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.className="mgrpic";
   const ctx=cv.getContext("2d");ctx.imageSmoothingQuality="high";
   const draw=()=>{const W=MGR_IMG.naturalWidth,H=MGR_IMG.naturalHeight;if(!W||!m)return;
-    const cw=W/4,ch=H/2;ctx.clearRect(0,0,size,size);
-    ctx.drawImage(MGR_IMG,m.col*cw,m.row*ch,cw,cw,0,0,size,size);}; // 上部正方形=頭+胴
+    const cw=W/4,ch=H/2;ctx.clearRect(0,0,w,h);
+    ctx.drawImage(MGR_IMG,m.col*cw,m.row*ch,cw,ch,0,0,w,h);}; // 全身
   if(MGR_IMG.complete&&MGR_IMG.naturalWidth)draw();else MGR_IMG.addEventListener("load",draw);
   return cv;
 }

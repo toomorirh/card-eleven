@@ -54,6 +54,29 @@ function renderGacha(){
     t.onclick=openSignaturePicker;
     list.appendChild(t);
   }
+  // 監督スカウト: 紹介状(リーグ周回報酬)で監督を1名獲得 → 監督室で契約(✉️所持時のみ表示)
+  const lets=S.introLetters||0;
+  if(lets>0){
+    const all=(S.mgrOwned||[]).length>=MANAGERS.length;
+    const t=document.createElement("div");
+    t.className="packtile"+(all?" off":"");t.style.setProperty("--pc","#54d6c8");
+    t.innerHTML=`<div class="pemoji">🎯</div><div class="pname">監督スカウト</div>`
+      +`<div class="pmeta">✉️ ${lets}</div><div class="pdesc">${all?"全監督スカウト済み":"紹介状で監督を1名獲得!監督室で契約"}</div>`
+      +`<div class="popen">${all?"コンプ":"スカウト"}</div>`;
+    if(!all)t.onclick=()=>{if(_revealing)return;const m=scoutManager();renderGacha();if(m)mgrScoutReveal(m);};
+    list.appendChild(t);
+  }
+}
+// 監督スカウトの結果演出(全身絵+名前を中央に・タップ/数秒で閉じる)
+function mgrScoutReveal(m){
+  const o=document.createElement("div");o.className="mgr-reveal";
+  const inn=document.createElement("div");inn.className="mgr-reveal-in";
+  const b=document.createElement("div");b.className="banner";b.textContent="🎯 監督をスカウト!";inn.appendChild(b);
+  inn.appendChild(mgrPortrait(m,190));
+  const nm=document.createElement("div");nm.className="banner";nm.style.fontSize="16px";
+  nm.innerHTML=`${m.title}<div class="lg">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${m.tac?` ・ 采配「${m.tac.name}」`:""}</div>`;inn.appendChild(nm);
+  o.appendChild(inn);o.onclick=()=>o.remove();document.body.appendChild(o);
+  setTimeout(()=>{if(o.parentNode)o.remove();},3800);
 }
 // 選択券: 固有選手の一覧から1人を選び、その場で獲得(演出付き)。
 function openSignaturePicker(){

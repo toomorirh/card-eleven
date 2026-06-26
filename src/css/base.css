@@ -145,8 +145,14 @@ canvas.sprite{image-rendering:auto}
   border:1px solid var(--gold);background:rgba(232,194,90,.14);color:var(--gold);cursor:pointer;flex:1 1 auto}
 .collsell:active{transform:scale(.97)}
 .collsell.dis{opacity:.4;pointer-events:none;border-color:#2a3d56;background:#0f1c2f;color:#7d8ea0}
-/* 名将ポートレート(シート切り出し) */
+/* 監督ポートレート(シート切り出し・全身) */
 .mgrpic{flex:0 0 auto;border-radius:8px;border:1px solid #2a3d56;background:#0a1422;margin-right:9px;image-rendering:auto}
+/* 監督スカウト結果演出 */
+.mgr-reveal{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;
+  background:rgba(6,11,20,.93);animation:fadeIn .3s both}
+.mgr-reveal-in{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:20px;animation:vspop .4s both}
+.mgr-reveal .mgrpic{border:2px solid var(--gold);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.6);margin:0}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .cutin.tac .wc-fig .mgrpic{border-radius:10px;border:2px solid var(--gold);box-shadow:0 4px 14px rgba(0,0,0,.6)}
 
 /* pitch */
