@@ -269,7 +269,7 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
   else msg=`⚽ ゴーーール!!<b>${scorer.c.name}</b>が決めた!(攻${scorer.c.off})`;
   feed(`${who}${msg}`,"goal");
   if(fx(scorer).shoot)await skillHit(scorer);
-  await wordCutin(scorer,A,sup?"スーパーゴール!!":"GOAL!!!",true,sup?1700:1450,sup);
+  await wordCutin(scorer,A,sup?"SUPER GOAL!!":"GOAL!!!",true,sup?1700:1450,sup);
   if(preA<preD&&A.score===preD)feed(`${who}🔥 ${teamName(A)}が同点に追いついた!`,"chance");
   else if(preA===preD&&A.score>preD)feed(`${who}🔥 ${teamName(A)}が勝ち越し!`,"chance");
   if(scorer.stat.goals===2)feed(`${who}⭐ ${scorer.c.name} 2点目!`);
@@ -566,7 +566,7 @@ async function endMatch(){
   const row=document.createElement("div");row.className="row";
   const rt=document.createElement("button");rt.className="btn";rt.textContent="🔄 リトライ";
   rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
-  const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="ステージへ戻る";
+  const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="戻る";
   bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
   row.appendChild(rt);row.appendChild(bk);
   e.appendChild(row);

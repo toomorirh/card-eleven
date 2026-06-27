@@ -112,8 +112,10 @@ function hot(p,ms){
 // ===== カットイン =====
 // VSカットイン。won(真偽)を渡すと対決後に勝者を発光・敗者を暗転し、中央に決着語を表示
 // (won=攻撃側=左の勝ち / !won=守備側=右の勝ち=DF演出)。won未指定なら従来のフェイスオフのみ。
+// カットイン背景のチーム識別チント。チーム(.side)/選手(.fside)/側文字列いずれからも判定(味方=home青/相手=away赤)。
+function _tint(x){const s=(x&&(x.side||x.fside))||x;return s==="A"?"away":"home";}
 async function vsCutin(a,A,d,D,label,won){
-  const o=document.createElement("div");o.className="cutin";
+  const o=document.createElement("div");o.className="cutin "+_tint(a);
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
     <div class="side l"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
@@ -157,7 +159,7 @@ async function sigCutin(p){
   await sleep(1300);o.remove();
 }
 async function wordCutin(p,T,word,gold,ms,big){
-  const o=document.createElement("div");o.className="cutin csc";
+  const o=document.createElement("div");o.className="cutin csc "+_tint(T||p);
   o.innerHTML=`<div class="band"></div>
    <div class="wc-fig"></div>
    <div class="cutword${gold?" gold":""}${big?" big":""}">${word}</div>`;
@@ -176,7 +178,7 @@ async function maybeVs(a,A,d,D,label,won){
 }
 // PK専用カットイン: キッカー vs GK の一騎打ち(緊張のフェイスオフ)。
 async function pkCutin(a,d){
-  const o=document.createElement("div");o.className="cutin pk";
+  const o=document.createElement("div");o.className="cutin pk "+_tint(a);
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
     <div class="side l"><div class="fph"></div><div class="fn">${a.c.flag} ${a.c.name}</div><div class="fst">キッカー</div></div>
@@ -189,7 +191,7 @@ async function pkCutin(a,d){
 }
 // セットプレーのカットイン(語句型・縦中央スタック): 蹴る選手の絵+種別名+名前。
 async function spCutin(p,title){
-  const o=document.createElement("div");o.className="cutin csc";
+  const o=document.createElement("div");o.className="cutin csc "+_tint(p);
   o.innerHTML=`<div class="band"></div>
    <div class="wc-fig"></div>
    <div class="cutword sp">${title}</div>
@@ -198,8 +200,8 @@ async function spCutin(p,title){
   document.body.appendChild(o);await sleep(950);o.remove();
 }
 // ===== アクション系カットイン(スピード型) =====
-function _actFrame(extraCls){
-  const o=document.createElement("div");o.className="cutin act "+extraCls;
+function _actFrame(extraCls,tintSrc){
+  const o=document.createElement("div");o.className="cutin act "+extraCls+" "+_tint(tintSrc);
   o.innerHTML='<div class="band"></div><div class="streak"></div>';
   return o;
 }
@@ -214,14 +216,14 @@ function _ctag(card){const fl=typeFlavor(card),cat=fl.cat||"atk";
 async function dribbleCutin(p,kind){
   const fl=typeFlavor(p.c),cat=fl.cat||"atk";
   const word=fl[kind]||fl.drive||(kind==="cutin"?"カットイン成功!":"ドリブル突破!");
-  const o=_actFrame("drb");const w=_aword(word,"ok");_catColor(w,cat);
+  const o=_actFrame("drb",p);const w=_aword(word,"ok");_catColor(w,cat);
   o.appendChild(_afig(p.c,"",96));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
 // パス成功: 蹴り手+種別が左→左へワイプ→右から成功語(出し手タイプ別)→追って右に受け手。
 async function passCutin(kicker,receiver,typeWord){
   const fl=typeFlavor(kicker.c),cat=fl.cat||"mid";
-  const o=_actFrame("pass");const w2=_aword(fl.pass||"パス成功!","w2 ok");_catColor(w2,cat);
+  const o=_actFrame("pass",kicker);const w2=_aword(fl.pass||"パス成功!","w2 ok");_catColor(w2,cat);
   o.appendChild(_afig(kicker.c,"k",92));o.appendChild(_aword(typeWord,"w1"));o.appendChild(w2);
   if(receiver)o.appendChild(_afig(receiver.c,"r",92));
   o.appendChild(_ctag(kicker.c));
@@ -230,13 +232,13 @@ async function passCutin(kicker,receiver,typeWord){
 // クロス: 上げ手が左に登場+スピード感。語句/色はタイプ別(ウインガー/攻撃的SBで変化)。
 async function crossCutin(p){
   const fl=typeFlavor(p.c),cat=fl.cat||"atk";
-  const o=_actFrame("drb");const w=_aword(fl.cross||"クロス!","");_catColor(w,cat);
+  const o=_actFrame("drb",p);const w=_aword(fl.cross||"クロス!","");_catColor(w,cat);
   o.appendChild(_afig(p.c,"",92));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
 // 名将の采配シグネ発動カットイン: 監督の全身絵を左に表示→左へスワイプ退場→発動選手(exec)が右から登場。
 async function tacCutin(tac,mgr,exec){
-  const o=_actFrame("tacx");
+  const o=_actFrame("tacx","H"); // 監督の采配は常に自チーム(味方=青)
   if(mgr&&typeof mgrPortrait==="function"){const mf=document.createElement("div");mf.className="afig tm";mf.appendChild(mgrPortrait(mgr,152));o.appendChild(mf);}
   o.appendChild(_aword("🎓 監督の采配!","tw ok"));   // 監督とともに左から中央へ→左へフェードアウト
   o.appendChild(_aword(`✦ ${tac.name} ✦`,"tw2"));    // 起点選手が右から入る時に采配スキル名を表示

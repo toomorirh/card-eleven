@@ -51,6 +51,11 @@ h1{text-shadow:3px 3px 0 #06301c}
 .cutin .band{transform:translateY(-50%)!important;
   border-top:3px solid #e8ecf4;border-bottom:3px solid #e8ecf4;
   background:rgba(8,12,26,.95)}
+/* チーム識別チント: 味方(home)=やや青 / 相手(away)=やや赤。帯背景+全体の淡いウォッシュ */
+.cutin.home .band{background:rgba(14,30,64,.95);border-color:#5b8fd0}
+.cutin.away .band{background:rgba(58,18,26,.95);border-color:#d07a72}
+.cutin.home{background:radial-gradient(ellipse 70% 60% at 50% 50%,rgba(40,90,180,.16),transparent 75%)}
+.cutin.away{background:radial-gradient(ellipse 70% 60% at 50% 50%,rgba(170,46,54,.16),transparent 75%)}
 .vsmark,.cutword{text-shadow:3px 3px 0 #000}
 .fighter .fn{font-family:'DotGothic16'}
 /* フィールド:円・ボール・リングだけ丸を維持 */
