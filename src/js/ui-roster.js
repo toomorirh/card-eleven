@@ -137,11 +137,10 @@ function renderChemLines(pitch){
   Object.keys(groups).forEach(f=>{
     const pts=groups[f];if(pts.length<2)return;
     const active=(f===nat&&pts.length>=3); // 3人以上の最多国籍=ボーナス発生中
-    pts.sort((a,b)=>a.y-b.y||a.x-b.x);
-    for(let k=0;k<pts.length-1;k++){
+    for(let k=0;k<pts.length;k++)for(let j=k+1;j<pts.length;j++){ // 全ペア相互に結ぶ(完全グラフ)
       const ln=document.createElementNS(NS,"line");
       ln.setAttribute("x1",pts[k].x);ln.setAttribute("y1",pts[k].y);
-      ln.setAttribute("x2",pts[k+1].x);ln.setAttribute("y2",pts[k+1].y);
+      ln.setAttribute("x2",pts[j].x);ln.setAttribute("y2",pts[j].y);
       ln.setAttribute("class","chemln"+(active?" on":""));
       svg.appendChild(ln);
     }
