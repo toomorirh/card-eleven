@@ -388,17 +388,23 @@ canvas.sprite{image-rendering:auto}
 .cutin.gameset .cutword{color:var(--cyan);letter-spacing:4px}
 .cutin.gameset .cutlabel{font-size:28px;color:#fff;font-weight:900;margin-top:6px;text-shadow:0 2px 4px #000}
 /* 監督の采配シグネ発動カットイン: 監督を左→左へスワイプ→発動選手が右から登場 */
-.cutin.tacx .aword.tw{left:50%;top:50%;transform:translate(-50%,-78px);font-size:30px;color:var(--gold);
-  text-shadow:0 0 22px rgba(232,194,90,.95),0 2px 4px #000;animation:tacFade 1.3s both}
-.cutin.tacx .aword.tw2{left:50%;top:50%;transform:translate(-50%,-44px);font-size:14px;font-weight:900;color:#ffe7a0;
-  text-shadow:0 0 8px rgba(232,194,90,.6),0 2px 3px #000;animation:tacFade 1.3s both}
-@keyframes tacFade{0%{opacity:0}12%{opacity:1}86%{opacity:1}100%{opacity:0}}
+/* 「監督の采配!」: 監督とともに左から中央へ→左へフェードアウト(phase1-2・中央座標) */
+.cutin.tacx .aword.tw{left:50%;top:50%;font-size:30px;color:var(--gold);
+  text-shadow:0 0 22px rgba(232,194,90,.95),0 2px 4px #000;animation:tacWordL 1.3s ease both}
+@keyframes tacWordL{0%{transform:translate(calc(-50% - 250px),-50%);opacity:0}
+ 16%{transform:translate(-50%,-50%);opacity:1}
+ 42%{transform:translate(-50%,-50%);opacity:1}
+ 58%,100%{transform:translate(calc(-50% - 330px),-50%);opacity:0}}
+/* 采配スキル名: 起点選手が右から入るタイミング(phase3)で上部に表示(フェードのみ=transform維持) */
+.cutin.tacx .aword.tw2{left:50%;top:50%;transform:translate(-50%,-86px);font-size:22px;font-weight:900;color:#ffe7a0;
+  text-shadow:0 0 12px rgba(232,194,90,.85),0 2px 3px #000;animation:tacSkill 1.3s both}
+@keyframes tacSkill{0%,56%{opacity:0}72%{opacity:1}100%{opacity:1}}
 .cutin.tacx .afig.tm{animation:tacMgr 1.3s ease both}
 .cutin.tacx .afig.te{animation:tacExec 1.3s ease both}
 @keyframes tacMgr{0%{transform:translate(calc(-50% - 250px),-50%);opacity:0}
  16%{transform:translate(calc(-50% - 112px),-50%);opacity:1}
- 46%{transform:translate(calc(-50% - 112px),-50%);opacity:1}
- 64%,100%{transform:translate(calc(-50% - 400px),-50%);opacity:0}}
+ 42%{transform:translate(calc(-50% - 112px),-50%);opacity:1}
+ 58%,100%{transform:translate(calc(-50% - 400px),-50%);opacity:0}}
 @keyframes tacExec{0%,52%{opacity:0}
  56%{transform:translate(calc(-50% + 260px),-50%);opacity:0}
  78%{transform:translate(-50%,-50%);opacity:1}
@@ -450,10 +456,11 @@ canvas.sprite{image-rendering:auto}
  18%{transform:translate(calc(-50% - 104px),-50%);opacity:1}
  40%{transform:translate(calc(-50% - 104px),-50%);opacity:1}
  56%,100%{transform:translate(calc(-50% - 320px),-50%);opacity:0}}
-@keyframes pasW1{0%{transform:translate(calc(-50% - 150px),24px);opacity:0}
- 22%{transform:translate(calc(-50% - 60px),24px);opacity:1}
- 40%{transform:translate(calc(-50% - 60px),24px);opacity:1}
- 56%,100%{transform:translate(calc(-50% - 300px),24px);opacity:0}}
+/* 種別語(ワンツー/スルーパス等)は他メッセージと同じ中央座標にフェード表示(選手の下方ではなく) */
+@keyframes pasW1{0%,100%{transform:translate(-50%,-50%);opacity:0}
+ 16%{transform:translate(-50%,-50%);opacity:1}
+ 44%{transform:translate(-50%,-50%);opacity:1}
+ 54%{transform:translate(-50%,-50%);opacity:0}}
 @keyframes pasW2{0%,50%{opacity:0}
  55%{transform:translate(calc(-50% + 250px),-50%);opacity:0}
  74%{transform:translate(calc(-50% - 4px),-50%);opacity:1}

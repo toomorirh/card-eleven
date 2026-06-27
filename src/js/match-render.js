@@ -238,8 +238,8 @@ async function crossCutin(p){
 async function tacCutin(tac,mgr,exec){
   const o=_actFrame("tacx");
   if(mgr&&typeof mgrPortrait==="function"){const mf=document.createElement("div");mf.className="afig tm";mf.appendChild(mgrPortrait(mgr,152));o.appendChild(mf);}
-  o.appendChild(_aword("🎓 監督の采配!","tw ok"));
-  o.appendChild(_aword(`【${tac.name}】${mgr?mgr.title:""}`,"tw2"));
+  o.appendChild(_aword("🎓 監督の采配!","tw ok"));   // 監督とともに左から中央へ→左へフェードアウト
+  o.appendChild(_aword(`✦ ${tac.name} ✦`,"tw2"));    // 起点選手が右から入る時に采配スキル名を表示
   if(exec&&exec.c){const ef=document.createElement("div");ef.className="afig te";ef.appendChild(spriteCanvas(exec.c,108));o.appendChild(ef);}
   const w=document.querySelector(".wrap");if(w){w.classList.add("shake");setTimeout(()=>w.classList.remove("shake"),550);}
   document.body.appendChild(o);await sleep(1300);o.remove();
