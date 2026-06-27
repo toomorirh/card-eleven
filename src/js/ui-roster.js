@@ -131,20 +131,22 @@ function renderChemLines(pitch){
   FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(!c)return;
     const f=c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}
     (groups[f]=groups[f]||[]).push({x:sl[1],y:sl[2]});});
+  if(mx<3||!groups[nat])return; // ボーナスが出る最多国籍(3人以上)が無ければ線なし
+  const pts=groups[nat];
+  const bonus=Math.min(0.06,Math.max(0,mx-2)*0.012); // 実際のチーム能力ボーナス(最大+6%)
+  const ratio=bonus/0.06;                            // 0..1(効果の強さ)
+  const op=(0.42+ratio*0.55).toFixed(2);             // 効果が強いほど濃く
+  const wid=(1.5+ratio*2.2).toFixed(1);              // 効果が強いほど太く
   const NS="http://www.w3.org/2000/svg";
   const svg=document.createElementNS(NS,"svg");
   svg.id="chemLines";svg.setAttribute("viewBox","0 0 100 100");svg.setAttribute("preserveAspectRatio","none");
-  Object.keys(groups).forEach(f=>{
-    const pts=groups[f];if(pts.length<2)return;
-    const active=(f===nat&&pts.length>=3); // 3人以上の最多国籍=ボーナス発生中
-    for(let k=0;k<pts.length;k++)for(let j=k+1;j<pts.length;j++){ // 全ペア相互に結ぶ(完全グラフ)
-      const ln=document.createElementNS(NS,"line");
-      ln.setAttribute("x1",pts[k].x);ln.setAttribute("y1",pts[k].y);
-      ln.setAttribute("x2",pts[j].x);ln.setAttribute("y2",pts[j].y);
-      ln.setAttribute("class","chemln"+(active?" on":""));
-      svg.appendChild(ln);
-    }
-  });
+  for(let k=0;k<pts.length;k++)for(let j=k+1;j<pts.length;j++){ // 最多国籍のみ全ペア相互に結ぶ
+    const ln=document.createElementNS(NS,"line");
+    ln.setAttribute("x1",pts[k].x);ln.setAttribute("y1",pts[k].y);
+    ln.setAttribute("x2",pts[j].x);ln.setAttribute("y2",pts[j].y);
+    ln.setAttribute("class","chemln");ln.style.opacity=op;ln.style.strokeWidth=wid;
+    svg.appendChild(ln);
+  }
   pitch.appendChild(svg);
 }
 // 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
