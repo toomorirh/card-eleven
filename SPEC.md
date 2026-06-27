@@ -410,7 +410,11 @@
 - **獲得フロー**: リーグのシーズン完了報酬(`claimSeason`)で**紹介状**(`S.introLetters`・優勝2/その他1)→ 監督室で**スカウト**(`scoutManager`=紹介状1枚消費し未所持の名将を1名カタログ`S.mgrOwned`へ)。
 - **レンタル(1名交代制)**: カタログから `rentManager(id)` で**起用ごとにコイン消費**(`cost`)し `S.mgrActive` を更新(常に1名・交代制で様々な選手/陣形を使う動機)。`解任`で無起用。`activeManager()`/`mgrBoostDesc()`。
 - **可視化**: 監督室ヘッダと試合開始feed(`_beginMatch`)に起用中の名将とブーストを表示。セーブは `mgrOwned/mgrActive/introLetters` を追加(v9据え置き・loadGameで欠落補完)。
-- **采配シグネ(条件付き戦略アクション+演出)**: 各名将の `tac{name,from,cond,chance}`。`cond=[[subRole,stat,しきい値]…]` を**全て満たす**(例 アーリークロス=LSBのtec≥20 かつ CFのpow≥20)と発動可能になり、自チーム攻撃時(`tickAsync`)に `chance` で対象選手(`from`=SB/OMF/WG)に**ボールを集めて発動**=決定機を創出(アーリークロス→空中戦ボーナス / 電光タクト・電撃カウンター→決定的スルー)。守備采配(密集ブロック=CBのdef≥20)は相手シュート時(`tryShot`先頭)にCBが**ブロック(無効化)**。発動時に「🎓 監督の采配!【名】」カットイン(`tacCutin`)。`tacCondMet/tacExecutor/mgrOffTacFires`。条件は最大ステ前提のアスピレーショナルなトリガー(しきい値・`chance`はデータで調整可)。
+- **采配シグネ(条件付き戦略アクション+演出)**: 各名将の `tac{name,from,cond,chance}`。`cond=[[subRole,stat,しきい値]…]` を**全て満たす**(例 アーリークロス=LSBのtec≥20 かつ CFのpow≥20)と発動可能になる。発動は**文脈依存**:
+  - **ボルテージ・ゲート**: いずれも `MC.volt >= TUNING.volt.tacGate`(=0.5、熱気が高まった局面)が前提。
+  - **攻撃采配**: 起点キープレイヤー(`from`=SB/OMF/WG)が**実際にボールを持って起点になった瞬間**(`runChain` のキャリア=from一致)に `chance` で発動(`mgrCarryTac`)→決定機を創出(アーリークロス→空中戦ボーナス×1.69 / 電光タクト・電撃カウンター→決定的スルー→1対1)。※受け手側(CF等)では発動しない。
+  - **守備采配**(密集ブロック=CBのdef≥20): **相手にシュートされた瞬間**(`tryShot`先頭)に `chance` でCBが**ブロック(無効化)**。
+  - 発動時に「🎓 監督の采配!【名】」カットイン(`tacCutin`: 監督全身→左退場→発動選手が右から登場)。`tacCondMet/tacFromMatch/mgrCarryTac`。条件は最大ステ前提のアスピレーショナルなトリガー(しきい値・`chance`・`tacGate` はデータで調整可)。
 
 ---
 

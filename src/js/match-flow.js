@@ -98,10 +98,12 @@ const LINKS={
   // カットイン(終端・エゴ): 幅から中へ切れ込んで自らシュート。
   cutin:{ run:ctx=>egoRun(ctx,"cutin") },
 };
-// 名将の攻撃采配の発動判定(攻撃開始時): 自チーム・攻撃采配・条件達成・確率。
-function mgrOffTacFires(A){
+// 名将の攻撃采配の発動判定: 起点キープレイヤー(carrier=from一致)が実際にボールを持った瞬間、
+// ボルテージが一定以上(熱気が高まった局面)かつ条件達成・確率で発動。
+function mgrCarryTac(A,carrier){
+  if(!MC||(MC.volt||0)<TUNING.volt.tacGate)return null;       // ボルテージが一定以上
   const tac=mgrTacOf(A); if(!tac||tac.from==="cb")return null; // cb(密集ブロック)は守備采配=tryShot側
-  if(!tacCondMet(tac,A))return null;
+  if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))return null; // 起点が采配のキープレイヤーか
   return Math.random()<tac.chance?tac:null;
 }
 async function mgrTacAction(A,D,min,carrier,tac,who){
@@ -130,6 +132,8 @@ async function runChain(channel,A,D,min,origin){
   const L=TUNING.link, maxL=L.maxLink[channel]??3, dir=dirOf(A), gx=goalXOf(A);
   let carrier=origin, assist=null, steps=0, prog=depthFrac(A,origin);
   while(true){
+    // 名将の攻撃采配: 起点キープレイヤーがボールを持っている瞬間、熱気が一定以上なら確率発動
+    const _otac=mgrCarryTac(A,carrier); if(_otac){ await mgrTacAction(A,D,min,carrier,_otac,who); return; }
     const sc=L.directShootBase+prog*L.depthShoot+steps*L.stepShoot;
     if(steps>=maxL||Math.random()<sc){ await tryShot(carrier,A,D,min,false,null,null,assist); return; }
     const ctx={A,D,min,tf,who,carrier,wide:isWide(carrier),adv:prog>=L.advanced};
@@ -274,8 +278,8 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 }
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
-  // 名将の采配シグネ(守備): 相手のシュートを自チームCBがブロック(密集ブロック)
-  if(A.side==="A"&&MC&&MC.home){
+  // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら自チームCBがブロック(密集ブロック)
+  if(A.side==="A"&&MC&&MC.home&&(MC.volt||0)>=TUNING.volt.tacGate){
     const dtac=mgrTacOf(MC.home);
     if(dtac&&dtac.from==="cb"&&tacCondMet(dtac,MC.home)&&Math.random()<dtac.chance){
       const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
@@ -356,12 +360,6 @@ async function tickAsync(){
   if(M._lastAtk===T.side){M._streak=(M._streak||1)+1;}else{M._streak=1;M._lastAtk=T.side;}
   if(M._streak===3){feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
   const dir=dirOf(T);
-  // 名将の攻撃采配: 自チーム攻撃時、条件達成かつ確率で対象選手(SB/OMF/WG)にボールを集めて発動
-  if(T===M.home){
-    const otac=mgrOffTacFires(T), exec=otac&&tacExecutor(T,otac);
-    if(exec){ exec.stat.inv++; await ballTo(curP(exec).x+dir*2,curP(exec).y,0.4); updateField();
-      await mgrTacAction(T,D,M.min,exec,otac,""); return; }
-  }
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   origin.stat.inv++;
   await ballTo(curP(origin).x+dir*2,curP(origin).y,0.4); // 起点へボールが収まる

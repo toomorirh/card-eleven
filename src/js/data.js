@@ -154,7 +154,7 @@ const TUNING={
   worldSigDrop:0.15,    // ワールドツアー: 署名保有国に勝利時、固有選手がドロップする確率
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
   // 序盤=低い→キックオフ直後の唐突な演出を防ぐ。動くと上がり、停滞で冷める。時間で下限が上昇。
-  volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10},
+  volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10, tacGate:0.5},
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性
@@ -206,12 +206,12 @@ function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 // 画像は src/assets/manager/ce_mg_managers.png(4列×2行=8名)。col/row=シート内グリッド位置。
 const MANAGERS=[
   {id:"poss",      col:0,row:0, name:"ペップ・グアルディオラ",   title:"ポゼッションの巨匠",   cost:340, boost:{pos:"MF", stat:"tec", mul:1.07},
-    tac:{name:"電光タクト",     from:"omf", cond:[["OMF","tec",20]], chance:0.30}},
+    tac:{name:"電光タクト",     from:"omf", cond:[["OMF","tec",20]], chance:0.50}},
   {id:"press",     col:1,row:0, name:"ユルゲン・クロップ",       title:"情熱のゲーゲンプレス", cost:320, boost:{pos:"all", stat:"spd", mul:1.05},
-    tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.32}},
+    tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.55}},
   {id:"maestro",   col:2,row:0, name:"カルロ・アンチェロッティ", title:"百戦錬磨の名匠",       cost:380, boost:{pos:"all", stat:"all", mul:1.03}},
   {id:"specialist",col:3,row:0, name:"ジョゼ・モウリーニョ",     title:"守備の戦術家",         cost:340, boost:{pos:"DF", stat:"def", mul:1.07},
-    tac:{name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",20]], chance:0.30}},
+    tac:{name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",20]], chance:0.50}},
   {id:"boss",      col:0,row:1, name:"アレックス・ファーガソン", title:"常勝の指揮官",         cost:300, boost:{pos:"all", stat:"sta", mul:1.08}},
   {id:"galactico", col:1,row:1, name:"ジネディーヌ・ジダン",     title:"静かなる勝負師",       cost:320, boost:{pos:"FW", stat:"off", mul:1.07}},
   {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, boost:{pos:"all", stat:"tec", mul:1.04}},
