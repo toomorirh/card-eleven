@@ -29,6 +29,7 @@ const SPR_READY=Promise.all([imgReady(HEAD_IMG),imgReady(BODY_IMG),...Object.val
 const withTimeout=(p,ms)=>Promise.race([p,new Promise(r=>setTimeout(r,ms))]);
 const BODY_ANCHOR=[[67, 9], [74, 9], [64, 9], [49, 55], [54, 16], [66, 11], [59, 10], [74, 33], [54, 15], [66, 10], [56, 10], [64, 9], [65, 9], [65, 9], [73, 11], [75, 9]]; // 各ボディの首位置(肌色検出で算出)
 const HCW=100,HCH=96,BCW=132,BCH=118,POSCOL={FW:0,MF:1,DF:2,GK:3};
+const GK_SCALE=1.18; // GKは直立の構えポーズに統一した上で、他選手と等身が揃うよう拡大
 // ===== ドット絵パーツ(顔=肌×髪型×髪色 / ユニフォーム(GK専用色+グローブ) / シューズ) =====
 const SKIN_C=["#f5cfa0","#e3b07a","#c98850","#8d5a33"];
 const HAIR_C=["#1a1a1a","#5a3517","#d9a440","#b03020","#274f9e","#cfd6dd"];
@@ -76,14 +77,17 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
       return cv;
     }
   }
-  const bi=L.bodyVar*4+POSCOL[c.pos];
-  const by=H-BCH;
+  // GKはダイビング等の専用ポーズが小柄/横向きに見えるため、直立の構えポーズ(bodyVar=2)に統一し拡大して他選手と等身を揃える
+  const bv=c.pos==="GK"?2:L.bodyVar;
+  const bi=bv*4+POSCOL[c.pos];
+  const s=c.pos==="GK"?GK_SCALE:1;
+  const dw=BCW*s,dh=BCH*s,dx=(W-dw)/2,by=H-dh; // 下端そろえ・中央(s=1なら従来と同一)
   try{
     if(BODY_IMG.naturalWidth===0||HEAD_IMG.naturalWidth===0)throw 0;
-    ctx.drawImage(BODY_IMG,(bi%4)*BCW,(bi>>2)*BCH,BCW,BCH,0,by,BCW,BCH);
+    ctx.drawImage(BODY_IMG,(bi%4)*BCW,(bi>>2)*BCH,BCW,BCH,dx,by,dw,dh);
     const a=BODY_ANCHOR[bi];
-    const HH=54,HW=Math.round(HH*HCW/HCH);
-    ctx.drawImage(HEAD_IMG,(L.headIdx%8)*HCW,(L.headIdx>>3)*HCH,HCW,HCH,a[0]-(HW>>1),by+a[1]-HH+12,HW,HH);
+    const HH=54*s,HW=Math.round(HH*HCW/HCH);
+    ctx.drawImage(HEAD_IMG,(L.headIdx%8)*HCW,(L.headIdx>>3)*HCH,HCW,HCH,dx+a[0]*s-(HW>>1),by+a[1]*s-HH+12*s,HW,HH);
   }catch(e){ // 画像が使えない端末でも簡易シルエットで続行
     const kit=(c.pos==="GK"?GK_C:KIT_C)[Math.min(L.kit,(c.pos==="GK"?GK_C:KIT_C).length-1)][0];
     ctx.fillStyle=SKIN_C[L.skin];ctx.fillRect(46,18,40,40);          // 頭
