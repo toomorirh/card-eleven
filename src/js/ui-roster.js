@@ -68,6 +68,7 @@ function renderPitch(){
   p.querySelectorAll(".slot").forEach(e=>e.remove());
   document.getElementById("fmName").textContent=S.form;
   const kp=KEYPOS[S.form]||{};
+  renderChemLines(p); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
   FORMS[S.form].forEach((sl,i)=>{
     const [sub,x,y]=sl;
     const role=subGroup(sub);
@@ -120,6 +121,32 @@ function renderPitch(){
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
+}
+// ケミストリー線: 同国籍の選手同士を結ぶ(位置順に鎖状)。最多同国籍=実際にボーナスが出ているグループは
+// 強調(シアン実線)、その他の同国籍ペアは控えめ(破線)。最多の選び方は recalcAuras と同じ(スロット順で先に
+// 最大数に達した国籍=同数時はスロット順で先のもの)。
+function renderChemLines(pitch){
+  const old=pitch.querySelector("#chemLines");if(old)old.remove();
+  const cnt={},groups={};let mx=0,nat=null;
+  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(!c)return;
+    const f=c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}
+    (groups[f]=groups[f]||[]).push({x:sl[1],y:sl[2]});});
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(NS,"svg");
+  svg.id="chemLines";svg.setAttribute("viewBox","0 0 100 100");svg.setAttribute("preserveAspectRatio","none");
+  Object.keys(groups).forEach(f=>{
+    const pts=groups[f];if(pts.length<2)return;
+    const active=(f===nat&&pts.length>=3); // 3人以上の最多国籍=ボーナス発生中
+    pts.sort((a,b)=>a.y-b.y||a.x-b.x);
+    for(let k=0;k<pts.length-1;k++){
+      const ln=document.createElementNS(NS,"line");
+      ln.setAttribute("x1",pts[k].x);ln.setAttribute("y1",pts[k].y);
+      ln.setAttribute("x2",pts[k+1].x);ln.setAttribute("y2",pts[k+1].y);
+      ln.setAttribute("class","chemln"+(active?" on":""));
+      svg.appendChild(ln);
+    }
+  });
+  pitch.appendChild(svg);
 }
 // 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
 function squadHasCond(sub,st,th){return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=S.coll.find(k=>k.id===S.squad[i]);return c&&c[st]>=th;});}
