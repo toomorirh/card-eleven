@@ -155,6 +155,14 @@ async function duoAction(A,D,min,passer,fin,duo){
     feed(`${who}🧤 ${gk.c.name}が立ちはだかった!`);await wordCutin(gk,D,"SAVE!!",false,650);await ballTo(gx-dir*14,50,0.5);
   }
 }
+// キャリア(起点保持)時の特殊フック・レジストリ。各フックは detect(ctx)→data|null と run(ctx,data)。
+// runChain の連鎖ループ先頭で順に評価し、最初に発動したものでチェーン終了。新フロー追加=1エントリ。
+const CARRY_HOOKS=[
+  { detect:({A,carrier})=>mgrCarryTac(A,carrier),                                   // 名将の攻撃采配
+    run:async (c,tac)=>mgrTacAction(c.A,c.D,c.min,c.carrier,tac,c.who) },
+  { detect:({A,carrier})=>duoFires(A,carrier),                                      // 名コンビ(ホットライン)
+    run:async (c,d)=>duoAction(c.A,c.D,c.min,c.carrier,d.partner,d.duo) },
+];
 // 連鎖チェーン: 起点→リンク×N→シュート。深さ/つなぎ数でシュート移行率が増え自然終端。
 async function runChain(channel,A,D,min,origin){
   const counter=channel==="win"?TUNING.origin.counterBonus:1;
@@ -164,10 +172,11 @@ async function runChain(channel,A,D,min,origin){
   const L=TUNING.link, maxL=L.maxLink[channel]??3, dir=dirOf(A), gx=goalXOf(A);
   let carrier=origin, assist=null, steps=0, prog=depthFrac(A,origin);
   while(true){
-    // 名将の攻撃采配: 起点キープレイヤーがボールを持っている瞬間、熱気が一定以上なら確率発動
-    const _otac=mgrCarryTac(A,carrier); if(_otac){ await mgrTacAction(A,D,min,carrier,_otac,who); return; }
-    // 名コンビ(ホットライン): 起点が固有ペアの片割れ・相方もスタメンなら専用連携→決定機
-    const _duo=duoFires(A,carrier); if(_duo){ await duoAction(A,D,min,carrier,_duo.partner,_duo.duo); return; }
+    // キャリア保持時の特殊フック(采配/名コンビ/…)を順に評価。発動でチェーン終了。
+    const hctx={A,D,min,carrier,who};
+    let fired=false;
+    for(const hk of CARRY_HOOKS){ const data=hk.detect(hctx); if(data){ await hk.run(hctx,data); fired=true; break; } }
+    if(fired)return;
     const sc=L.directShootBase+prog*L.depthShoot+steps*L.stepShoot;
     if(steps>=maxL||Math.random()<sc){ await tryShot(carrier,A,D,min,false,null,null,assist); return; }
     const ctx={A,D,min,tf,who,carrier,wide:isWide(carrier),adv:prog>=L.advanced};
