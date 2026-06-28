@@ -31,15 +31,16 @@ function cardEl(c,mini){
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
+  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
-  if(c.rar==="sr"||c.rar==="l"){
+  if(c.emo&&c.moment){const cap=document.createElement("div");cap.className="emocap";cap.textContent=c.moment;d.appendChild(cap);}
+  if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";
     s1.style.cssText="top:22%;left:9%";
     const s2=document.createElement("span");s2.className="spark s2";s2.textContent="✦";
     s2.style.cssText="bottom:26%;right:10%";
     d.appendChild(s1);d.appendChild(s2);
-    if(c.rar==="l"){
+    if(c.rar==="l"||c.rar==="emo"){
       const s3=document.createElement("span");s3.className="spark";s3.textContent="✦";
       s3.style.cssText="top:48%;right:6%;animation-delay:.45s";
       d.appendChild(s3);

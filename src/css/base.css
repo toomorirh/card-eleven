@@ -379,6 +379,31 @@ canvas.sprite{image-rendering:auto}
 .sigcut-sub{position:relative;z-index:1;margin-top:4px;font-family:'DotGothic16';font-size:12px;color:#ff9ec4;
   text-shadow:0 1px 3px #000;animation:sigName 1.45s ease-out both}
 @media (prefers-reduced-motion: reduce){.sigcut,.sigcut-spot,.sigcut-fig,.sigcut-name,.sigcut-sub{animation:none}}
+/* ===== エモーショナル“モーメント”カットイン: 大判ヒーロー画像+虹色オーラ+題字 ===== */
+.emocut{position:fixed;inset:0;z-index:140;pointer-events:none;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;overflow:hidden;animation:sigFade 1.7s ease-out both}
+.emocut-veil{position:absolute;inset:0;background:radial-gradient(ellipse 60% 64% at 50% 44%,rgba(18,8,34,.30),rgba(4,2,10,.96) 76%)}
+/* 背後で回転する虹色オーラ */
+.emocut-rays{position:absolute;width:680px;height:680px;top:44%;left:50%;transform:translate(-50%,-50%);
+  background:conic-gradient(from 0deg,#ff5ea0,#ffd25e,#7dff9e,#5ec8ff,#b07dff,#5effe0,#ff5ea0);
+  opacity:.22;filter:blur(2px);animation:emoSpin 6s linear infinite,sigGlow 1.7s ease-in-out both}
+@keyframes emoSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+/* ヒーロー画像の枠(イリディセント縁) */
+.emocut-frame{position:relative;z-index:1;padding:3px;border-radius:10px;
+  background:linear-gradient(130deg,#ff5ea0,#ffd25e,#7dff9e,#5ec8ff,#b07dff);background-size:240% 240%;
+  box-shadow:0 8px 26px rgba(0,0,0,.7),0 0 26px rgba(176,125,255,.7);
+  animation:holobg 3s ease-in-out infinite alternate,emoZoom 1.7s ease-out both}
+@keyframes emoZoom{0%{transform:scale(.8);opacity:0}16%{opacity:1}100%{transform:scale(1.05)}}
+.emocut-hero{display:block;height:190px;width:auto;max-width:78vw;border-radius:8px;object-fit:contain;background:rgba(4,2,10,.5)}
+.emocut-fig{display:flex;align-items:center;justify-content:center}
+.emocut-tag{position:relative;z-index:1;margin-top:10px;font-family:'DotGothic16';font-size:13px;font-weight:900;
+  letter-spacing:6px;color:#fff;text-shadow:0 0 10px #b07dff,0 0 4px #ff5ea0;animation:sigName 1.7s ease-out both}
+.emocut-title{position:relative;z-index:1;margin-top:3px;font-family:'DotGothic16';font-size:22px;font-weight:900;
+  color:#fff;letter-spacing:1px;text-align:center;max-width:88vw;
+  text-shadow:0 0 14px rgba(176,125,255,.95),0 2px 4px #000;animation:sigName 1.8s ease-out both}
+.emocut-sub{position:relative;z-index:1;margin-top:4px;font-family:'DotGothic16';font-size:12px;color:#d9c2ff;
+  text-shadow:0 1px 3px #000;animation:sigName 1.9s ease-out both}
+@media (prefers-reduced-motion: reduce){.emocut,.emocut-rays,.emocut-frame,.emocut-tag,.emocut-title,.emocut-sub{animation:none}}
 
 /* ===== 追加演出(A:セットプレー / B:ゴール格分け / C:流れ / D:個性) ===== */
 /* スーパーゴール(大きな金文字 + 強いシェイク/放射光) */
@@ -542,6 +567,8 @@ canvas.sprite{image-rendering:auto}
 .revresult.sr{color:#ffe18a;text-shadow:0 0 10px rgba(255,210,110,.85)}
 .revresult.leg{color:#fff;text-shadow:0 0 12px #ff5ea0,0 0 4px #fff;animation:legpulse 1s ease-in-out infinite}
 @keyframes legpulse{50%{text-shadow:0 0 20px #ff5ea0,0 0 8px #fff}}
+.revresult.emo{color:#fff;font-size:17px;line-height:1.35;text-shadow:0 0 14px #b07dff,0 0 6px #ff5ea0,0 0 3px #fff;animation:emopulse .9s ease-in-out infinite}
+@keyframes emopulse{50%{text-shadow:0 0 26px #b07dff,0 0 12px #5effe0,0 0 5px #fff}}
 .revresult .btn{width:auto;padding:8px 30px;margin-top:2px}
 .revresult .row{align-self:stretch;width:100%;margin-top:2px}
 .revresult .row .btn{padding:8px 10px}

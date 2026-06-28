@@ -331,8 +331,10 @@ function rollFoul(df,linkType){
   if(Math.random()>=sp.foulBase*(typeOf(df.c).defSel?1.15:1))return null; // 守備的な型ほど僅かにファウル増
   return Math.random()<(sp.boxChance[linkType]||0.25)?"pk":"fk";
 }
-// セットプレーのキッカー: 攻撃側の最良シューター(攻×技)。
+// セットプレーのキッカー: FK専門家(fx.freekick=エモーショナル等)が居れば最優先、無ければ最良シューター(攻×技)。
 function pickShooter(A){
+  const fks=A.players.filter(p=>p.role!=="GK"&&fx(p).freekick);
+  if(fks.length)return pickW(fks,p=>p.c.tec+p.c.off);
   return pickW(A.players.filter(p=>p.role!=="GK"),p=>p.c.off*1.2+p.c.tec)||A.players[0];
 }
 

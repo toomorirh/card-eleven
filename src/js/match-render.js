@@ -158,6 +158,22 @@ async function sigCutin(p){
   document.body.appendChild(o);
   await sleep(1300);o.remove();
 }
+// エモーショナル(最上位)の“モーメント”カットイン。実写級モチーフ画像を大判ヒーローで使い、
+// 虹色ホログラフ+題字でキャリアの一瞬を演出。1試合1回(_emoCut)。
+async function emoMoment(p){
+  if(!p||!p.c||p._emoCut)return; p._emoCut=true;
+  const c=p.c, img=(typeof window!=="undefined"&&window.SIG_IMG&&window.SIG_IMG[c.sig])||"";
+  const o=document.createElement("div");o.className="emocut";
+  o.innerHTML=`<div class="emocut-rays"></div><div class="emocut-veil"></div>
+   <div class="emocut-frame">${img?`<img class="emocut-hero" src="${img}" alt="">`:`<div class="emocut-fig"></div>`}</div>
+   <div class="emocut-tag">EMOTIONAL</div>
+   <div class="emocut-title">${c.moment||c.skill.name}</div>
+   <div class="emocut-sub">${c.flag} ${c.name}${c.momentSub?` ・ ${c.momentSub}`:""}</div>`;
+  if(!img)o.querySelector(".emocut-fig").appendChild(spriteCanvas(c,150));
+  const w=document.querySelector(".wrap");if(w){w.classList.add("shake");setTimeout(()=>w.classList.remove("shake"),600);}
+  document.body.appendChild(o);
+  await sleep(1700);o.remove();
+}
 async function wordCutin(p,T,word,gold,ms,big){
   const o=document.createElement("div");o.className="cutin csc "+_tint(T||p);
   o.innerHTML=`<div class="band"></div>
@@ -314,6 +330,12 @@ function skillShow(){
 async function skillHit(p){
   if(!p||!p.c||!p.c.skill)return;
   if(!skillShow())return;          // 序盤など熱気が低い時は発動演出を出さない(係数は別途常時適用)
+  if(p.c.emo){                     // エモーショナル: 専用モーメント・カットイン(1試合1回)
+    if(p._emoCut)return;
+    skillFeed(p);skillPulse(p);
+    await emoMoment(p);
+    return;
+  }
   if(p.c.sig){
     if(p._sigCut)return;            // 2回目以降は実況もカットインも出さない
     p._sigCut=true;

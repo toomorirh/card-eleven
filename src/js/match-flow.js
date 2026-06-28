@@ -210,16 +210,19 @@ function recordSet(M,kind,goal){const t=ensureTele(M);if(t.sp[kind]!=null)t.sp[k
 // ===== セットプレー(別レイヤー: 連鎖の副次結果から派生・プリミティブ流用) =====
 let _spActive=false; // セットプレー処理中フラグ(CK→ヘディング→セーブ→CK の無限再帰を防ぐ)
 // 高ベースのシュート vs GK の純判定(PK/直接FK共用)。
-async function spShot(taker,A,D,min,base,label,kind){
+async function spShot(taker,A,D,min,base,label,kind,opt={}){
   const gk=pickGK(D),dir=dirOf(A),gx=goalXOf(A);
   taker.stat.inv++;taker.stat.shots++;gk.stat.inv++;defLoad(D,TUNING.fatigue.dloadShot);
   movePlayer(taker,gx-dir*9,50,0.3);movePlayer(gk,gx-dir*2,48,0.3);
-  await wordCutin(taker,A,label,false,800);
+  await wordCutin(taker,A,label,false,800,opt.knuckle);
   const sSc=(eff(taker,"off",min,A,D)*0.6+eff(taker,"tec",min,A,D)*0.4)*base*(fx(taker).shoot||1)*rr();
   const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*lineDefMul(D,min)*rr();
   if(sSc>gSc*TH.gk){
+    if(opt.knuckle){ // 無回転=不規則に揺れて落ちる軌道(ブレ球)
+      for(let i=0;i<3;i++)await ballTo(gx-dir*(6-i*2),46+(i%2?6:-6),0.09,"linear");
+    }
     await ballTo(gx+dir*1.5,48,0.22,"linear");
-    await goalCelebrate(taker,A,D,min,{kind});
+    await goalCelebrate(taker,A,D,min,{kind,super:opt.sup});
     return true;
   }
   gk.stat.saves++;await ballTo(gx-dir*1,48,0.22,"linear");
@@ -261,7 +264,16 @@ const SETPIECES={
     const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"fk");
     const wide=curP(taker).y<35||curP(taker).y>65;
-    if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
+    const knuckle=!!fx(taker).freekick; // エモーショナル等のFK専門家=無回転FKの“瞬間”
+    if(knuckle&&!wide){ // 専用シーケンス: エモーショナル・カットイン → 無回転FK → 高威力
+      if(taker.c.emo)await emoMoment(taker); // モーメント・カットイン(1試合1回)
+      feed(`${who}⚡ <b>${taker.c.name}</b>の直接FK… 無回転で蹴り込むか!`,"goal");
+      await spCutin(taker,"無回転フリーキック");
+      movePlayer(taker,gx-dir*23,50,0.45);
+      await ballTo(gx-dir*20,50,0.45);
+      const g=await spShot(taker,A,D,min,1.15*fx(taker).freekick,"無回転FK!!","fk",{knuckle:true,sup:true});
+      if(g)recordSet(MC,"fk",true);
+    }else if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
       feed(`${who}⚡ 直接FKのチャンス! <b>${taker.c.name}</b>`,"chance");
       await spCutin(taker,"直接フリーキック");
       movePlayer(taker,gx-dir*23,50,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)

@@ -16,8 +16,15 @@ const PACKS=[
   {id:"signature",name:"シグネチャーパック",emoji:"🌟",color:"#ff5ea0",cost:null,
    desc:"1枚入り / 未所持の固有選手を優先確定・実績報酬",
    can:()=>(S.sigPacks||0)>0, pay:()=>{S.sigPacks=(S.sigPacks||0)-1;}, owned:()=>S.sigPacks||0,
-   get:()=>{const pool=unownedSignatures();return [makeSignature(rnd(pool.length?pool:SIGNATURES).id)];}},
+   get:()=>{
+     // シークレット: ごく低確率(1%)で最上位「エモーショナル」が出現(未所持を優先)
+     if(typeof EMOTIONALS!=="undefined"&&EMOTIONALS.length&&Math.random()<0.01){
+       const ep=unownedEmotionals();return [makeEmotional(rnd(ep.length?ep:EMOTIONALS).id)];
+     }
+     const pool=unownedSignatures();return [makeSignature(rnd(pool.length?pool:SIGNATURES).id)];}},
 ];
+// まだ持っていないエモーショナルの一覧(所持判定は sig idで共有)。
+function unownedEmotionals(){const own=ownedSigSet();return EMOTIONALS.filter(s=>!own.has(s.id));}
 // 既に所持している固有選手のid集合(コレクション内に同じ sig を持つカードがあるか)。
 function ownedSigSet(){return new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));}
 // まだ持っていない固有選手の一覧。全員所持済みなら空配列(呼び出し側で全プールにフォールバック)。
@@ -152,8 +159,9 @@ function runReveal(p,cards){
       cards.forEach((c,i)=>{const el=cardEl(c);el.classList.add("flyin");el.style.animationDelay=(i*0.14)+"s";bc.appendChild(el);});
       await sleep(360+cards.length*140);
       const rr=document.getElementById("revResult");
-      const sig=cards.find(c=>c.sig);
-      if(sig){rr.className="revresult leg";rr.innerHTML=`🌟 シグネチャー選手 登場!! ${sig.flag} ${sig.name}!!`;}
+      const emo=cards.find(c=>c.emo), sig=cards.find(c=>c.sig&&!c.emo);
+      if(emo){rr.className="revresult emo";rr.innerHTML=`🌌 EMOTIONAL 出現!! 記憶が蘇る——<br>${emo.flag} ${emo.name}・${emo.moment||""}`;}
+      else if(sig){rr.className="revresult leg";rr.innerHTML=`🌟 シグネチャー選手 登場!! ${sig.flag} ${sig.name}!!`;}
       else if(best.rar==="l"){rr.className="revresult leg";rr.innerHTML="🌈 LEGEND 出現!! 伝説の選手だ!!";}
       else if(best.rar==="sr"){rr.className="revresult sr";rr.innerHTML="✨ ★★★ SR ゲット!";}
       else{rr.className="revresult";rr.innerHTML="";}

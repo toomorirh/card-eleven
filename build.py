@@ -25,6 +25,7 @@ import pathlib
 ROOT = pathlib.Path(__file__).parent
 HTML = ROOT / "index.html"
 SIG_DIR = ROOT / "src" / "assets" / "signatures"  # 固有選手のモチーフ画像 <id>.png
+EMO_DIR = ROOT / "src" / "assets" / "emotionals"  # エモーショナル(最上位)のモーメント画像 <id>.png
 
 # 結合順序。JSはグローバルスコープに連結されるため定義順は基本自由だが、
 # boot.js は起動時に load().then(...) を実行する副作用を持つので必ず最後に置く。
@@ -49,9 +50,12 @@ def _registered_sig_ids():
     各エントリは `{id:"messi", ...}` の形(idが文字列)。data.js内で id:"..." は
     SIGNATURES だけ(カードは id:uid++ で数値)なので、この正規表現で過不足なく拾える。"""
     data_js = (ROOT / "src" / "js" / "data.js").read_text(encoding="utf-8")
-    block = re.search(r"const SIGNATURES\s*=\s*\[(.*?)\];", data_js, re.S)
-    scope = block.group(1) if block else data_js
-    return set(re.findall(r'\{\s*id:"([^"]+)"', scope))
+    ids = set()
+    for name in ("SIGNATURES", "EMOTIONALS"):  # 固有選手 + エモーショナルの両方を登録
+        block = re.search(r"const %s\s*=\s*\[(.*?)\];" % name, data_js, re.S)
+        if block:
+            ids |= set(re.findall(r'\{\s*id:"([^"]+)"', block.group(1)))
+    return ids
 
 
 def _sig_block():
@@ -60,11 +64,12 @@ def _sig_block():
     (生ソース等の未登録画像でバンドルが肥大化しないように)。id順で決定的に出力(--check安定)。"""
     ids = _registered_sig_ids()
     entries = {}
-    if SIG_DIR.is_dir():
-        for f in sorted(SIG_DIR.iterdir()):
-            if f.suffix.lower() in _MIME and f.stem in ids:
-                b64 = base64.b64encode(f.read_bytes()).decode("ascii")
-                entries[f.stem] = "data:%s;base64,%s" % (_MIME[f.suffix.lower()], b64)
+    for d in (SIG_DIR, EMO_DIR):  # signatures + emotionals を同じ SIG_IMG マップへ
+        if d.is_dir():
+            for f in sorted(d.iterdir()):
+                if f.suffix.lower() in _MIME and f.stem in ids:
+                    b64 = base64.b64encode(f.read_bytes()).decode("ascii")
+                    entries[f.stem] = "data:%s;base64,%s" % (_MIME[f.suffix.lower()], b64)
     items = ",".join('"%s":"%s"' % (k, entries[k]) for k in sorted(entries))
     return "window.SIG_IMG={%s};" % items
 
@@ -73,7 +78,10 @@ def _check_signature_assets():
     """登録済み signature id に対応する画像ファイルの有無を点検し、未配置を警告する
     (未配置でも★プレースホルダで動くためビルドは止めない)。"""
     ids = _registered_sig_ids()
-    have = {f.stem for f in SIG_DIR.iterdir() if f.suffix.lower() in _MIME} if SIG_DIR.is_dir() else set()
+    have = set()
+    for d in (SIG_DIR, EMO_DIR):
+        if d.is_dir():
+            have |= {f.stem for f in d.iterdir() if f.suffix.lower() in _MIME}
     missing = sorted(ids - have)
     if missing:
         print("⚠ 画像未配置のシグネチャー(★プレースホルダ表示):", ", ".join(missing))

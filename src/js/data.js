@@ -99,8 +99,8 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
   }
   return cv;
 }
-const RARS={n:"★",r:"★★",sr:"★★★",l:"LEGEND"};
-const SELL_VALUE={n:20,r:60,sr:180,l:400}; // 重複カード売却額(レア別)。固有選手は売却不可。
+const RARS={n:"★",r:"★★",sr:"★★★",l:"LEGEND",emo:"EMOTIONAL"};
+const SELL_VALUE={n:20,r:60,sr:180,l:400,emo:1000}; // 重複カード売却額(レア別)。固有/エモーショナルは売却不可(sigで判定)。
 const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};
 const STAT_COL={off:"#ff6b6b",def:"#5db4ff",pow:"#ffae57",tec:"#7fdb8e",spd:"#4fd6e0",sta:"#c79bff"}; // ステータス別ゲージ色
 const STAT_SHORT={off:"OF",def:"DF",pow:"PO",tec:"TE",spd:"SP",sta:"ST"}; // カード表示用の略称(視認性重視)
@@ -546,6 +546,31 @@ function makeSignature(id){
   const st=s.stats;
   return {id:uid++, sig:s.id, name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"l", type:s.type,
     look:makeLook(s.pos,"l"), // 画像が無い端末向けのフォールバック用
+    off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
+    skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
+}
+// ===== エモーショナル(最上位レア・シークレット) =====
+// 選手の「キャリアの象徴的な“瞬間(モーメント)”」を封じ込めた最上位カード。LEGENDの上位。
+// 通常シグネチャー(完成形)とは別物=同じ選手でも別ポジ・別ステ・別スキルになりうる。
+// 生ステは盛らず(合計100=LEGEND同等)、特別さは「状況発動の演出と効果」で出す:
+//   fx.freekick … FKキッカーに固定され直接FKの威力を大幅増(=無回転FKの“瞬間”が試合で蘇る)
+//   fx.clutch/losing … 終盤・ビハインドで爆発(=エモーションの昂り)。situ()で自動適用。
+// moment … カットイン/券面に出す“瞬間”の題字。subGroup(sub)===pos / 合計100 を維持。
+const EMOTIONALS=[
+  {id:"cr7_utd", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler",
+   moment:"OLD TRAFFORD 2004 — 7番のデビュー", momentSub:"無回転フリーキック",
+   stats:{off:18,def:14,pow:13,tec:19,spd:20,sta:16}, // 合計100 / spd20(若き日の爆発的スピード)
+   skill:{name:"マンチェスターの7番",
+     desc:"7番を継いだ若き天才。FKは無回転で蹴り込み、終盤・ビハインドで感情が爆発する",
+     fx:{freekick:2.4, duelTec:1.35, duelSpd:1.35, clutch:1.3, losing:1.25}}},
+];
+function emotionalById(id){return EMOTIONALS.find(s=>s.id===id);}
+function makeEmotional(id){
+  const s=emotionalById(id);if(!s)return null;
+  const st=s.stats;
+  return {id:uid++, sig:s.id, emo:true, moment:s.moment, momentSub:s.momentSub,
+    name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"emo", type:s.type,
+    look:makeLook(s.pos,"l"),
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
 }

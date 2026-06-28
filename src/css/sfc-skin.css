@@ -87,6 +87,27 @@ h1{text-shadow:3px 3px 0 #06301c}
   background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.6) 44%,rgba(120,255,210,.45) 50%,rgba(255,160,220,.45) 56%,transparent 70%);
   animation:holo 2.1s linear infinite}
 .slot .scard.l{border-color:#fff;animation:lframe .9s steps(6) infinite}
+/* ===== エモーショナル(最上位): LEGENDより一段強い虹色イリディセント+宇宙的グロー ===== */
+.card.emo{border:3px solid #fff!important;background:linear-gradient(165deg,#241036,#0a0414)!important;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.6),0 0 14px rgba(180,120,255,.6)!important;
+  animation:emoframe .6s steps(8) infinite}
+@keyframes emoframe{0%,100%{border-color:#ff5ea0}12%{border-color:#ffd25e}25%{border-color:#7dff9e}
+  37%{border-color:#5ec8ff}50%{border-color:#b07dff}62%{border-color:#ff7de8}75%{border-color:#5effe0}87%{border-color:#ffae5e}}
+.card.emo .rar{color:#fff;font-size:8px;letter-spacing:1px;text-shadow:0 0 6px #b07dff,0 0 2px #fff}
+.card.emo .pnm{color:#f3e6ff}
+.card.emo .sk{background:linear-gradient(90deg,#5a1f8a,#a83e9e,#5a1f8a);color:#fff3ff}
+.card.emo .ovr b{color:#e6c8ff;text-shadow:0 0 7px rgba(180,120,255,.7)}
+.card.emo::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(130deg,rgba(255,94,160,.30),rgba(255,210,95,.26),rgba(125,255,175,.26),rgba(95,200,255,.28),rgba(176,125,255,.32),rgba(94,255,224,.26));
+  background-size:360% 360%;animation:holobg 3.2s ease-in-out infinite alternate}
+.card.emo::after{content:"";position:absolute;inset:-60%;pointer-events:none;
+  background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.7) 43%,rgba(120,255,210,.5) 49%,rgba(255,160,220,.5) 55%,transparent 70%);
+  animation:holo 1.7s linear infinite}
+.card.emo .emocap{position:absolute;left:0;right:0;bottom:0;z-index:4;font-family:'DotGothic16';font-size:7px;
+  letter-spacing:.3px;color:#fff;background:linear-gradient(90deg,rgba(90,31,138,.92),rgba(168,62,158,.92));
+  padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;text-shadow:0 1px 2px #000}
+.slot .scard.emo{border-color:#fff;animation:emoframe .6s steps(8) infinite}
+.slot .slotring.emo{background:rgba(220,180,255,.95);box-shadow:0 0 12px rgba(180,120,255,.95)}
 .pack.legend{background:linear-gradient(160deg,#4a3406,#1c1202);border:3px solid #ffd25e;
   box-shadow:inset -4px -4px 0 #3a2804,inset 4px 4px 0 #ffe9a8,0 0 0 3px #0a1322;
   animation:lframe 1.2s steps(6) infinite;margin-top:18px}
