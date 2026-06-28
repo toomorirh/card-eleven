@@ -120,6 +120,8 @@ const TUNING={
   aura:{teamChance:0.28,teamDef:0.42,mid:0.12},    // チーム系スキルの発動演出確率
   reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
+  // 試合進行の時間・閾値(分・ティック間隔ms・各種トリガー分/閾値)
+  match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45},
   // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
   origin:{
     turnoverBase:0.20,         // 奪取(カウンター)の基準率。press(D)/(press+buildSec(T)) を掛ける
@@ -158,7 +160,7 @@ const TUNING={
   worldSigDrop:0.15,    // ワールドツアー: 署名保有国に勝利時、固有選手がドロップする確率
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
   // 序盤=低い→キックオフ直後の唐突な演出を防ぐ。動くと上がり、停滞で冷める。時間で下限が上昇。
-  volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10, tacGate:0.5},
+  volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10, tacGate:0.5, heatReset:0.4},
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性

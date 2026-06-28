@@ -373,17 +373,17 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
 
 // ================= 試合進行(非同期ループ) =================
 async function tickAsync(){
-  const M=MC;
-  M.min+=3;
+  const M=MC, MT=TUNING.match;
+  M.min+=MT.tickMin;
   const clk=document.getElementById("clock");
-  clk.textContent=(M.min>=90?"90+":M.min)+"分";
-  if(M.min>=85)clk.classList.add("late");                 // 終盤は時計を赤く
-  if(M.min===87&&Math.abs(M.home.score-M.away.score)<=1)feed("⏱ 終了間際!ラストチャンスだ!","chance"); // 接戦のみ煽る
-  // ボルテージ: 停滞で冷め(decay)、時間で下限が上昇。0.4未満でヒートアップ告知をリセット。
-  M.volt=Math.max((M.volt||0)*TUNING.volt.decay, M.min/90*TUNING.volt.timeFloor);
-  if(M.volt<0.4)M._heated=false;
+  clk.textContent=(M.min>=MT.fullMin?"90+":M.min)+"分";
+  if(M.min>=MT.lateMin)clk.classList.add("late");         // 終盤は時計を赤く
+  if(M.min===MT.lastChanceMin&&Math.abs(M.home.score-M.away.score)<=1)feed("⏱ 終了間際!ラストチャンスだ!","chance"); // 接戦のみ煽る
+  // ボルテージ: 停滞で冷め(decay)、時間で下限が上昇。閾値未満でヒートアップ告知をリセット。
+  M.volt=Math.max((M.volt||0)*TUNING.volt.decay, M.min/MT.fullMin*TUNING.volt.timeFloor);
+  if(M.volt<TUNING.volt.heatReset)M._heated=false;
   M.home.tactic=S.tactic;M.home.style=S.style;
-  if(M.min===60){
+  if(M.min===MT.oppAdjustMin){
     M.away.tactic=M.away.score<M.home.score?"atk":M.away.score>M.home.score?"def":"bal";
     if(M.away.tactic==="atk")feed(`${M.name}がカードを前に動かしてきた!攻勢だ!`);
   }
@@ -401,7 +401,7 @@ async function tickAsync(){
   }
   // モメンタム(連続攻撃): 同じチームが攻め続けると「猛攻」コール
   if(M._lastAtk===T.side){M._streak=(M._streak||1)+1;}else{M._streak=1;M._lastAtk=T.side;}
-  if(M._streak===3){feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
+  if(M._streak===MT.streakHeat){feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
   const dir=dirOf(T);
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   origin.stat.inv++;
@@ -415,20 +415,20 @@ async function tickAsync(){
   }else{
     const mates=T.players.filter(p=>p!==origin&&p.role!=="GK");
     if(mates.length){const c2=pickW(mates,p=>1+(dir>0?curP(p).x:100-curP(p).x)/50);c2.stat.inv++;await ballTo(curP(c2).x+dir*2,curP(c2).y,0.45);}
-    if(Math.random()<0.45)feed(["中盤で激しいボールの奪い合い","じっくりとパスを回す","ラインを押し上げていく","セカンドボールを拾った"][ri(0,3)]);
+    if(Math.random()<MT.fillerFeed)feed(["中盤で激しいボールの奪い合い","じっくりとパスを回す","ラインを押し上げていく","セカンドボールを拾った"][ri(0,3)]);
   }
 }
 async function runLoop(){
   if(!MC||MC.loop)return;
   MC.loop=true;
-  while(MC&&!MC.halt&&MC.min<90){
+  while(MC&&!MC.halt&&MC.min<TUNING.match.fullMin){
     await tickAsync();
     if(!MC||MC.halt)break;
-    await sleep(420);
+    await sleep(TUNING.match.tickMs);
   }
   if(MC){
     MC.loop=false;
-    if(MC.min>=90&&!MC.halt)await endMatch();
+    if(MC.min>=TUNING.match.fullMin&&!MC.halt)await endMatch();
   }
 }
 function startLeagueMatch(idx,name){
