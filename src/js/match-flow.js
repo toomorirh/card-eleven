@@ -3,6 +3,8 @@
 // リンクの「可能性」は linkAvailable(ジオメトリ)、「選択」は linkWeight(パラメータ=選手個性)。
 // マッチアップ(matchupDefender)・判定(resolveLink)は match-core(純粋)、演出は match-render。
 
+// 実況の相手側プレフィックス(相手=A側のイベントには🔴を付けて見分ける)。
+const whoPrefix=T=>T.side==="A"?"🔴 ":"";
 // 連鎖の前進度(0=自陣〜1=敵ゴール)。render座標(攻撃軸x)で算出。
 function depthFrac(A,p){const x=curP(p).x;return dirOf(A)>0?x/100:(100-x)/100;}
 // リンクの可能性(ジオメトリ・ゲート)。選択自体は linkWeight(パラメータ=個性)で行う。
@@ -137,7 +139,7 @@ function duoFires(A,carrier){
 }
 // 名コンビ発動: 専用カットイン → 受け手がゴール前で強力フィニッシュ(ほぼ決定機=効果B)。
 async function duoAction(A,D,min,passer,fin,duo){
-  const who=A.side==="A"?"🔴 ":"";
+  const who=whoPrefix(A);
   feed(`${who}⚡ 名コンビ【${duo.name}】炸裂! <b>${passer.c.name}</b>→<b>${fin.c.name}</b>!`,"goal");
   addVolt(TUNING.volt.goal);
   await duoCutin(duo,passer,fin);
@@ -168,7 +170,7 @@ async function runChain(channel,A,D,min,origin){
   const counter=channel==="win"?TUNING.origin.counterBonus:1;
   const tf={ a:(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counter,
              d:(D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1), bonus:1 };
-  const who=A.side==="A"?"🔴 ":"";
+  const who=whoPrefix(A);
   const L=TUNING.link, maxL=L.maxLink[channel]??3, dir=dirOf(A), gx=goalXOf(A);
   let carrier=origin, assist=null, steps=0, prog=depthFrac(A,origin);
   while(true){
@@ -244,7 +246,7 @@ async function setPiece(kind,A,D,min){
   if(_spActive)return; _spActive=true; try{ await _setPiece(kind,A,D,min); }finally{_spActive=false;}
 }
 async function _setPiece(kind,A,D,min){
-  const who=A.side==="A"?"🔴 ":"", taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+  const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
   if(kind==="pk"){
     recordSet(MC,"pk");
     feed(`${who}🎯 PK獲得! <b>${taker.c.name}</b>がスポットへ`,"goal");
@@ -278,7 +280,7 @@ async function setCorner(A,D,min){
   if(_spActive)return; _spActive=true; // 再帰防止
   try{
     recordSet(MC,"ck");
-    const who=A.side==="A"?"🔴 ":"", kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
     feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
     await spCutin(kicker,"コーナーキック");
     const cy=curP(kicker).y<50?8:92;
@@ -301,7 +303,7 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
   A.score++; scorer.stat.goals++; if(opts.assist)opts.assist.stat.assists++;
   document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
   scorePop(A.side); crowdPulse();
-  const who=A.side==="A"?"🔴 ":"";
+  const who=whoPrefix(A);
   const sup=opts.super||((opts.dist||0)>=35&&(scorer.c.off>=15||scorer.c.pow>=15)); // 遠目の強烈な一撃=スーパー
   let msg;
   if(sup)msg=`🚀 スーパーゴール!!<b>${scorer.c.name}</b>が遠目から突き刺した!`;
@@ -394,14 +396,14 @@ async function tickAsync(){
   let channel,origin;
   if(rollTurnover(T,D,M.min)){
     [T,D]=[D,T];channel="win";origin=pickWinner(T,D,M.min);
-    feed(`${T.side==="A"?"🔴 ":""}⚡ ${origin.c.name}がボールを奪った!カウンターのチャンス!`,"chance");
+    feed(`${whoPrefix(T)}⚡ ${origin.c.name}がボールを奪った!カウンターのチャンス!`,"chance");
   }else{
     channel=pickChannel(T,D,M.min);
     origin=pickOriginPlayer(T,D,channel,M.min);
   }
   // モメンタム(連続攻撃): 同じチームが攻め続けると「猛攻」コール
   if(M._lastAtk===T.side){M._streak=(M._streak||1)+1;}else{M._streak=1;M._lastAtk=T.side;}
-  if(M._streak===MT.streakHeat){feed(`${T.side==="A"?"🔴 ":""}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
+  if(M._streak===MT.streakHeat){feed(`${whoPrefix(T)}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
   const dir=dirOf(T);
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   origin.stat.inv++;
