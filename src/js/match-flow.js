@@ -241,13 +241,11 @@ async function aerialBox(A,D,min,deliverer,tf,who){
   df.stat.tkl++;feed(`${who}${df.c.name}(力${df.c.pow})が跳ね返した!`);if(fx(df).duelD)await skillHit(df);
   return {clear:true};
 }
-// ファウル → FK or PK。キッカーは最良シューター。
-async function setPiece(kind,A,D,min){
-  if(_spActive)return; _spActive=true; try{ await _setPiece(kind,A,D,min); }finally{_spActive=false;}
-}
-async function _setPiece(kind,A,D,min){
-  const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
-  if(kind==="pk"){
+// セットプレー レジストリ(pk/fk/ck)。各 run は自己完結(キッカー選定→演出→spShot/aerialBox)。
+// 追加=1エントリ+呼び出し元。共有プリミティブは spShot(高ベース判定)/aerialBox(空中戦)。
+const SETPIECES={
+  pk:{ async run(A,D,min){
+    const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"pk");
     feed(`${who}🎯 PK獲得! <b>${taker.c.name}</b>がスポットへ`,"goal");
     movePlayer(taker,gx-dir*11,50,0.4); // キッカーもスポットへ(ボールだけが動く違和感を解消)
@@ -255,39 +253,46 @@ async function _setPiece(kind,A,D,min){
     await pkCutin(taker,pickGK(D)); // キッカー vs GK の一騎打ち
     const g=await spShot(taker,A,D,min,TUNING.setpiece.pkBase,"PK!!","pk");
     if(g)recordSet(MC,"pk",true);
-    return;
-  }
-  recordSet(MC,"fk");
-  const wide=curP(taker).y<35||curP(taker).y>65;
-  if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
-    feed(`${who}⚡ 直接FKのチャンス! <b>${taker.c.name}</b>`,"chance");
-    await spCutin(taker,"直接フリーキック");
-    movePlayer(taker,gx-dir*23,50,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)
-    await ballTo(gx-dir*20,50,0.45);
-    const g=await spShot(taker,A,D,min,1.15,"直接FK!!","fk");
-    if(g)recordSet(MC,"fk",true);
-  }else{
-    feed(`${who}🏃 FKからのクロス! <b>${taker.c.name}</b>が蹴る`,"chance");
-    await spCutin(taker,"フリーキック");
-    const fy=curP(taker).y;
-    movePlayer(taker,gx-dir*25,fy,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)
-    await ballTo(gx-dir*22,fy,0.45);
-    await aerialBox(A,D,min,taker,{a:1.05,d:1,bonus:1},who); // 得点はtryShot内で計上
-  }
-}
-// CK: 危険なクリア/セーブから派生。キッカーのクロス → 空中戦。
-async function setCorner(A,D,min){
-  if(_spActive)return; _spActive=true; // 再帰防止
-  try{
-    recordSet(MC,"ck");
+  }},
+  fk:{ async run(A,D,min){
+    const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    recordSet(MC,"fk");
+    const wide=curP(taker).y<35||curP(taker).y>65;
+    if(!wide&&Math.random()<TUNING.setpiece.fkDirectShare){
+      feed(`${who}⚡ 直接FKのチャンス! <b>${taker.c.name}</b>`,"chance");
+      await spCutin(taker,"直接フリーキック");
+      movePlayer(taker,gx-dir*23,50,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)
+      await ballTo(gx-dir*20,50,0.45);
+      const g=await spShot(taker,A,D,min,1.15,"直接FK!!","fk");
+      if(g)recordSet(MC,"fk",true);
+    }else{
+      feed(`${who}🏃 FKからのクロス! <b>${taker.c.name}</b>が蹴る`,"chance");
+      await spCutin(taker,"フリーキック");
+      const fy=curP(taker).y;
+      movePlayer(taker,gx-dir*25,fy,0.45); // キッカーもFK地点へ(ボールだけが動く違和感を解消)
+      await ballTo(gx-dir*22,fy,0.45);
+      await aerialBox(A,D,min,taker,{a:1.05,d:1,bonus:1},who); // 得点はtryShot内で計上
+    }
+  }},
+  ck:{ async run(A,D,min){ // CK: 危険なクリア/セーブから派生。キッカーのクロス → 空中戦。
     const who=whoPrefix(A), kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    recordSet(MC,"ck");
     feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
     await spCutin(kicker,"コーナーキック");
     const cy=curP(kicker).y<50?8:92;
     movePlayer(kicker,gx-dir*5,cy,0.45); // キッカーもコーナーへ走り込む(ボールだけが動く違和感を解消)
     await ballTo(gx-dir*2,cy,0.45);
     await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
-  }finally{_spActive=false;}
+  }},
+};
+// ファウル → FK or PK。再帰防止フラグでガードしつつレジストリへディスパッチ。
+async function setPiece(kind,A,D,min){
+  if(_spActive)return; _spActive=true;
+  try{ await (SETPIECES[kind]||SETPIECES.fk).run(A,D,min); }finally{_spActive=false;}
+}
+async function setCorner(A,D,min){
+  if(_spActive)return; _spActive=true;
+  try{ await SETPIECES.ck.run(A,D,min); }finally{_spActive=false;}
 }
 const teamName=T=>T.side==="H"?myName():((MC&&MC.name)||"相手");
 // ボルテージ加算(イベントで熱気が上がる)。0.7初到達で「ヒートアップ」を1回告知。
