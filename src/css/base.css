@@ -196,6 +196,10 @@ canvas.sprite{image-rendering:auto}
 #chemLines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
 /* 最多国籍(ボーナス発生)のみ相互に結ぶ。線の濃さ/太さは効果(人数)に応じてJS側で設定 */
 #chemLines .chemln{fill:none;stroke:var(--cyan);vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 2px rgba(84,214,200,.85))}
+/* 名コンビ(ホットライン)= 固有ペアを結ぶ金の流れる線(ケミストリー線と別系統で目立たせる) */
+#chemLines .duoln{fill:none;stroke:var(--gold);stroke-width:3;opacity:.95;vector-effect:non-scaling-stroke;
+  stroke-dasharray:6 4;filter:drop-shadow(0 0 3px rgba(232,194,90,1));animation:duoDash 1s linear infinite}
+@keyframes duoDash{to{stroke-dashoffset:-10}}
 .slot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:2}
 .slot .slothead{font-size:9px;font-weight:900;letter-spacing:.5px;color:#0c1626;border-radius:5px;padding:0 6px;line-height:1.55;min-width:38px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .slot.empty .slothead{opacity:.85}
@@ -414,6 +418,19 @@ canvas.sprite{image-rendering:auto}
  56%{transform:translate(calc(-50% + 290px),-50%);opacity:0}
  78%{transform:translate(calc(-50% + 122px),-50%);opacity:1}
  100%{transform:translate(calc(-50% + 122px),-50%);opacity:1}}
+/* 名コンビ(ホットライン): 出し手=左/受け手=右が同時に登場、中央にコンビ名(金) */
+.cutin.duo .afig.k{animation:duoFigL 1.45s ease both}
+.cutin.duo .afig.r{animation:duoFigR 1.45s ease both}
+@keyframes duoFigL{0%{transform:translate(calc(-50% - 300px),-50%);opacity:0}
+ 22%{transform:translate(calc(-50% - 122px),-50%);opacity:1}100%{transform:translate(calc(-50% - 122px),-50%);opacity:1}}
+@keyframes duoFigR{0%{transform:translate(calc(-50% + 300px),-50%);opacity:0}
+ 32%{transform:translate(calc(-50% + 122px),-50%);opacity:1}100%{transform:translate(calc(-50% + 122px),-50%);opacity:1}}
+.cutin.duo .aword.tw{left:50%;top:50%;transform:translate(-50%,-80px);font-size:22px;font-weight:900;color:#ffe7a0;
+  text-shadow:0 0 12px rgba(232,194,90,.85),0 2px 3px #000;animation:duoFade 1.45s both}
+.cutin.duo .aword.tw2{left:50%;top:50%;transform:translate(-50%,-50%);font-size:34px;color:var(--gold);
+  text-shadow:0 0 26px rgba(232,194,90,1),0 0 8px rgba(255,255,255,.6),0 2px 4px #000;animation:duoPop 1.45s both}
+@keyframes duoFade{0%{opacity:0}16%{opacity:1}88%{opacity:1}100%{opacity:0}}
+@keyframes duoPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}18%{opacity:1}30%{transform:translate(-50%,-50%) scale(1.08)}40%{transform:translate(-50%,-50%) scale(1)}88%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
 /* 歓声パルス(得点時に画面端が光る) */
 .crowd{position:fixed;inset:0;z-index:120;pointer-events:none;animation:crowd .9s ease-out both}
 @keyframes crowd{0%{box-shadow:inset 0 0 0 0 rgba(255,225,120,0)}

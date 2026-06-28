@@ -131,23 +131,29 @@ function renderChemLines(pitch){
   FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(!c)return;
     const f=c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}
     (groups[f]=groups[f]||[]).push({x:sl[1],y:sl[2]});});
-  if(mx<3||!groups[nat])return; // ボーナスが出る最多国籍(3人以上)が無ければ線なし
-  const pts=groups[nat];
-  const bonus=Math.min(0.06,Math.max(0,mx-2)*0.012); // 実際のチーム能力ボーナス(最大+6%)
-  const ratio=bonus/0.06;                            // 0..1(効果の強さ)
-  const op=(0.42+ratio*0.55).toFixed(2);             // 効果が強いほど濃く
-  const wid=(1.5+ratio*2.2).toFixed(1);              // 効果が強いほど太く
   const NS="http://www.w3.org/2000/svg";
   const svg=document.createElementNS(NS,"svg");
   svg.id="chemLines";svg.setAttribute("viewBox","0 0 100 100");svg.setAttribute("preserveAspectRatio","none");
-  for(let k=0;k<pts.length;k++)for(let j=k+1;j<pts.length;j++){ // 最多国籍のみ全ペア相互に結ぶ
-    const ln=document.createElementNS(NS,"line");
-    ln.setAttribute("x1",pts[k].x);ln.setAttribute("y1",pts[k].y);
-    ln.setAttribute("x2",pts[j].x);ln.setAttribute("y2",pts[j].y);
-    ln.setAttribute("class","chemln");ln.style.opacity=op;ln.style.strokeWidth=wid;
-    svg.appendChild(ln);
+  // ケミストリー: 最多国籍(3人以上=ボーナス)のみ全ペア相互。効果(人数)で濃さ/太さ可変。
+  if(mx>=3&&groups[nat]){
+    const pts=groups[nat];
+    const bonus=Math.min(0.06,Math.max(0,mx-2)*0.012), ratio=bonus/0.06;
+    const op=(0.42+ratio*0.55).toFixed(2), wid=(1.5+ratio*2.2).toFixed(1);
+    for(let k=0;k<pts.length;k++)for(let j=k+1;j<pts.length;j++){
+      const ln=document.createElementNS(NS,"line");
+      ln.setAttribute("x1",pts[k].x);ln.setAttribute("y1",pts[k].y);
+      ln.setAttribute("x2",pts[j].x);ln.setAttribute("y2",pts[j].y);
+      ln.setAttribute("class","chemln");ln.style.opacity=op;ln.style.strokeWidth=wid;svg.appendChild(ln);
+    }
   }
-  pitch.appendChild(svg);
+  // 名コンビ(ホットライン): 固有ペアが両方スタメンなら金線で結ぶ
+  const sigPos={};
+  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(c&&c.sig)sigPos[c.sig]={x:sl[1],y:sl[2]};});
+  DUOS.forEach(duo=>{const pa=sigPos[duo.a],pb=sigPos[duo.b];if(!pa||!pb)return;
+    const ln=document.createElementNS(NS,"line");
+    ln.setAttribute("x1",pa.x);ln.setAttribute("y1",pa.y);ln.setAttribute("x2",pb.x);ln.setAttribute("y2",pb.y);
+    ln.setAttribute("class","duoln");svg.appendChild(ln);});
+  if(svg.childNodes.length)pitch.appendChild(svg);
 }
 // 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
 function squadHasCond(sub,st,th){return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=S.coll.find(k=>k.id===S.squad[i]);return c&&c[st]>=th;});}

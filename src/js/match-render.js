@@ -246,6 +246,17 @@ async function tacCutin(tac,mgr,exec){
   const w=document.querySelector(".wrap");if(w){w.classList.add("shake");setTimeout(()=>w.classList.remove("shake"),550);}
   document.body.appendChild(o);await sleep(1300);o.remove();
 }
+// 名コンビ(ホットライン)発動カットイン: 出し手を左・受け手を右に表示し、中央にコンビ名(金・放射光+強シェイク)。
+async function duoCutin(duo,passer,fin){
+  const o=_actFrame("duo","H");
+  o.appendChild(_afig(passer.c,"k",104));      // 出し手=左
+  o.appendChild(_afig(fin.c,"r",104));         // 受け手=右
+  o.appendChild(_aword("⚡ 名コンビ ⚡","tw"));
+  o.appendChild(_aword(`✦ ${duo.name} ✦`,"tw2 ok")); // コンビ名(中央・金)
+  const r=document.createElement("div");r.className="goalrays big";document.body.appendChild(r);setTimeout(()=>r.remove(),1500);
+  const w=document.querySelector(".wrap");if(w){w.classList.add("shake-big");setTimeout(()=>w.classList.remove("shake-big"),700);}
+  document.body.appendChild(o);await sleep(1450);o.remove();
+}
 // KICK OFF カットイン: 両チームの主将(最高OVR)を左右に、中央に「KICK OFF」。
 async function kickoffCutin(hc,ac,awayName){
   const o=document.createElement("div");o.className="cutin";

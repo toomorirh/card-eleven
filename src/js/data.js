@@ -203,6 +203,15 @@ const TYPE_FLAVOR={
 };
 function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 
+// ===== 名コンビ(ホットライン): 象徴的な固有選手ペア。両方スタメンで、片方が持ってもう片方へ繋いだ
+// 瞬間に専用演出+ほぼ決定機(連携強化=採配と同型のトリガー)。a/bは固有選手id、nameは演出語。
+const DUOS=[
+  {a:"bergkamp", b:"henry",  name:"インヴィジブルズ"},
+  {a:"messi",    b:"neymar", name:"MSN"},
+];
+const DUO_CHANCE=0.55; // ボルテージ閾値+両者スタメン+起点が片割れ、を満たした上での発動率
+const DUO_GATE=0.30;   // 名コンビのボルテージ閾値(両固有起用への報酬として采配0.5より緩い)
+
 // ===== 名将(レンタル監督) =====
 // boost: 自チームの対象ポジ×ステを乗算強化(eff集約点で適用)。pos:"all"|role(FW/MF/DF/GK)、stat:"all"|off/def/pow/tec/spd/sta。
 // cost: 起用(交代)ごとのレンタル料(コイン)。tac: 采配シグネ(条件付き戦略アクション・Phase2で実装)。

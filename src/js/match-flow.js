@@ -123,6 +123,38 @@ async function mgrTacAction(A,D,min,carrier,tac,who){
   await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);
   await tryShot(r,A,D,min,false,null,null,carrier);
 }
+// 名コンビ(ホットライン)の発動判定: 自チーム・ボルテージ一定以上・起点が固有ペアの片割れで
+// 相方もスタメン・確率。発動なら {duo, partner(=フィニッシャー)} を返す。
+function duoFires(A,carrier){
+  if(A.side!=="H"||!MC||(MC.volt||0)<DUO_GATE||!carrier.c.sig)return null;
+  for(const duo of DUOS){
+    const mate=duo.a===carrier.c.sig?duo.b:duo.b===carrier.c.sig?duo.a:null;
+    if(!mate)continue;
+    const partner=A.players.find(p=>p!==carrier&&p.c.sig===mate);
+    if(partner&&Math.random()<DUO_CHANCE)return {duo,partner};
+  }
+  return null;
+}
+// 名コンビ発動: 専用カットイン → 受け手がゴール前で強力フィニッシュ(ほぼ決定機=効果B)。
+async function duoAction(A,D,min,passer,fin,duo){
+  const who=A.side==="A"?"🔴 ":"";
+  feed(`${who}⚡ 名コンビ【${duo.name}】炸裂! <b>${passer.c.name}</b>→<b>${fin.c.name}</b>!`,"goal");
+  addVolt(TUNING.volt.goal);
+  await duoCutin(duo,passer,fin);
+  const gk=pickGK(D),dir=dirOf(A),gx=goalXOf(A);
+  fin.stat.shots++;fin.stat.inv++;passer.stat.inv++;gk.stat.inv++;
+  movePlayer(fin,gx-dir*9,50,0.3);movePlayer(gk,gx-dir*2,48,0.3);
+  await ballTo(gx-dir*10,50,0.3);hot(fin);
+  const sSc=(eff(fin,"off",min,A,D)*0.6+eff(fin,"tec",min,A,D)*0.4)*1.4*(fx(fin).shoot||1)*rr(); // ×1.4=ほぼ決定機
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*rr();
+  if(sSc>gSc*TH.gk){
+    await ballTo(gx+dir*1.5,48,0.22,"linear");
+    await goalCelebrate(fin,A,D,min,{assist:passer});
+  }else{
+    gk.stat.saves++;await ballTo(gx-dir*1,48,0.22,"linear");
+    feed(`${who}🧤 ${gk.c.name}が立ちはだかった!`);await wordCutin(gk,D,"SAVE!!",false,650);await ballTo(gx-dir*14,50,0.5);
+  }
+}
 // 連鎖チェーン: 起点→リンク×N→シュート。深さ/つなぎ数でシュート移行率が増え自然終端。
 async function runChain(channel,A,D,min,origin){
   const counter=channel==="win"?TUNING.origin.counterBonus:1;
@@ -134,6 +166,8 @@ async function runChain(channel,A,D,min,origin){
   while(true){
     // 名将の攻撃采配: 起点キープレイヤーがボールを持っている瞬間、熱気が一定以上なら確率発動
     const _otac=mgrCarryTac(A,carrier); if(_otac){ await mgrTacAction(A,D,min,carrier,_otac,who); return; }
+    // 名コンビ(ホットライン): 起点が固有ペアの片割れ・相方もスタメンなら専用連携→決定機
+    const _duo=duoFires(A,carrier); if(_duo){ await duoAction(A,D,min,carrier,_duo.partner,_duo.duo); return; }
     const sc=L.directShootBase+prog*L.depthShoot+steps*L.stepShoot;
     if(steps>=maxL||Math.random()<sc){ await tryShot(carrier,A,D,min,false,null,null,assist); return; }
     const ctx={A,D,min,tf,who,carrier,wide:isWide(carrier),adv:prog>=L.advanced};
