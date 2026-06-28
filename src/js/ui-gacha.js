@@ -5,6 +5,10 @@ const PACKS=[
    desc:"3枚入り / SR5% R25% N70%",
    can:()=>S.coins>=100, pay:()=>{S.coins-=100;}, owned:null,
    get:()=>[makeCard(),makeCard(),makeCard()]},
+  {id:"highclass",name:"ハイクラスパック",emoji:"💎",color:"#5ec8ff",cost:5000,
+   desc:"1枚入り / シグネチャー or LEGEND 確定",
+   can:()=>S.coins>=5000, pay:()=>{S.coins-=5000;}, owned:null,
+   get:()=>[Math.random()<0.40?drawSignatureCard():makeCard(null,"l")]}, // 40%でシグネチャー(内ごく稀にエモーショナル)、他はLEGEND確定
   {id:"legend",name:"レジェンドパック",emoji:"🏆",color:"#e8c25a",cost:null,
    desc:"1枚入り / LEGEND25% SR55% R20%・試合後ドロップ",
    can:()=>(S.legendPacks||0)>0, pay:()=>{S.legendPacks=(S.legendPacks||0)-1;}, owned:()=>S.legendPacks||0,
@@ -16,15 +20,18 @@ const PACKS=[
   {id:"signature",name:"シグネチャーパック",emoji:"🌟",color:"#ff5ea0",cost:null,
    desc:"1枚入り / 未所持の固有選手を優先確定・実績報酬",
    can:()=>(S.sigPacks||0)>0, pay:()=>{S.sigPacks=(S.sigPacks||0)-1;}, owned:()=>S.sigPacks||0,
-   get:()=>{
-     // シークレット: ごく低確率(1%)で最上位「エモーショナル」が出現(未所持を優先)
-     if(typeof EMOTIONALS!=="undefined"&&EMOTIONALS.length&&Math.random()<0.01){
-       const ep=unownedEmotionals();return [makeEmotional(rnd(ep.length?ep:EMOTIONALS).id)];
-     }
-     const pool=unownedSignatures();return [makeSignature(rnd(pool.length?pool:SIGNATURES).id)];}},
+   get:()=>[drawSignatureCard()]},
 ];
 // まだ持っていないエモーショナルの一覧(所持判定は sig idで共有)。
 function unownedEmotionals(){const own=ownedSigSet();return EMOTIONALS.filter(s=>!own.has(s.id));}
+// シグネチャー1枚を抽選(未所持優先)。シークレット: ごく低確率(1%)で最上位「エモーショナル」が出現。
+// シグネチャーパック/ハイクラスパックで共用(=コインからもエモーショナルに到達できる)。
+function drawSignatureCard(){
+  if(typeof EMOTIONALS!=="undefined"&&EMOTIONALS.length&&Math.random()<0.01){
+    const ep=unownedEmotionals();return makeEmotional(rnd(ep.length?ep:EMOTIONALS).id);
+  }
+  const pool=unownedSignatures();return makeSignature(rnd(pool.length?pool:SIGNATURES).id);
+}
 // 既に所持している固有選手のid集合(コレクション内に同じ sig を持つカードがあるか)。
 function ownedSigSet(){return new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));}
 // まだ持っていない固有選手の一覧。全員所持済みなら空配列(呼び出し側で全プールにフォールバック)。
@@ -129,6 +136,7 @@ async function openPackById(id){
   if(_revealing)return;
   const p=packById(id);if(!p)return;
   if(!p.can()){toast(p.cost!=null?"コインが足りません!リーグ戦で稼ごう":"このパックは未所持(試合後にドロップ)");return;}
+  if((p.cost||0)>=1000&&!confirm(`${p.name}を🪙${p.cost}で開封しますか?`))return; // 高額パックは誤タップ防止の確認
   _revealing=true;
   let again=true;
   while(again){
@@ -140,7 +148,7 @@ async function openPackById(id){
 }
 function runReveal(p,cards){
   return new Promise(resolve=>{
-    const ord={l:0,sr:1,r:2,n:3};
+    const ord={emo:-1,l:0,sr:1,r:2,n:3};
     const best=cards.reduce((a,c)=>ord[c.rar]<ord[a.rar]?c:a,cards[0]);
     const ov=document.getElementById("packOverlay"),stage=document.getElementById("packStage");
     ov.className="packov show";
