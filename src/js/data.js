@@ -122,7 +122,10 @@ const TUNING={
   // 疲労: アクション数(関与=inv)主体で消耗。活躍した選手ほど大きく低下し終盤にアクションが失敗しやすくなる。
   // max=最大消耗率 / perAction=関与1回あたり / perMin=時間あたり(わずか) / staReduce=staで消耗を緩める度合い /
   // gassedFeed=この消耗率で「疲れが見える」を告知。
-  fatigue:{max:0.76, perAction:0.13, perMin:0.0012, staReduce:0.55, gassedFeed:0.55},
+  // perDef=守備負荷(dload)1あたりの消耗 / dloadShot=被シュート時の追加守備負荷 /
+  // lineFree=この消耗までは守備力ペナルティ無し(不感帯) / linePenalty=超過分に対する守備力低下度合い
+  // (=疲れたDFラインだけが終盤に綻ぶ。序盤の全体的な得点インフレを避ける)
+  fatigue:{max:0.76, perAction:0.13, perMin:0.0012, staReduce:0.55, gassedFeed:0.55, perDef:0.012, dloadShot:1.5, lineFree:0.30, linePenalty:0.8},
   tactic:{atk:1.15,def:0.85},                      // 攻撃シーケンスの戦術補正(攻撃的/守備的)
   midTactic:{atk:1.05,def:0.92},                   // 支配率の戦術補正(スタイル補正は STYLES[id].mid)
   mid:{tec:0.45,spd:0.3,sta:0.25,mf:1,other:0.32}, // 支配率の能力重み/ポジション重み

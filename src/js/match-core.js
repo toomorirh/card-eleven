@@ -12,9 +12,20 @@ function fatigue(p,min){
   const c=p.c, F=TUNING.fatigue;
   if(c.skill&&c.skill.fx.iron)return 1;
   const inv=(p.stat&&p.stat.inv)||0;
+  const dload=(p.stat&&p.stat.dload)||0;                   // 守備負荷(被攻撃/被シュートをラインで分担)
   const played=Math.min(Math.max(min-(p.enter||0),0),90);
   const staMul=1-(c.sta-1)/19*F.staReduce;                 // sta1→1.0 / sta20→1-staReduce
-  return 1-Math.min(F.max, (inv*F.perAction+played*F.perMin)*staMul);
+  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul);
+}
+// 守備ライン全体の消耗で守備力が落ちる(疲れたDFラインは終盤に綻び被弾しやすい)。
+// 個々のeffの疲労とは別に、ライン平均消耗ぶんだけ守備スコアを薄く減じる。rng非消費=判定順は不変。
+function lineDefMul(D,min){
+  const F=TUNING.fatigue; if(!D||!F.linePenalty)return 1;
+  const dl=D.players.filter(p=>p.role==="DF"); if(!dl.length)return 1;
+  let s=0; for(const p of dl)s+=fatigue(p,min);
+  const drain=1-s/dl.length;                               // ライン平均消耗(0=元気)
+  const over=Math.max(0,drain-(F.lineFree||0));            // 不感帯を超えた消耗のみ守備力に響く
+  return 1-over*F.linePenalty;                             // 例: 50%消耗・不感帯30% → ×(1-0.2*0.8)=0.84
 }
 function recalcAuras(t){
   t.teamChance=1;t.teamDef=1;
@@ -31,7 +42,7 @@ function recalcAuras(t){
 }
 function buildTeam(cards,side,form){
   const t={players:cards,tactic:"bal",style:"center",score:0,side,form};
-  cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0};});
+  cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0};});
   if(side==="H")t.mgr=activeManager(); // 名将ブーストは自チームのみ
   recalcAuras(t);
   return t;
@@ -310,7 +321,7 @@ function resolveLink(type,atk,df,A,D,min,tfA,tfD,bonus){
       dSc=(eff(df,"def",min,D,A)*0.6+eff(df,"spd",min,D,A)*0.4)*(fx(df).duelD||1); break;
   }
   aSc*=A.teamChance*tfA*(bonus||1)*rr();
-  dSc*=D.teamDef*tfD*rr();
+  dSc*=D.teamDef*lineDefMul(D,min)*tfD*rr();
   return aSc>dSc*thr;
 }
 
@@ -330,7 +341,7 @@ function pickShooter(A){
 function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){
   const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
   const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*rr();
-  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*tfD*rr();
+  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*lineDefMul(D,min)*tfD*rr();
   return aSc>dSc*TH.duel;
 }
 // シュート vs GK。得点なら true。rr()消費順は sSc→gSc。
@@ -339,6 +350,6 @@ function resolveShot(atk,gk,header,A,D,min){
     ?eff(atk,"off",min,A,D)*0.45+eff(atk,"pow",min,A,D)*0.55
     :eff(atk,"off",min,A,D)*0.7+eff(atk,"pow",min,A,D)*0.3;
   const sSc=sBase*(fx(atk).shoot||1)*rr();
-  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*rr();
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*lineDefMul(D,min)*rr();
   return sSc>gSc*TH.gk;
 }

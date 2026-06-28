@@ -53,7 +53,7 @@
 | `match-render.js` | **描画・演出**(DOM/アニメ) | フィールド座標変換・`movePlayer` `ballTo` `buildField` `updateField` / カットイン(`vsCutin` `wordCutin`(super=`big`) `sigCutin`(スポットライト) `pkCutin`(PK一騎打ち) `spCutin`(セットプレー) `kickoffCutin` `gameSetCutin`) / `crowdPulse` `scorePop` / `feed` / スキル発動演出(`skillHit` `skillPulse`(系統色) `auraSkill` `skillAny`) |
 | `match-flow.js` | **進行制御・起点→連鎖** | 起点(`recordOrigin`) / 連鎖(`LINKS` レジストリ・`runChain` `egoRun` `linkAvailable` `depthFrac` `recordLink` `recMatch`) / `tryShot` / `tickAsync` `runLoop` / `startMatch` `endMatch` / スタッツ表示 / 途中交代 |
 
-- **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigueMax` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin` `link`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
+- **TUNING**(`data.js`): 横断的なバランスダイヤルを集約(`rng` `fatigue` `tactic` `midTactic` `midStyle` `mid` `th` `aura` `reward` `drop` `origin` `link`)。バランス調整はまずここを見る。相性 `COUNTER_BONUS/PENALTY`・キーポジ `KEY_MUL`・ケミストリーは個別定数。
 - **起点(オリジン)レイヤー**(開放play): tick毎に `midPower` 比で主導権チーム T を決め、`rollTurnover` で守備側の奪取(=カウンター)を判定。奪取なら攻撃が反転し channel="win"。それ以外は `pickChannel`(build/overlap/feed)＋`pickOriginPlayer` で**起点選手**を選ぶ(全選手が起点になりうる/MF優位)。`buildupSuccess` で攻撃が形になるか判定。専用ロングカウンター抽選は撤去し `rollTurnover` に一本化。`TUNING.origin`(turnoverBase/channelBase/styleBias/buildup/counterBonus)。
 - **連鎖チェーン**(起点→リンク×N→シュート): `runChain` が毎ステップ「シュート移行(深さ・つなぎ数で増加)/リンク」を判定。リンクは `LINKS` レジストリ(拡張可)で **combination(連結)/through/cross/dribble/cutin**。可能性は `linkAvailable`(ジオメトリ=幅/中央)、**選択は `linkWeight`(選手パラメータ＝個性)**。dribble/cutin は `(off,spd,tec)×スタミナ×type.drive` で重み付け＝**エゴイスト個性**(ドリブラー/ウインガーが自分で持ち込む)。受け手に対する守備者は `matchupDefender`(左右ミラー `100-lane`・静的レーン主体)で決定し `resolveLink` で競る。`TUNING.link`(maxLink/directShoot/progStep/base/egoStat/advanced)。
 - **セットプレー**(別レイヤー・連鎖の副次結果から派生): フィニッシュ系リンク(dribble/cutin/cross/through)で `rollFoul` が当たると **PK/FK**(`setPiece`→`spShot` 直接 or `aerialBox` クロス)。危険なクリア/GKセーブから確率で **CK**(`setCorner`→`aerialBox`)。スローインは通常保持に吸収(イベント化せず)。`_spActive` で再帰防止。`TUNING.setpiece`(foulBase/boxChance/pkBase/fkDirectShare/cornerOnClear/cornerOnSave)。低頻度(実測 PK≈0.2/試合・CK≈0.5/試合)で味付け。
@@ -264,7 +264,9 @@
 ### 6.1 基本式
 - **有効値** `eff(p,k) = stat × pen × fatigue × situ`
   - `pen`: 細分ポジション適正 `posFit`(§3.4)。完全一致=1.0 / 同分類近接=0.92 / 同分類非近接=0.85 / 大分類違い=0.72
-  - `fatigue = 1 − (経過分/90)×0.35×(1 − (sta−1)/19)`(sta20で減衰なし。iron持ちは常に1)
+  - `fatigue = 1 − min(max, (inv×perAction + dload×perDef + 経過分×perMin)×staMul)`(`TUNING.fatigue`)。
+    アクション主体: `inv`=関与回数(攻撃で起点/連携/シュートに絡む)、`dload`=守備負荷(被攻撃/被シュートをDFラインで分担→A案)。`staMul=1−(sta−1)/19×staReduce`(staが高いほど消耗が緩い)。iron持ちは常に1。活躍した選手ほど終盤に大きく低下しアクションが失敗しやすくなる。`gassedFeed` 超過で「疲れが見える」を一度告知。
+  - **守備ラインの綻び**(B案) `lineDefMul(D)`: DFライン平均消耗が `lineFree`(不感帯)を超えた分だけ守備スコア(`resolveLink/Duel/Shot` の dSc/gSc)を `linePenalty` で減じる。疲れたDFラインは終盤に綻び失点しやすくなる(交代・守備的/持久型監督・スーパーサブの戦略価値)。rng非消費=判定順は不変。
   - `situ`: clutch(70分〜)、losing(ビハインド時)を乗算
 - **ランダム** `rr() = 0.6 + random×0.8`(範囲0.6〜1.4)。各スコアに乗る。
 - **支配率** `midPower`: 中盤の `tec×0.45 + spd×0.3 + sta×0.25` を選手ごとに加重(MF=1, 他=0.32)× `mid` × `poss`。tactic(atk1.05/def0.92)・style(short1.06/long0.94)補正。
