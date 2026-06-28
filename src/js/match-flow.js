@@ -131,7 +131,8 @@ async function mgrTacAction(A,D,min,carrier,tac,who){
 // 名コンビ(ホットライン)の発動判定: 自チーム・ボルテージ一定以上・起点が固有ペアの片割れで
 // 相方もスタメン・確率。発動なら {duo, partner(=フィニッシャー)} を返す。
 function duoFires(A,carrier){
-  if(A.side!=="H"||!MC||(MC.volt||0)<DUO_GATE||!carrier.c.sig)return null;
+  // ホーム/アウェイ両対応(相手チームも名コンビを発動できる)。両者がスタメンに揃い・ボルテージ閾値・起点が片割れ。
+  if(!MC||(MC.volt||0)<DUO_GATE||!carrier.c.sig)return null;
   for(const duo of DUOS){
     const mate=duo.a===carrier.c.sig?duo.b:duo.b===carrier.c.sig?duo.a:null;
     if(!mate)continue;
@@ -145,7 +146,7 @@ async function duoAction(A,D,min,passer,fin,duo){
   const who=whoPrefix(A);
   feed(`${who}⚡ 名コンビ【${duo.name}】炸裂! <b>${passer.c.name}</b>→<b>${fin.c.name}</b>!`,"goal");
   addVolt(TUNING.volt.goal);
-  await duoCutin(duo,passer,fin);
+  await duoCutin(duo,passer,fin,A);
   const gk=pickGK(D),dir=dirOf(A),gx=goalXOf(A);
   fin.stat.shots++;fin.stat.inv++;passer.stat.inv++;gk.stat.inv++;defLoad(D,TUNING.fatigue.dloadShot);
   movePlayer(fin,gx-dir*9,50,0.3);movePlayer(gk,gx-dir*2,48,0.3);

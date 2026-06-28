@@ -263,8 +263,8 @@ async function tacCutin(tac,mgr,exec){
   document.body.appendChild(o);await sleep(1300);o.remove();
 }
 // 名コンビ(ホットライン)発動カットイン: 出し手を左・受け手を右に表示し、中央にコンビ名(金・放射光+強シェイク)。
-async function duoCutin(duo,passer,fin){
-  const o=_actFrame("duo","H");
+async function duoCutin(duo,passer,fin,team){
+  const o=_actFrame("duo",team||"H"); // 攻撃側でtint(相手の名コンビは赤系)
   o.appendChild(_afig(passer.c,"k",104));      // 出し手=左
   o.appendChild(_afig(fin.c,"r",104));         // 受け手=右
   o.appendChild(_aword("⚡ 名コンビ ⚡","tw"));
