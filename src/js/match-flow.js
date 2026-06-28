@@ -599,7 +599,7 @@ const MATCH_MODES={
     let drop="";
     if(r==="W"){ // 署名保有国に勝利 → 低確率で固有選手ドロップ(未所持優先)
       const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
-      if(sigs.length&&Math.random()<TUNING.worldSigDrop){
+      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop){ // 満員(最大500)では固有ドロップをスキップ
         const own=new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));
         const pool=sigs.filter(s=>!own.has(s.id)); const cand=pool.length?pool:sigs;
         const pick=cand[ri(0,cand.length-1)];

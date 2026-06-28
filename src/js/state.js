@@ -1,6 +1,7 @@
 // ================= 状態と保存 =================
 let S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0};
 const SAVE_KEY="ci-save";
+const COLL_CAP=500; // クラブに保存できる選手の最大数(超過しないよう入手時にガード)
 // 永続化: 旧環境の window.storage(非同期)があれば優先、無ければブラウザの localStorage(同期)。
 // これにより通常のブラウザ/GitHub Pages でも進行が実際に保存される。
 async function readSave(){ // 保存済みJSON文字列(無ければnull)
@@ -9,14 +10,32 @@ async function readSave(){ // 保存済みJSON文字列(無ければnull)
   }
   try{return localStorage.getItem(SAVE_KEY);}catch(e){return null;}
 }
-async function save(){
-  S.nextId=uid;
+// 実書き込み(コレクション全体をstringify)。直接は呼ばず save()/flushSave() 経由。
+async function _writeSave(){
+  _saveDirty=false; S.nextId=uid;
   const v=JSON.stringify(S);
   if(typeof window!=="undefined"&&window.storage){try{await withTimeout(window.storage.set(SAVE_KEY,v),2500);}catch(e){}}
   else{try{localStorage.setItem(SAVE_KEY,v);}catch(e){}}
 }
+let _saveTimer=null, _saveDirty=false;
+// 保存はデバウンス: 連続save()を1回の書き込みにまとめ、大量所持時のstringify負荷/ジャンクを軽減。
+// 取りこぼし防止に、画面非表示/離脱時は必ずフラッシュする。即時resolveなのでawait save()はそのまま使える。
+function save(){
+  _saveDirty=true;
+  if(!_saveTimer){_saveTimer=setTimeout(()=>{_saveTimer=null;if(_saveDirty)_writeSave();},600);
+    if(_saveTimer&&_saveTimer.unref)_saveTimer.unref();} // node(テスト)でプロセスを引き止めない
+  return Promise.resolve();
+}
+function flushSave(){ if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;} if(_saveDirty)return _writeSave(); }
+if(typeof window!=="undefined"&&window.addEventListener){
+  if(typeof document!=="undefined"&&document.addEventListener)
+    document.addEventListener("visibilitychange",()=>{if(document.hidden)flushSave();});
+  window.addEventListener("pagehide",flushSave);
+  window.addEventListener("beforeunload",flushSave);
+}
 async function hasSave(){return !!(await readSave());}
 function deleteSave(){
+  _saveDirty=false; if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;} // 保留中のデバウンス保存を破棄(削除後に復活させない)
   if(typeof window!=="undefined"&&window.storage){try{window.storage.set(SAVE_KEY,"");}catch(e){}}
   try{localStorage.removeItem(SAVE_KEY);}catch(e){}
 }

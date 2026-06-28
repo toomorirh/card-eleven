@@ -1,23 +1,23 @@
 // ================= ガチャ =================
 // パック定義(データ駆動)。新パックはここに追加するだけで一覧・開封演出に乗る。
 const PACKS=[
-  {id:"player",name:"選手パック",emoji:"🃏",color:"#7c6bd9",cost:100,
+  {id:"player",name:"選手パック",emoji:"🃏",color:"#7c6bd9",cost:100,n:3,
    desc:"3枚入り / SR5% R25% N70%",
    can:()=>S.coins>=100, pay:()=>{S.coins-=100;}, owned:null,
    get:()=>[makeCard(),makeCard(),makeCard()]},
-  {id:"highclass",name:"ハイクラスパック",emoji:"💎",color:"#5ec8ff",cost:5000,
+  {id:"highclass",name:"ハイクラスパック",emoji:"💎",color:"#5ec8ff",cost:5000,n:1,
    desc:"1枚入り / シグネチャー or LEGEND 確定",
    can:()=>S.coins>=5000, pay:()=>{S.coins-=5000;}, owned:null,
    get:()=>[Math.random()<0.40?drawSignatureCard():makeCard(null,"l")]}, // 40%でシグネチャー(内ごく稀にエモーショナル)、他はLEGEND確定
-  {id:"legend",name:"レジェンドパック",emoji:"🏆",color:"#e8c25a",cost:null,
+  {id:"legend",name:"レジェンドパック",emoji:"🏆",color:"#e8c25a",cost:null,n:1,
    desc:"1枚入り / LEGEND25% SR55% R20%・試合後ドロップ",
    can:()=>(S.legendPacks||0)>0, pay:()=>{S.legendPacks=(S.legendPacks||0)-1;}, owned:()=>S.legendPacks||0,
    get:()=>{const x=Math.random(),rar=x<0.25?"l":x<0.8?"sr":"r";return [makeCard(null,rar)];}},
-  {id:"champion",name:"チャンピオンパック",emoji:"🏅",color:"#46d3a0",cost:null,
+  {id:"champion",name:"チャンピオンパック",emoji:"🏅",color:"#46d3a0",cost:null,n:5,
    desc:"5枚入り / SR以上1枚確定+高排出・リーグ優勝報酬",
    can:()=>(S.championPacks||0)>0, pay:()=>{S.championPacks=(S.championPacks||0)-1;}, owned:()=>S.championPacks||0,
    get:()=>championDraw()},
-  {id:"signature",name:"シグネチャーパック",emoji:"🌟",color:"#ff5ea0",cost:null,
+  {id:"signature",name:"シグネチャーパック",emoji:"🌟",color:"#ff5ea0",cost:null,n:1,
    desc:"1枚入り / 未所持の固有選手を優先確定・実績報酬",
    can:()=>(S.sigPacks||0)>0, pay:()=>{S.sigPacks=(S.sigPacks||0)-1;}, owned:()=>S.sigPacks||0,
    get:()=>[drawSignatureCard()]},
@@ -116,6 +116,7 @@ function openSignaturePicker(){
 }
 async function pickSignature(id){
   if((S.sigSelect||0)<=0)return;
+  if(S.coll.length>=COLL_CAP){toast(`クラブが満員です(最大${COLL_CAP}名)。図鑑で不要なカードを売却してください`);return;}
   if(ownedSigSet().has(id)&&ownedSigSet().size<SIGNATURES.length){toast("その選手は既に所持しています");return;} // 念のための二重ガード(全員所持時は重複可)
   document.getElementById("sigPickModal").classList.remove("on");
   S.sigSelect=(S.sigSelect||0)-1;
@@ -130,17 +131,20 @@ document.getElementById("sigPickClose").onclick=()=>document.getElementById("sig
 let _revealing=false;
 function drawPack(id){ // 純ロジック(演出なし):引けたらカード配列、不可なら null。テスト/将来の自動化から再利用可。
   const p=packById(id);if(!p||!p.can())return null;
+  if(S.coll.length+(p.n||1)>COLL_CAP)return null; // クラブ満員(最大500)では引けない
   p.pay();const cards=p.get();cards.forEach(c=>S.coll.push(c));return cards;
 }
 async function openPackById(id){
   if(_revealing)return;
   const p=packById(id);if(!p)return;
   if(!p.can()){toast(p.cost!=null?"コインが足りません!リーグ戦で稼ごう":"このパックは未所持(試合後にドロップ)");return;}
+  if(S.coll.length+(p.n||1)>COLL_CAP){toast(`クラブが満員です(最大${COLL_CAP}名)。図鑑で不要なカードを売却してください`);return;}
   if((p.cost||0)>=1000&&!confirm(`${p.name}を🪙${p.cost}で開封しますか?`))return; // 高額パックは誤タップ防止の確認
   _revealing=true;
   let again=true;
   while(again){
     const cards=drawPack(id);
+    if(!cards){toast(`クラブが満員です(最大${COLL_CAP}名)。図鑑で不要なカードを売却してください`);break;} // 連続開封中に満員へ到達
     coinUI();await save();renderGacha();
     again=await runReveal(p,cards);
   }

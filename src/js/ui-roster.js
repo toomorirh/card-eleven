@@ -235,7 +235,8 @@ document.getElementById("autoBtn").onclick=async()=>{
 
 // ================= クラブ(所属選手) =================
 let collRar="all", collNat="all", collSort="rar"; // フィルタ(レア度/国籍)とソート状態
-const _rarOrd={l:0,sr:1,r:2,n:3};
+let _collPage=1; const COLL_PAGE=60; // 図鑑ページネーション(一度に描画する枚数。負荷軽減)
+const _rarOrd={emo:-1,l:0,sr:1,r:2,n:3};
 function _collSorted(list){
   const a=[...list];
   if(collSort==="ovrDesc")a.sort((x,y)=>total(y)-total(x)||_rarOrd[x.rar]-_rarOrd[y.rar]);
@@ -253,7 +254,7 @@ function renderColl(){
   // レア度チップ(全/L/SR/R/N)
   const rb=document.getElementById("collFilter");rb.innerHTML="";
   const chip=(key,label,n)=>{const b=document.createElement("button");b.className="natchip"+(collRar===key?" on":"");
-    b.innerHTML=`${label}<span>${n}</span>`;b.onclick=()=>{collRar=key;renderColl();};rb.appendChild(b);};
+    b.innerHTML=`${label}<span>${n}</span>`;b.onclick=()=>{collRar=key;_collPage=1;renderColl();};rb.appendChild(b);};
   chip("all","全",S.coll.length);[["l","L"],["sr","SR"],["r","R"],["n","N"]].forEach(([k,t])=>chip(k,t,rarC[k]||0));
   // 国籍ドロップダウン + ソート + まとめ売却(国籍は増えても省スペース)
   const ctrl=document.getElementById("collCtrl");ctrl.innerHTML="";
@@ -262,8 +263,8 @@ function renderColl(){
     s.onchange=()=>on(s.value);return s;};
   const natOpts=[["all",`🌍 全ての国籍 (${S.coll.length})`]].concat(
     Object.keys(natC).sort((a,b)=>natC[b]-natC[a]).map(f=>[f,`${f} ${natName(f)} (${natC[f]})`]));
-  ctrl.appendChild(mkSel(natOpts,collNat,v=>{collNat=v;renderColl();}));
-  ctrl.appendChild(mkSel([["rar","↕ レア度順"],["ovrDesc","↕ OVR高い順"],["ovrAsc","↕ OVR低い順"],["nat","↕ 国籍順"]],collSort,v=>{collSort=v;renderColl();}));
+  ctrl.appendChild(mkSel(natOpts,collNat,v=>{collNat=v;_collPage=1;renderColl();}));
+  ctrl.appendChild(mkSel([["rar","↕ レア度順"],["ovrDesc","↕ OVR高い順"],["ovrAsc","↕ OVR低い順"],["nat","↕ 国籍順"]],collSort,v=>{collSort=v;_collPage=1;renderColl();}));
   const list=_collSorted(S.coll.filter(c=>(collRar==="all"||c.rar===collRar)&&(collNat==="all"||c.flag===collNat)));
   const sellable=list.filter(c=>!c.sig&&!inSquad(c)&&c.id!==S.favId); // 固有/編成中/お気に入りは除外
   const tot=sellable.reduce((s,c)=>s+(SELL_VALUE[c.rar]||20),0);
@@ -271,8 +272,16 @@ function renderColl(){
   sb.textContent=`💰 まとめ売却 ${sellable.length}枚 (🪙${tot})`;
   if(sellable.length)sb.onclick=()=>bulkSell(sellable);
   ctrl.appendChild(sb);
-  document.getElementById("collCount").textContent=`所持 ${S.coll.length}枚 / 表示 ${list.length}枚 (タップで詳細)`;
-  list.forEach(c=>{const el=cardEl(c);el.onclick=()=>openCardModal(c);g.appendChild(el);});
+  // ページネーション: 一度に COLL_PAGE 枚まで描画(無限アニメ+canvas大量同時稼働を防ぐ)
+  const shown=Math.min(list.length,_collPage*COLL_PAGE);
+  document.getElementById("collCount").textContent=`所持 ${S.coll.length}/${COLL_CAP}枚 ・ 表示 ${shown}/${list.length}枚 (タップで詳細)`;
+  for(let i=0;i<shown;i++){const c=list[i],el=cardEl(c);el.onclick=()=>openCardModal(c);g.appendChild(el);}
+  if(shown<list.length){
+    const more=document.createElement("button");more.className="collmore";
+    more.textContent=`▼ もっと見る (残り ${list.length-shown}枚)`;
+    more.onclick=()=>{_collPage++;renderColl();};
+    g.appendChild(more);
+  }
 }
 // まとめ売却: 表示中(フィルタ後)の売却可能カードを一括売却。内訳と合計を確認。
 function bulkSell(sellable){

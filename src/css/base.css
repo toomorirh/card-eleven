@@ -37,6 +37,12 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .card{width:116px;height:190px;border-radius:9px;position:relative;overflow:hidden;flex-shrink:0;
   background:linear-gradient(165deg,#23344c,#101c2e);border:2px solid #3a4f6c;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;padding:6px 4px;user-select:none}
+/* 大量カードを並べるグリッドでは、画面外カードの描画・無限アニメをブラウザに自動スキップさせて軽量化 */
+#collGrid .card,#pickGrid .card{content-visibility:auto;contain-intrinsic-size:116px 190px}
+#pfFavGrid .card{content-visibility:auto;contain-intrinsic-size:96px 166px}
+.collmore{font-family:'M PLUS 1p',sans-serif;font-weight:800;font-size:13px;padding:10px 16px;border-radius:10px;
+  background:#1b2c44;color:#cfe0f2;border:2px solid #3a4f6c;cursor:pointer;align-self:center;margin:6px auto;width:90%}
+.collmore:active{transform:scale(.98)}
 /* N: シンプルな鉄枠 */
 .card.n{border-color:#46586e;background:linear-gradient(165deg,#243549,#121e30)}
 .card.n .rar{color:#8fa3b8}
