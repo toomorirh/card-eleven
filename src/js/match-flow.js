@@ -633,11 +633,20 @@ document.querySelectorAll(".tactics [data-t]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tactics [data-t]").forEach(x=>x.classList.toggle("on",x===b));
   if(MC)feed(b.dataset.t==="atk"?"⚔️ カードを前に動かした!総攻撃!":b.dataset.t==="def"?"🛡️ ラインを下げて守備固め!":"⚖️ バランス重視に戻した");
 });
-document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.onclick=()=>{
-  S.style=b.dataset.st;
-  document.querySelectorAll("#styleRow [data-st]").forEach(x=>x.classList.toggle("on",x===b));
-  if(MC)feed(`📣 攻撃スタイル変更 → ${STYLE_LABEL[S.style]}`);
-});
+// 攻撃スタイルのボタンを STYLES から生成(追加=1エントリでボタンも増える)。
+function buildStyleRow(){
+  const row=document.getElementById("styleRow");if(!row)return;
+  row.innerHTML="";
+  Object.keys(STYLES).forEach((id,i)=>{
+    const b=document.createElement("button");b.dataset.st=id;b.textContent=STYLES[id].btn;
+    if(i===0)b.classList.add("on");
+    b.onclick=()=>{ S.style=id;
+      document.querySelectorAll("#styleRow [data-st]").forEach(x=>x.classList.toggle("on",x===b));
+      if(MC)feed(`📣 攻撃スタイル変更 → ${STYLES[id].label}`); };
+    row.appendChild(b);
+  });
+}
+buildStyleRow();
 
 // ================= 途中交代 =================
 document.getElementById("subBtn").onclick=()=>{

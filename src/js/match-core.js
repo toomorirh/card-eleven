@@ -171,7 +171,7 @@ function midPower(T,opT,min){
     m+=(eff(p,"tec",min,T,opT)*TUNING.mid.tec+eff(p,"spd",min,T,opT)*TUNING.mid.spd+eff(p,"sta",min,T,opT)*TUNING.mid.sta)*w;
   });
   const tf=T.tactic==="atk"?TUNING.midTactic.atk:T.tactic==="def"?TUNING.midTactic.def:1;
-  const sf=T.style==="short"?TUNING.midStyle.short:T.style==="long"?TUNING.midStyle.long:1;
+  const sf=(STYLES[T.style]||{}).mid||1;
   return m*tf*sf;
 }
 function pickW(list,wfn){
@@ -231,7 +231,7 @@ function chanAvg(T,filter,statfn){
 }
 // 通常起点のチャンネル選択(build/overlap/feed)。チャンネル基準重み×スタイルバイアス。
 function pickChannel(T,opp,min){
-  const sb=TUNING.origin.styleBias[T.style]||{};
+  const sb=(STYLES[T.style]||{}).channelBias||{};
   const cb=TUNING.origin.channelBase;
   const w={
     build:  chanAvg(T,p=>p.role==="MF", p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss)*cb.build*(sb.build||1),
