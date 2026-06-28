@@ -117,10 +117,16 @@ def _mgr_block():
     return 'window.MGR_SHEET="data:image/png;base64,%s";' % b64
 
 
-def _assemble_js():
+DEV_JS = ROOT / "src" / "js" / "_dev.js"  # ローカル検証専用(gitignore)。--dev の時だけ末尾に連結。
+
+
+def _assemble_js(dev=False):
     """JS本体を結合し、先頭の "use strict"; 直後に SIG_IMG / GEN_IMG / MGR_SHEET ブロックを差し込む
-    (strictモードを保ちつつ、data.js のプリロードより前に画像プールを定義する)。"""
+    (strictモードを保ちつつ、data.js のプリロードより前に画像プールを定義する)。
+    dev=True かつ src/js/_dev.js があれば、それを boot.js の後ろに連結(ローカル検証専用)。"""
     body = _join("js", JS_FILES)
+    if dev and DEV_JS.is_file():
+        body += "\n\n" + DEV_JS.read_text(encoding="utf-8").strip()
     inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block()
     first_nl = body.find("\n")
     if first_nl == -1:
@@ -139,9 +145,11 @@ def _replace_block(html, pattern, new_inner, label):
 
 def main():
     check_only = "--check" in sys.argv
+    dev = "--dev" in sys.argv  # ローカル検証ビルド: _dev.js を含め index.dev.html へ出力(index.html は不変)
+    out = (ROOT / "index.dev.html") if dev else HTML
     _check_signature_assets()
-    html = HTML.read_text(encoding="utf-8")
-    js_src = _assemble_js()
+    html = HTML.read_text(encoding="utf-8")  # テンプレートは常に index.html
+    js_src = _assemble_js(dev)
     css_src = _join("css", CSS_FILES)
 
     style_blocks = list(re.finditer(r"(<style>)(.*?)(</style>)", html, re.S))
@@ -167,7 +175,7 @@ def main():
     # script側は元のオフセットがstyle編集でズレるため、後ろ(script)から先に書き換える
     new_html = html[:script_m.start()] + script_m.group(1) + "\n" + js_src + "\n" + script_m.group(3) + html[script_m.end():]
     new_html = new_html[:style_m.start()] + style_m.group(1) + "\n" + css_src + "\n" + style_m.group(3) + new_html[style_m.end():]
-    HTML.write_text(new_html, encoding="utf-8")
+    out.write_text(new_html, encoding="utf-8")
 
     # 検証: 再読込して一致とID整合を確認
     after_css = re.findall(r"<style>(.*?)</style>", new_html, re.S)[0].strip()
@@ -180,7 +188,7 @@ def main():
     print("MISSING ids:", missing or "なし")
     if after_css != css_src or after_js != js_src or missing:
         sys.exit("ERROR: ビルド検証に失敗しました")
-    print("ビルド完了 -> index.html")
+    print("ビルド完了 ->", out.name + (" (ローカル検証専用・Git管理外)" if dev else ""))
 
 
 if __name__ == "__main__":
