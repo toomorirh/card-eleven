@@ -171,7 +171,7 @@ async function runChain(channel,A,D,min,origin){
   const tf={ a:(A.tactic==="atk"?TUNING.tactic.atk:A.tactic==="def"?TUNING.tactic.def:1)*counter,
              d:(D.tactic==="def"?TUNING.tactic.atk:D.tactic==="atk"?TUNING.tactic.def:1), bonus:1 };
   const who=whoPrefix(A);
-  const L=TUNING.link, maxL=L.maxLink[channel]??3, dir=dirOf(A), gx=goalXOf(A);
+  const L=TUNING.link, maxL=chanMaxLink(channel), dir=dirOf(A), gx=goalXOf(A);
   let carrier=origin, assist=null, steps=0, prog=depthFrac(A,origin);
   while(true){
     // キャリア保持時の特殊フック(采配/名コンビ/…)を順に評価。発動でチェーン終了。

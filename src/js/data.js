@@ -135,14 +135,12 @@ const TUNING={
     pressAtk:1.15,             // 守備側Dがatk戦術ならプレス強化(奪いに来る)
     riskAtk:1.25,              // 攻撃側Tがatk戦術なら被奪取増(buildSecを割って分母を下げる)
     counterBonus:1.12,         // winチャンネルの攻撃補正(守備が崩れている)
-    // チャンネル基準重み(build/overlap/feedの混合比を直接調整。平均ステに掛ける)。winは奪取から別途。
-    channelBase:{build:3.2,overlap:1.3,feed:1.1},
-    buildup:{build:0.34,overlap:0.36,feed:0.31,win:0.60}, // 攻撃成立率(win=奪取済みで高い)
+    // チャンネル別の base/buildup/maxLink/weight/pickOrigin は CHANNELS レジストリ(match-core)に集約。
     // スタイル別のチャンネル重みバイアスは STYLES[id].channelBias に集約。
   },
   // 連鎖チェーン(起点→リンク×N→シュート)。リンク選択はパラメータ重み(個性)、可能性はジオメトリで判定。
   link:{
-    maxLink:{build:4,overlap:3,feed:2,win:2},      // チャンネル別の最大つなぎ数
+    // チャンネル別の最大つなぎ数(maxLink)は CHANNELS レジストリ(match-core)に集約。
     directShootBase:0.03, depthShoot:0.30, stepShoot:0.10, // 素のシュート移行率(深さ・つなぎ数で増加)
     progStep:0.20,                                  // 連結成功ごとの前進度(prog)の増加
     base:{combination:1.4,through:0.9,cross:1.0,dribble:1.0,cutin:1.0}, // リンク種別の基準重み(combは連結=連鎖を伸ばす)
