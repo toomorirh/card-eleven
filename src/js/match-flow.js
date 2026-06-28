@@ -412,6 +412,11 @@ async function tickAsync(){
   const dir=dirOf(T);
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
   origin.stat.inv++;
+  // 消耗が一定を超えた選手に「疲れが見える」を一度だけ告知(交代の判断材料/演出)
+  if(!origin._gassed && (1-fatigue(origin,M.min))>=TUNING.fatigue.gassedFeed){
+    origin._gassed=true;
+    feed(`${whoPrefix(T)}💨 ${origin.c.name}に疲れが見える…動きが重くなってきた`);
+  }
   await ballTo(curP(origin).x+dir*2,curP(origin).y,0.4); // 起点へボールが収まる
   updateField();
   const tShare=mh/(mh+ma), edge=(T===M.home)?tShare:1-tShare;
@@ -661,13 +666,13 @@ document.getElementById("subBtn").onclick=()=>{
   renderSubList();
   document.getElementById("subModal").classList.add("on");
 };
-function fatClass(v){return v<20?"ok":v<40?"mid":"bad";}
+function fatClass(v){return v<30?"ok":v<55?"mid":"bad";}
 function renderSubList(){
   const l=document.getElementById("subList");l.innerHTML="";l.style.display="block";
   document.getElementById("subBench").style.display="none";
   document.getElementById("subTitle").textContent="OUTする選手を選択(試合は一時停止中)";
   MC.home.players.forEach((p,pi)=>{
-    const tired=Math.round((1-fatigue(p.c,MC.min-p.enter))*100);
+    const tired=Math.round((1-fatigue(p,MC.min))*100);
     const d=document.createElement("div");d.className="subrow";
     d.innerHTML=`<span class="pos ${p.role}">${p.subRole||p.role}</span><span class="sp"></span><b>${p.c.name}</b>
       <span style="font-size:10px;color:#8fa3b8">${typeOf(p.c).n}<br>攻${p.c.off} 守${p.c.def} 持${p.c.sta}</span>

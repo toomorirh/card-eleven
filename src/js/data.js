@@ -119,7 +119,10 @@ const STYLE_LABEL=Object.fromEntries(Object.keys(STYLES).map(k=>[k,STYLES[k].lab
 // (相性係数 COUNTER_BONUS/PENALTY・キーポジ KEY_MUL・ケミストリーは個別定数のまま)
 const TUNING={
   rng:{min:0.6,span:0.8},                          // rr()=min+random*span (各スコアに乗る揺らぎ)
-  fatigueMax:0.35,                                 // 90分・sta1での最大消耗率
+  // 疲労: アクション数(関与=inv)主体で消耗。活躍した選手ほど大きく低下し終盤にアクションが失敗しやすくなる。
+  // max=最大消耗率 / perAction=関与1回あたり / perMin=時間あたり(わずか) / staReduce=staで消耗を緩める度合い /
+  // gassedFeed=この消耗率で「疲れが見える」を告知。
+  fatigue:{max:0.76, perAction:0.13, perMin:0.0012, staReduce:0.55, gassedFeed:0.55},
   tactic:{atk:1.15,def:0.85},                      // 攻撃シーケンスの戦術補正(攻撃的/守備的)
   midTactic:{atk:1.05,def:0.92},                   // 支配率の戦術補正(スタイル補正は STYLES[id].mid)
   mid:{tec:0.45,spd:0.3,sta:0.25,mf:1,other:0.32}, // 支配率の能力重み/ポジション重み

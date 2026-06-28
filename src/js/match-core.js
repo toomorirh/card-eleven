@@ -6,9 +6,15 @@ const TH=TUNING.th;
 let MC=null; // 進行中の試合コンテキスト(描画/進行から参照・更新)
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-function fatigue(c,played){
+// 疲労(0..1の能力係数。1=元気)。アクション数(関与=p.stat.inv)主体+時間わずか。活躍した選手ほど
+// 大きく低下し、終盤にアクションが失敗しやすくなる。staが高いほど消耗が緩やか。iron=消耗なし。
+function fatigue(p,min){
+  const c=p.c, F=TUNING.fatigue;
   if(c.skill&&c.skill.fx.iron)return 1;
-  return 1-(Math.min(Math.max(played,0),90)/90)*TUNING.fatigueMax*(1-(c.sta-1)/19);
+  const inv=(p.stat&&p.stat.inv)||0;
+  const played=Math.min(Math.max(min-(p.enter||0),0),90);
+  const staMul=1-(c.sta-1)/19*F.staReduce;                 // sta1→1.0 / sta20→1-staReduce
+  return 1-Math.min(F.max, (inv*F.perAction+played*F.perMin)*staMul);
 }
 function recalcAuras(t){
   t.teamChance=1;t.teamDef=1;
@@ -156,7 +162,7 @@ function mgrMul(p,k,T){
 }
 function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
-  return p.c[k]*p.pen*fatigue(p.c,min-p.enter)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T);
+  return p.c[k]*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T);
 }
 // 名将の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 function mgrTacOf(team){return (team&&team.side==="H"&&team.mgr&&team.mgr.tac)?team.mgr.tac:null;}
@@ -262,7 +268,7 @@ function buildupSuccess(channel,edge){
 }
 
 // ===== 連鎖チェーンのマッチアップ&リンク(純粋ロジック) =====
-const stamOf=(p,min)=>fatigue(p.c,min-(p.enter||0)); // 現在のスタミナ係数(疲れると低下)
+const stamOf=(p,min)=>fatigue(p,min); // 現在のスタミナ係数(疲れると低下)
 const laneOf=p=>p.x;                                   // 静的レーン(左右0-100)。マッチアップの主基準
 // ポジションマッチアップ: 受け手のレーンに対応する守備者(左右ミラー=100-lane)。静的レーン主体。
 function matchupDefender(recv,D){
