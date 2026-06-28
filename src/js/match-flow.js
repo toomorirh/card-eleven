@@ -447,6 +447,7 @@ function _beginMatch(away,name,form,lv,idx){
   const home=myTeam();
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
+  MC.mode=S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
@@ -519,10 +520,10 @@ function hideStatOverlay(){
   _statTeams=null;
 }
 document.querySelectorAll("#statOverlay .statTabs button").forEach(b=>b.onclick=()=>renderStatTab(b.dataset.team));
-async function endMatch(){
-  const M=MC,lv=M.lv,sh=M.home.score,sa=M.away.score;
-  await gameSetCutin(sh,sa); // 試合終了カットイン
-  if(S._leagueMatch){
+// 試合モード別の終了処理レジストリ。MC.mode で分岐(新モード追加=1エントリ)。各 onEnd は
+// 結果表示(#matchEnd)・スタッツ・戻るボタン・報酬・保存・MC=null まで自己完結(振る舞いは従来の分岐を逐語移設)。
+const MATCH_MODES={
+  league:{ async onEnd(M,sh,sa){
     S._leagueMatch=false;
     const e=document.getElementById("matchEnd");
     const r=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
@@ -533,9 +534,9 @@ async function endMatch(){
     b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();
       document.querySelector('#modeRow [data-m="league"]').click();};
     e.appendChild(b);
-    await save();MC=null;return;
-  }
-  if(S._friendMatch){
+    await save();MC=null;
+  }},
+  friend:{ async onEnd(M,sh,sa){
     const fm=S._friendMatch;S._friendMatch=null;
     const coach=fm.coach, tn=fm.teamName||coach;
     const rec=S.friendRec||(S.friendRec={}); const e2=rec[coach]||(rec[coach]={w:0,d:0,l:0});
@@ -547,9 +548,9 @@ async function endMatch(){
     const b=document.createElement("button");b.className="btn";b.textContent="監督室へ戻る";
     b.onclick=()=>{MC=null;gotoOffice("match");};
     e.appendChild(b);
-    await save();MC=null;return;
-  }
-  if(S._worldMatch){
+    await save();MC=null;
+  }},
+  world:{ async onEnd(M,sh,sa){
     S._worldMatch=false;
     const tour=S.tour||(S.tour={i:0,res:[]});
     const nation=WORLD_NATIONS[tour.i];
@@ -578,35 +579,43 @@ async function endMatch(){
     b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="world"]').click();};
     e.appendChild(b);
     checkAchievements();
-    await save();MC=null;return;
-  }
-  let msg,reward;
-  if(sh>sa){msg="🏆 勝利!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
-  else if(sh===sa){msg="🤝 引き分け";reward=TUNING.reward.draw;}
-  else{msg="😢 敗北…";reward=TUNING.reward.lose;}
-  S.coins+=reward;coinUI();
-  feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
-  const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
-  let dropMsg="";
-  if(Math.random()<dropP){
-    S.legendPacks=(S.legendPacks||0)+1;
-    dropMsg=`<div class="banner" style="font-size:15px;color:#7dff9e">🎁 レジェンドパックを手に入れた!!</div>`;
-    feed("🎁 レジェンドパックを手に入れた!!ガチャ画面で開封できる","goal");
-  }
-  const e=document.getElementById("matchEnd");
-  e.innerHTML=`<div class="banner">${msg}</div>`+dropMsg;
-  showStatOverlay(M.home,M.away);
-  const idx=M.idx;
-  const row=document.createElement("div");row.className="row";
-  const rt=document.createElement("button");rt.className="btn";rt.textContent="🔄 リトライ";
-  rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
-  const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="戻る";
-  bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
-  row.appendChild(rt);row.appendChild(bk);
-  e.appendChild(row);
-  MC=null;
-  checkAchievements(); // ステージ攻略の達成で実績報酬を付与
-  await save();
+    await save();MC=null;
+  }},
+  stage:{ async onEnd(M,sh,sa){
+    const lv=M.lv;
+    let msg,reward;
+    if(sh>sa){msg="🏆 勝利!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
+    else if(sh===sa){msg="🤝 引き分け";reward=TUNING.reward.draw;}
+    else{msg="😢 敗北…";reward=TUNING.reward.lose;}
+    S.coins+=reward;coinUI();
+    feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
+    const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
+    let dropMsg="";
+    if(Math.random()<dropP){
+      S.legendPacks=(S.legendPacks||0)+1;
+      dropMsg=`<div class="banner" style="font-size:15px;color:#7dff9e">🎁 レジェンドパックを手に入れた!!</div>`;
+      feed("🎁 レジェンドパックを手に入れた!!ガチャ画面で開封できる","goal");
+    }
+    const e=document.getElementById("matchEnd");
+    e.innerHTML=`<div class="banner">${msg}</div>`+dropMsg;
+    showStatOverlay(M.home,M.away);
+    const idx=M.idx;
+    const row=document.createElement("div");row.className="row";
+    const rt=document.createElement("button");rt.className="btn";rt.textContent="🔄 リトライ";
+    rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
+    const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="戻る";
+    bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
+    row.appendChild(rt);row.appendChild(bk);
+    e.appendChild(row);
+    MC=null;
+    checkAchievements(); // ステージ攻略の達成で実績報酬を付与
+    await save();
+  }},
+};
+async function endMatch(){
+  const M=MC,sh=M.home.score,sa=M.away.score;
+  await gameSetCutin(sh,sa); // 試合終了カットイン(共通)
+  await (MATCH_MODES[M.mode]||MATCH_MODES.stage).onEnd(M,sh,sa);
 }
 document.querySelectorAll(".tactics [data-t]").forEach(b=>b.onclick=()=>{
   S.tactic=b.dataset.t;
