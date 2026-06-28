@@ -161,6 +161,9 @@ function situ(p,T,opT,min){
   let m=1;
   if(f.clutch&&min>=70)m*=f.clutch;
   if(f.losing&&T.score<opT.score)m*=f.losing;
+  // エモーション(heat): 試合が"熱い"局面でのみ爆発(平時は等倍)。volt>gate で立ち上がり、volt=1で heat 倍。
+  // 終盤(clutch)/ビハインド(losing)と相乗し、大舞台ほど手がつけられなくなる。
+  if(f.heat&&MC){const g=0.35; if(MC.volt>g)m*=1+(f.heat-1)*((MC.volt-g)/(1-g));}
   return m;
 }
 // 有効値: 全マッチアップ・シュート・GK守備の単一集約点(pen×疲労×状況×ケミ×キーポジ)
@@ -326,9 +329,10 @@ function resolveLink(type,atk,df,A,D,min,tfA,tfD,bonus){
 }
 
 // セットプレー: フィニッシュ系リンクでの守備側ファウル判定 → "pk"(エリア内) / "fk" / null。
-function rollFoul(df,linkType){
+function rollFoul(df,linkType,atk){
   const sp=TUNING.setpiece;
-  if(Math.random()>=sp.foulBase*(typeOf(df.c).defSel?1.15:1))return null; // 守備的な型ほど僅かにファウル増
+  const draw=(atk&&fx(atk).drawFoul)||1;   // 仕掛けの名手はファウルを誘発(エモーショナル等)=看板FK/PKの登場を増やす
+  if(Math.random()>=sp.foulBase*(typeOf(df.c).defSel?1.15:1)*draw)return null; // 守備的な型ほど僅かにファウル増
   return Math.random()<(sp.boxChance[linkType]||0.25)?"pk":"fk";
 }
 // セットプレーのキッカー: FK専門家(fx.freekick=エモーショナル等)が居れば最優先、無ければ最良シューター(攻×技)。

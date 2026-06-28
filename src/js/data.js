@@ -561,8 +561,8 @@ const EMOTIONALS=[
    moment:"OLD TRAFFORD 2004", momentSub:"無回転フリーキック",
    stats:{off:18,def:14,pow:13,tec:19,spd:20,sta:16}, // 合計100 / spd20(若き日の爆発的スピード)
    skill:{name:"7番の継承者",
-     desc:"7番を継いだ若き天才。FKは無回転で蹴り込み、終盤・ビハインドで感情が爆発する",
-     fx:{freekick:2.4, duelTec:1.35, duelSpd:1.35, clutch:1.3, losing:1.25}}},
+     desc:"7番を継いだ若き天才。仕掛けてファウルを誘い無回転FKを叩き込む。試合が熱いほど・終盤・ビハインドで感情が爆発する",
+     fx:{freekick:2.4, duelTec:1.35, duelSpd:1.35, drawFoul:3, heat:1.6, clutch:1.4, losing:1.35}}},
 ];
 function emotionalById(id){return EMOTIONALS.find(s=>s.id===id);}
 function makeEmotional(id){

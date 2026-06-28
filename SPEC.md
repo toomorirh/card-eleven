@@ -209,7 +209,7 @@
 選手の**キャリアの“象徴的な瞬間(モーメント)”**を封じ込めた最上位カード。LEGEND/シグネチャーの上位。
 - データ駆動の `EMOTIONALS` 配列(`data.js`)。エントリは `{id,name,flag,pos,sub,type,moment,momentSub,stats{6},skill}`。**不変条件はシグネチャーと同じ(合計100・いずれか20・subGroup一致)**=生ステは盛らず、特別さは**状況発動の効果と演出**で出す(パワークリープ回避)。
 - `makeEmotional(id)` でカード化。`rar:"emo"` + `emo:true` + `sig`(画像共有) + `moment`。図鑑/券面では **EMOTIONAL** 表示・虹色イリディセント枠。**スキル枠でスキル名⇄モーメント(`moment`)をクロスフェード表示**(`.sk.emoalt`。専用帯は視認性が悪く廃止)。
-- **特別能力(fx)**: `freekick`(FKキッカーに固定され直接FKを大幅強化=`pickShooter`が最優先選出。`SETPIECES.fk`が無回転FK専用シーケンスへ分岐し`spShot`をブレ球軌道+SUPER GOALで実行) / `clutch`・`losing`(終盤・ビハインドで爆発、`situ()`で自動適用)。
+- **特別能力(fx)**: `freekick`(FKキッカーに固定され直接FKを大幅強化=`pickShooter`が最優先選出。`SETPIECES.fk`が無回転FK専用シーケンスへ分岐し`spShot`をブレ球軌道+SUPER GOALで実行) / `drawFoul`(仕掛けた時に相手がファウルしやすく=`rollFoul`が攻撃側fxを乗算。看板FK/PKの登場を増やす) / `heat`(試合のボルテージが高い"熱い"局面でのみ爆発=`situ()`が `volt>0.35` で立ち上げ`volt=1`で`heat`倍) / `clutch`・`losing`(終盤・ビハインドで爆発、`situ()`で自動適用。heatと相乗し大舞台ほど手がつけられない)。生ステ据置のまま"状況爆発"で活躍する設計。
 - **演出**: 試合中は専用 `emoMoment` カットイン(大判ヒーロー画像+虹色オーラ+題字、1試合1回 `_emoCut`)。ガチャは `revresult.emo` バナー。
 - **画像**: `src/assets/emotionals/<id>.png`。`build.py` が signatures と同じ `window.SIG_IMG` に合流埋め込み(`_registered_sig_ids`/`_sig_block` が両ディレクトリを走査)。
 - **入手**: シグネチャーパックから**シークレット1%**(未所持優先)。descには明記せず“出た時の衝撃”で見せる。
@@ -279,7 +279,7 @@
   - `fatigue = 1 − min(max, (inv×perAction + dload×perDef + 経過分×perMin)×staMul)`(`TUNING.fatigue`)。
     アクション主体: `inv`=関与回数(攻撃で起点/連携/シュートに絡む)、`dload`=守備負荷(被攻撃/被シュートをDFラインで分担→A案)。`staMul=1−(sta−1)/19×staReduce`(staが高いほど消耗が緩い)。iron持ちは常に1。活躍した選手ほど終盤に大きく低下しアクションが失敗しやすくなる。`gassedFeed` 超過で「疲れが見える」を一度告知。
   - **守備ラインの綻び**(B案) `lineDefMul(D)`: DFライン平均消耗が `lineFree`(不感帯)を超えた分だけ守備スコア(`resolveLink/Duel/Shot` の dSc/gSc)を `linePenalty` で減じる。疲れたDFラインは終盤に綻び失点しやすくなる(交代・守備的/持久型監督・スーパーサブの戦略価値)。rng非消費=判定順は不変。
-  - `situ`: clutch(70分〜)、losing(ビハインド時)を乗算
+  - `situ`: clutch(70分〜)、losing(ビハインド時)、heat(ボルテージ`volt>0.35`の熱い局面)を乗算(エモーショナルの"爆発"。相乗可)
 - **ランダム** `rr() = 0.6 + random×0.8`(範囲0.6〜1.4)。各スコアに乗る。
 - **支配率** `midPower`: 中盤の `tec×0.45 + spd×0.3 + sta×0.25` を選手ごとに加重(MF=1, 他=0.32)× `mid` × `poss`。tactic(atk1.05/def0.92)・style(short1.06/long0.94)補正。
   - 攻撃権は `mh/(mh+ma)` の確率でホーム。

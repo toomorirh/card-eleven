@@ -24,7 +24,7 @@ async function egoRun(ctx,type){
   const ex=gx-dir*15;
   movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
   await ballTo(ex-dir*3,ey,0.4);hot(carrier);hot(df);
-  const foul=rollFoul(df,type); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
+  const foul=rollFoul(df,type,carrier); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
   const won=resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
   await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)",won);
   if(won){
@@ -70,7 +70,7 @@ const LINKS={
     const lx=gx-dir*18, ly=20+ri(0,60);
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
     await ballTo(lx,ly,0.5);hot(r);hot(df);
-    const foul=rollFoul(df,"through"); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
+    const foul=rollFoul(df,"through",r); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
     const won=resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
     await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)",won);
     if(won){
