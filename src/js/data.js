@@ -558,9 +558,9 @@ function makeSignature(id){
 // moment … カットイン/券面に出す“瞬間”の題字。subGroup(sub)===pos / 合計100 を維持。
 const EMOTIONALS=[
   {id:"cr7_utd", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler",
-   moment:"OLD TRAFFORD 2004 — 7番のデビュー", momentSub:"無回転フリーキック",
+   moment:"OLD TRAFFORD 2004", momentSub:"無回転フリーキック",
    stats:{off:18,def:14,pow:13,tec:19,spd:20,sta:16}, // 合計100 / spd20(若き日の爆発的スピード)
-   skill:{name:"マンチェスターの7番",
+   skill:{name:"7番の継承者",
      desc:"7番を継いだ若き天才。FKは無回転で蹴り込み、終盤・ビハインドで感情が爆発する",
      fx:{freekick:2.4, duelTec:1.35, duelSpd:1.35, clutch:1.3, losing:1.25}}},
 ];

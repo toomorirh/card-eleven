@@ -208,13 +208,13 @@
 #### 3.6.1 エモーショナル(最上位レア・シークレット)
 選手の**キャリアの“象徴的な瞬間(モーメント)”**を封じ込めた最上位カード。LEGEND/シグネチャーの上位。
 - データ駆動の `EMOTIONALS` 配列(`data.js`)。エントリは `{id,name,flag,pos,sub,type,moment,momentSub,stats{6},skill}`。**不変条件はシグネチャーと同じ(合計100・いずれか20・subGroup一致)**=生ステは盛らず、特別さは**状況発動の効果と演出**で出す(パワークリープ回避)。
-- `makeEmotional(id)` でカード化。`rar:"emo"` + `emo:true` + `sig`(画像共有) + `moment`。図鑑/券面では **EMOTIONAL** 表示・虹色イリディセント枠・券面下にモーメント題字(`.emocap`)。
+- `makeEmotional(id)` でカード化。`rar:"emo"` + `emo:true` + `sig`(画像共有) + `moment`。図鑑/券面では **EMOTIONAL** 表示・虹色イリディセント枠。**スキル枠でスキル名⇄モーメント(`moment`)をクロスフェード表示**(`.sk.emoalt`。専用帯は視認性が悪く廃止)。
 - **特別能力(fx)**: `freekick`(FKキッカーに固定され直接FKを大幅強化=`pickShooter`が最優先選出。`SETPIECES.fk`が無回転FK専用シーケンスへ分岐し`spShot`をブレ球軌道+SUPER GOALで実行) / `clutch`・`losing`(終盤・ビハインドで爆発、`situ()`で自動適用)。
 - **演出**: 試合中は専用 `emoMoment` カットイン(大判ヒーロー画像+虹色オーラ+題字、1試合1回 `_emoCut`)。ガチャは `revresult.emo` バナー。
 - **画像**: `src/assets/emotionals/<id>.png`。`build.py` が signatures と同じ `window.SIG_IMG` に合流埋め込み(`_registered_sig_ids`/`_sig_block` が両ディレクトリを走査)。
 - **入手**: シグネチャーパックから**シークレット1%**(未所持優先)。descには明記せず“出た時の衝撃”で見せる。
 - 注意: QR共有(§カード61bit)は未対応で、エクスポート時は通常カードへ劣化(クラッシュはしない)。
-- 現在: クリスティアーノ・ロナウド「マンチェスターの7番」(マンU移籍直後のRWG・無回転FKの瞬間)。
+- 現在: クリスティアーノ・ロナウド「7番の継承者」(マンU移籍直後のRWG・無回転FKの瞬間。moment="OLD TRAFFORD 2004")。
 
 ### 3.7 重複カードの活用(売却 / 限界突破)
 図鑑でカードをタップすると詳細モーダル(`#cardModal`)が開き、重複の使い道を選べる(`ui-roster.js`)。

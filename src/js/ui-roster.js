@@ -26,14 +26,18 @@ function radarSVG(c){
 function cardEl(c,mini){
   const d=document.createElement("div");
   d.className="card "+c.rar+(mini?" mini":"");
-  const sk=c.skill?`<div class="sk">✦${c.skill.name}</div>`:`<div class="sk" style="opacity:.35">スキルなし</div>`;
+  // エモーショナルはスキル枠で「スキル名 ⇄ モーメント」をクロスフェード表示(専用帯は使わない=視認性改善)
+  const sk=c.skill
+    ?(c.emo&&c.moment
+      ?`<div class="sk emoalt"><span class="ea a">✦${c.skill.name}</span><span class="ea b">${c.moment}</span></div>`
+      :`<div class="sk">✦${c.skill.name}</div>`)
+    :`<div class="sk" style="opacity:.35">スキルなし</div>`;
   const ovr=c.off+c.def+c.pow+c.tec+c.spd+c.sta;
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
   <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
-  if(c.emo&&c.moment){const cap=document.createElement("div");cap.className="emocap";cap.textContent=c.moment;d.appendChild(cap);}
   if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";
     s1.style.cssText="top:22%;left:9%";

@@ -103,9 +103,14 @@ h1{text-shadow:3px 3px 0 #06301c}
 .card.emo::after{content:"";position:absolute;inset:-60%;pointer-events:none;
   background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.7) 43%,rgba(120,255,210,.5) 49%,rgba(255,160,220,.5) 55%,transparent 70%);
   animation:holo 1.7s linear infinite}
-.card.emo .emocap{position:absolute;left:0;right:0;bottom:0;z-index:4;font-family:'DotGothic16';font-size:7px;
-  letter-spacing:.3px;color:#fff;background:linear-gradient(90deg,rgba(90,31,138,.92),rgba(168,62,158,.92));
-  padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;text-shadow:0 1px 2px #000}
+/* スキル枠で「スキル名 ⇄ モーメント」をクロスフェード(専用帯を廃止して視認性UP) */
+.card.emo .sk.emoalt{position:relative;width:94%;height:11px;line-height:11px;padding:0;text-align:center;overflow:hidden}
+.card.emo .sk.emoalt .ea{position:absolute;left:4px;right:4px;top:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:.2px;animation:emoAltA 5s ease-in-out infinite}
+.card.emo .sk.emoalt .ea.b{animation-name:emoAltB;font-size:7.5px}
+@keyframes emoAltA{0%,44%{opacity:1}50%,94%{opacity:0}100%{opacity:1}}
+@keyframes emoAltB{0%,44%{opacity:0}50%,94%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.card.emo .sk.emoalt .ea{animation:none}.card.emo .sk.emoalt .ea.b{opacity:0}}
 .slot .scard.emo{border-color:#fff;animation:emoframe .6s steps(8) infinite}
 .slot .slotring.emo{background:rgba(220,180,255,.95);box-shadow:0 0 12px rgba(180,120,255,.95)}
 .pack.legend{background:linear-gradient(160deg,#4a3406,#1c1202);border:3px solid #ffd25e;
