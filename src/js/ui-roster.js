@@ -304,9 +304,11 @@ function openCardModal(c){
   const info=document.getElementById("cardModalInfo");
   if(c.sig){
     const dups=lbDups(c).length;
-    info.innerHTML=`固有選手は<b>重複を消費して限界突破</b>できます(20未満の能力を+1〜3・上限20)。重複: ${dups}枚`;
+    const cur=c.lb&&Object.keys(c.lb)[0];
+    const curTxt=cur?` 現在: ${STAT_LABEL[cur]} +${c.lb[cur]}`:"";
+    info.innerHTML=`固有選手は<b>重複を消費して限界突破(振り直し)</b>。いずれか1能力を<b>+1〜3</b>に再抽選します(OVRは上がり続けず、配分で個性化)。重複: ${dups}枚${curTxt}`;
     const b=document.createElement("button");b.className="btn"+(dups>0?"":" ghost");
-    b.textContent=dups>0?`⭐ 限界突破 (重複${dups}枚)`:"限界突破(重複なし)";
+    b.textContent=dups>0?`⭐ 限界突破・振り直し (重複${dups}枚)`:"限界突破(重複なし)";
     if(dups>0)b.onclick=()=>limitBreak(c);
     acts.appendChild(b);
   }else{
@@ -322,13 +324,17 @@ function openCardModal(c){
 function limitBreak(c){
   const dup=lbDups(c)[0];
   if(!dup){toast("使える重複がありません");return;}
+  // 振り直し方式: 既存の限界突破ボーナスを一旦戻してから、いずれか1能力に新たな+1〜3を再抽選。
+  // (加算累積でOVRが120へ収束し全選手が没個性化する問題への対策。OVRは「素+1〜3」に留まり配分で差別化)
+  if(c.lb){for(const s in c.lb){c[s]-=c.lb[s];}}  // 旧ボーナスを素に戻す(1回目はlb空=戻し無し)
+  c.lb={};
   const keys=["off","def","pow","tec","spd","sta"].filter(k=>c[k]<20);
   if(!keys.length){toast("全能力が最大です!");return;}
   const k=rnd(keys), inc=Math.min(20-c[k],ri(1,3));
-  c[k]+=inc; c.lb=c.lb||{}; c.lb[k]=(c.lb[k]||0)+inc;
-  S.coll.splice(S.coll.indexOf(dup),1);   // 重複を1枚消費
+  c[k]+=inc; c.lb={[k]:inc};
+  S.coll.splice(S.coll.indexOf(dup),1);   // 重複を1枚消費(振り直しのたびに消費)
   save();renderColl();openCardModal(c);
-  toast(`⭐ 限界突破! ${STAT_LABEL[k]} +${inc} (${c[k]})`);
+  toast(`⭐ 限界突破(振り直し)! ${STAT_LABEL[k]} +${inc} (${c[k]})`);
 }
 function sellCard(c,v){
   if(inSquad(c)){toast("編成中の選手は売却できません");return;}
