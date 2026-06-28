@@ -60,9 +60,16 @@
 - **tickの流れ**: `tickAsync` → `midPower` で主導権 → 奪取判定/チャンネル・起点選択 → `buildupSuccess` → `runChain`(リンク連鎖) → 各リンクが演出しつつ `resolveLink`/`resolveShot` で判定 → ゴール/セーブ。
 - **演出(match-flow/render)**: 得点は `goalCelebrate` に集約(種別=ヘディング/個人技/PK/直接FK/スーパー、スコアpop・歓声`crowdPulse`・同点/勝ち越し/ハットトリックの実況)。スーパーゴールは遠距離×高off/powで判定し`wordCutin`の`big`で増強。セットプレーは専用カットイン(PK=`pkCutin` 一騎打ち / FK・CK=`spCutin` 蹴る選手表示)。試合開始`kickoffCutin`(両チーム主将)・終了`gameSetCutin`。試合の流れは連続攻撃の「猛攻」(`MC._streak`)・85分以降の時計赤(`#clock.late`)・終了間際コール。スキル発動は系統色パルス(`skillPulse`: 攻/守/支配)。カットインは中央マークを画面中央に固定、語句型は縦中央スタックで選手を中段表示。
 - **ボルテージ(熱気)** `MC.volt`(0..1): 試合の熱気。攻撃成立/シュート/得点/猛攻で上がり、停滞で冷め、時間で下限上昇(`TUNING.volt`)。**スキル発動「演出」の表示確率(`skillShow`=gateBase+volt)をゲート**し、序盤(volt低)のキックオフ直後に唐突な発動演出が出ないようにする。**勝敗計算の係数(eff/resolve)は常時適用で不変**=演出のみの制御。0.7初到達で「ヒートアップ」告知。
+- **拡張ポイント(レジストリ・追加=1エントリ)**:
+  - 攻撃リンク → `LINKS`(+`linkWeight`/必要なら`linkAvailable`)。
+  - 攻撃チャンネル → `CHANNELS`(`match-core`・`{base,buildup,maxLink,weight,pickOrigin}`。win=奪取専用でweight無し)。`pickChannel`/`pickOriginPlayer`/`buildupSuccess`/`chanMaxLink` が自動対応。
+  - 攻撃スタイル → `STYLES`(`{btn,label,channelBias,mid}`。編成ボタンは`buildStyleRow`が自動生成。※相手選好`oppPickStyle`は別途スタイル別スコア)。
+  - セットプレー → `SETPIECES`(`{pk,fk,ck}.run`。`setPiece`/`setCorner`は再帰防止ガード+ディスパッチ)。
+  - キャリア保持時の特殊演出/連携 → `CARRY_HOOKS`(`[{detect,run}]`・采配/名コンビが登録済)。
+  - 試合モード → `MATCH_MODES`(`{onEnd}`。`MC.mode`で分岐)。
 - **変更の指針**:
-  - 新しいリンク種別追加 → `LINKS` に1エントリ(+`linkWeight` に重み式、必要なら `linkAvailable`)。
-  - バランス調整 → `data.js` の `TUNING`(`origin`/`link`/`th` 等)。
+  - バランス調整 → `data.js` の `TUNING`(`origin`/`link`/`th`/`match`/`volt` 等)・各レジストリの数値フィールド。
+  - 試合の時間/閾値 → `TUNING.match`(tick/終盤/相手調整/猛攻/つなぎfeed)。
   - 見た目/演出変更 → `match-render.js`。
 - **リグレッション確認**: 構造変更は「シード固定で前後の試合スコアが一致するか」で振る舞い不変を検証できる(`seedRandom` で Math.random を固定して同一条件の試合を回す)。
 
