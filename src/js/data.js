@@ -562,6 +562,18 @@ const SIGNATURES=[
   {id:"nedved", name:"パベル・ネドベド", flag:"🇨🇿", pos:"MF", sub:"LMF", type:"b2b",
    stats:{off:16,def:12,pow:20,tec:15,spd:18,sta:19},
    skill:{name:"チェコの稲妻", desc:"無尽蔵のスタミナと烈火のミドル。シュートとスピード勝負を大幅強化", fx:{shoot:1.35,duelSpd:1.25}}},
+  {id:"arnold", name:"アレクサンダー＝アーノルド", flag:"🇬🇧", pos:"DF", sub:"RSB", type:"cover",
+   stats:{off:16,def:15,pow:16,tec:20,spd:17,sta:16},
+   skill:{name:"ピンポイントの右足", desc:"精密なロングパスとクロスで右から創出する司令塔型SB。チャンス創出とテクニックを強化", fx:{teamChance:1.4,duelTec:1.15}}},
+  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"anchor",
+   stats:{off:14,def:18,pow:16,tec:20,spd:15,sta:17},
+   skill:{name:"見えざる司令塔", desc:"球際を消し テンポを操る中盤の底。支配率を大幅強化しチーム守備を底上げ", fx:{mid:1.45,teamDef:1.1}}},
+  {id:"yamal", name:"ラミン・ヤマル", flag:"🇪🇸", pos:"FW", sub:"RWG", type:"dribbler",
+   stats:{off:17,def:14,pow:16,tec:20,spd:18,sta:15},
+   skill:{name:"ラ・マシアの新星", desc:"内へ切れ込み 自ら決め切る新世代の天才。技・速の勝負とシュートを強化", fx:{duelTec:1.4,duelSpd:1.25,shoot:1.2}}},
+  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"stopper",
+   stats:{off:16,def:16,pow:14,tec:15,spd:20,sta:19},
+   skill:{name:"疾走の右サイド", desc:"止まらぬオーバーラップで右を制圧する。スピード勝負と対人守備を大幅強化", fx:{duelSpd:1.35,duelD:1.2}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){
