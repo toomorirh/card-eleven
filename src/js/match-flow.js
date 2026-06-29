@@ -107,9 +107,13 @@ const LINKS={
 // ボルテージが一定以上(熱気が高まった局面)かつ条件達成・確率で発動。
 function mgrCarryTac(A,carrier){
   if(!MC||(MC.volt||0)<TUNING.volt.tacGate)return null;       // ボルテージが一定以上
-  const tac=mgrTacOf(A); if(!tac||tac.from==="cb")return null; // cb(密集ブロック)は守備采配=tryShot側
-  if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))return null; // 起点が采配のキープレイヤーか
-  return Math.random()<tac.chance?tac:null;
+  if(A.side!=="H"||!A.mgr)return null;
+  for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
+    if(tac.from==="cb")continue;                              // cb(密集ブロック)は守備采配=tryShot側
+    if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))continue; // 起点が采配のキープレイヤーか
+    if(Math.random()<tac.chance)return tac;
+  }
+  return null;
 }
 async function mgrTacAction(A,D,min,carrier,tac,who){
   feed(`${who}🎓 監督の采配!【${tac.name}】が炸裂!`,"goal");
@@ -346,8 +350,8 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
   // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら自チームCBがブロック(密集ブロック)
   if(A.side==="A"&&MC&&MC.home&&(MC.volt||0)>=TUNING.volt.tacGate){
-    const dtac=mgrTacOf(MC.home);
-    if(dtac&&dtac.from==="cb"&&tacCondMet(dtac,MC.home)&&Math.random()<dtac.chance){
+    const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb)を1つ取得(カスタム監督の複数tacにも対応)
+    if(dtac&&Math.random()<dtac.chance){
       const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
       cb.stat.tkl++;cb.stat.inv++;
       feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");

@@ -401,7 +401,7 @@ function renderManagers(){
   const cur=mk("div","wt-card");
   if(act){
     cur.appendChild(mgrPortrait(act,76));
-    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${act.title}</div><div class="lv">${act.name} ・ 🔼 ${mgrBoostDesc(act)}${act.tac?` ・ 采配「${act.tac.name}」`:""}</div>`;
+    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${act.title}</div><div class="lv">${act.name} ・ 🔼 ${mgrBoostDesc(act)}${mgrTacDesc(act)?` ・ ${mgrTacDesc(act)}`:""}</div>`;
     cur.appendChild(info);
     const dz=mk("button","btn ghost");dz.textContent="解任";dz.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
     dz.onclick=()=>{S.mgrActive="";save();renderOffice();toast("監督を解任しました");};
@@ -415,13 +415,28 @@ function renderManagers(){
   owned.forEach(m=>{
     const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
     d.appendChild(mgrPortrait(m,62));
-    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.title}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${m.tac?` ・ 采配「${m.tac.name}」`:""}</div>`;
+    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.title}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div>`;
     d.appendChild(info);
     const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
     b.textContent=isAct?"起用中":`契約 🪙${m.cost}`;
     if(!isAct)b.onclick=()=>rentManager(m.id);
     d.appendChild(b);box.appendChild(d);
   });
+  // カスタム監督(監督キャリアモードで育成した自作監督・コイン不要で起用)
+  const customs=S.customMgrs||[];
+  if(customs.length){
+    const ch2=mk("div","banner");ch2.style.cssText="font-size:13px;margin-top:14px";ch2.textContent="― 🎓 あなたのカスタム監督 ―";box.appendChild(ch2);
+    customs.forEach(m=>{
+      const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
+      d.appendChild(mgrPortrait(m,62));
+      const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.name}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div>`;
+      d.appendChild(info);
+      const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
+      b.textContent=isAct?"起用中":"起用";
+      if(!isAct)b.onclick=()=>rentManager(m.id);
+      d.appendChild(b);box.appendChild(d);
+    });
+  }
 }
 // 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
 function scoutManager(){
@@ -436,6 +451,10 @@ function scoutManager(){
 function rentManager(id){
   const m=managerById(id);if(!m)return;
   if(S.mgrActive===id){toast("すでに起用中です");return;}
+  if(m.custom){ // カスタム監督=自作なのでコイン不要・即起用
+    if(!confirm(`カスタム監督「${m.name}」を起用しますか?\n効果: ${mgrBoostDesc(m)}${mgrTacDesc(m)?" ・ "+mgrTacDesc(m):""}`))return;
+    S.mgrActive=id;save();renderOffice();toast(`🎓 ${m.name}を起用!`);return;
+  }
   if(S.coins<m.cost){toast(`コインが足りません(🪙${m.cost}必要)`);return;}
   if(!confirm(`${m.title}「${m.name}」と 🪙${m.cost} で契約し起用しますか?\n効果: ${mgrBoostDesc(m)}`))return;
   S.coins-=m.cost;S.mgrActive=id;coinUI();save();renderOffice();

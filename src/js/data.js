@@ -245,9 +245,23 @@ const MANAGERS=[
 ];
 const MGR_POS_JP={all:"全選手",FW:"FW",MF:"MF",DF:"DF",GK:"GK"};
 const MGR_STAT_JP={all:"全能力",off:"攻撃",def:"守備",pow:"パワー",tec:"テクニック",spd:"スピード",sta:"スタミナ"};
-function managerById(id){return MANAGERS.find(m=>m.id===id)||null;}
+// 監督の boost/tac を配列に正規化(名将=単数boost/tac、カスタム監督=boosts[]/tacs[] の両対応)。
+function mgrBoosts(m){return m?(m.boosts||(m.boost?[m.boost]:[])):[];}
+function mgrTacs(m){return m?(m.tacs||(m.tac?[m.tac]:[])):[];}
+// 名将(MANAGERS)に加えてカスタム監督(S.customMgrs)も解決する。
+function managerById(id){return MANAGERS.find(m=>m.id===id)||(typeof S!=="undefined"&&(S.customMgrs||[]).find(m=>m.id===id))||null;}
 function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerById(S.mgrActive):null;}
-function mgrBoostDesc(m){const b=m.boost;return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
+function boostDesc1(b){return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
+function mgrBoostDesc(m){const a=mgrBoosts(m);return a.length?a.map(boostDesc1).join(" / "):"ブースト無し";}
+function mgrTacDesc(m){const a=mgrTacs(m);return a.length?a.map(t=>`采配「${t.name}」`).join(" / "):"";}
+// カスタム監督を生成して S.customMgrs に登録(監督キャリアモードが boosts/tacs を積んで使う)。
+function createCustomManager(spec){
+  spec=spec||{};
+  const m={id:"cm"+(uid++), custom:true, name:spec.name||"あなたの監督", title:spec.title||"カスタム監督",
+    cost:0, boosts:spec.boosts||[], tacs:spec.tacs||[]};
+  if(typeof S!=="undefined"){S.customMgrs=S.customMgrs||[];S.customMgrs.push(m);}
+  return m;
+}
 // 監督ポートレート: シート(4x2)から該当セルの全身を切り出した canvas を返す(高さ指定・幅はセル比)。
 const MGR_IMG=new Image();
 if(typeof window!=="undefined"&&window.MGR_SHEET)MGR_IMG.src=window.MGR_SHEET;
@@ -256,6 +270,14 @@ function mgrPortrait(m,h){
   h=h||72; const w=Math.round(h*MGR_CELL_W/MGR_CELL_H);
   const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.className="mgrpic";
   const ctx=cv.getContext("2d");ctx.imageSmoothingQuality="high";
+  // カスタム監督(シート位置なし)はプレースホルダ・バッジを描く
+  if(m&&(m.custom||m.col==null)){
+    const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,"#5a3f9e");g.addColorStop(1,"#23314e");
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle="#fff";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.font=`bold ${Math.round(h*0.5)}px serif`;ctx.fillText("🎓",w/2,h*0.5);
+    return cv;
+  }
   const draw=()=>{const W=MGR_IMG.naturalWidth,H=MGR_IMG.naturalHeight;if(!W||!m)return;
     const cw=W/4,ch=H/2;ctx.clearRect(0,0,w,h);
     ctx.drawImage(MGR_IMG,m.col*cw,m.row*ch,cw,ch,0,0,w,h);}; // 全身
