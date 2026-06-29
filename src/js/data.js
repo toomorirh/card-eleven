@@ -254,6 +254,22 @@ function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerByI
 function boostDesc1(b){return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
 function mgrBoostDesc(m){const a=mgrBoosts(m);return a.length?a.map(boostDesc1).join(" / "):"ブースト無し";}
 function mgrTacDesc(m){const a=mgrTacs(m);return a.length?a.map(t=>`采配「${t.name}」`).join(" / "):"";}
+// ===== 監督キャリアモード(WCCF風・カスタム監督の育成) =====
+// 任期48ステップ(12ヶ月×4週)。①リーグ ②カップ(P3) ③練習 を選び1ステップ=1試合で進める。
+// リーグ制覇でboost / 練習でOVR上限緩和 / 満了でカスタム監督が確定。値は調整可。
+const CAREER={
+  steps:48,                       // 任期の総ステップ
+  nodes:6,                        // 各DIVの節数(6試合=1シーズン)
+  startCap:660, practiceCap:40, capMax:1200, // 編成のOVR合計上限(練習で緩和)
+  divLv:{3:3, 2:5, 1:7},          // 各DIVの相手lv(DIV3=格下〜DIV1=強豪)
+  boostBase:{3:0.010, 2:0.020, 1:0.030}, // DIV制覇の基準バフ%(成績で×0.4〜1.0)
+};
+// キャリア中の試合では「育成中の監督(その時点のboosts/tacs)」を自チームに適用する。
+function homeManager(){
+  if(typeof S!=="undefined"&&S._careerMatch&&S.career)
+    return {custom:true, name:S.career.name, title:"育成中の監督", boosts:S.career.boosts||[], tacs:S.career.tacs||[]};
+  return activeManager();
+}
 // カスタム監督を生成して S.customMgrs に登録(監督キャリアモードが boosts/tacs を積んで使う)。
 function createCustomManager(spec){
   spec=spec||{};

@@ -474,7 +474,7 @@ function _checkSquad(){
   return true;
 }
 // 共通: 試合画面セットアップ → KICK OFF → ループ開始。away/name/form/lv(0=ラベル無)/idx を受ける。
-function _beginMatch(away,name,form,lv,idx){
+function _beginMatch(away,name,form,lv,idx,home0){
   S.tactic="bal";S.style="center";
   document.querySelectorAll(".tactics [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t==="bal"));
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
@@ -486,11 +486,11 @@ function _beginMatch(away,name,form,lv,idx){
   hideStatOverlay();
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
-  const home=myTeam();
+  const home=home0||myTeam();
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
-  MC.mode=S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  MC.mode=S._careerMatch?"career":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
@@ -520,6 +520,36 @@ function startWorldMatch(){
 function startFriendMatch(team,coach,tn,form){
   S._friendMatch={coach,teamName:tn};
   _beginMatch(team, tn||`${coach}監督`, form, 0, -1);
+}
+// ===== 監督キャリア(WCCF風・カスタム監督育成) =====
+function startCareer(name){
+  S.career={name:(name||"新人監督").slice(0,16), step:0, div:3, node:0, pts:0, gf:0, ga:0,
+    ovrCap:CAREER.startCap, boosts:[], tacs:[], finished:false};
+  save(); gotoCareer();
+}
+function startCareerMatch(){ // ①リーグ: 上限内編成で div相応の相手と1試合
+  const cr=S.career; if(!cr||cr.finished)return;
+  if(finalizeCareerIfDone())return;
+  S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
+  const team=careerTeam(cr.ovrCap);
+  if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
+  const lv=CAREER.divLv[cr.div]||5;
+  _beginMatch(oppTeam(lv,{form:"4-4-2"}), `DIV${cr.div} 第${cr.node+1}節`, "4-4-2", lv, -1, team);
+}
+function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
+  const cr=S.career; if(!cr||cr.finished)return;
+  if(finalizeCareerIfDone())return;
+  cr.ovrCap=Math.min(CAREER.capMax, cr.ovrCap+CAREER.practiceCap); cr.step++;
+  toast(`💪 練習試合! 編成OVR上限 +${CAREER.practiceCap}(現在 ${cr.ovrCap})`);
+  save(); if(!finalizeCareerIfDone())gotoCareer();
+}
+function finalizeCareerIfDone(){ // 48ステップ到達→カスタム監督を確定して登録
+  const cr=S.career; if(!cr||cr.step<CAREER.steps)return false;
+  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs});
+  S.career=null; save();
+  toast(`🎓 任期満了! カスタム監督「${m.name}」誕生! 監督室で起用できます`);
+  if(typeof gotoOffice==="function")gotoOffice("mgr");
+  return true;
 }
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
@@ -653,6 +683,24 @@ const MATCH_MODES={
     MC=null;
     checkAchievements(); // ステージ攻略の達成で実績報酬を付与
     await save();
+  }},
+  career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ1試合
+    S._careerMatch=false;
+    const cr=S.career; const o=cr?careerRecordResult(cr,sh,sa):{res:"-"};
+    const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const e=document.getElementById("matchEnd");
+    let html=`<div class="banner">${head} ${sh}-${sa}</div>`;
+    if(o.seasonEnd){
+      const pct=Math.round((o.boost.mul-1)*1000)/10;
+      html+=`<div class="banner" style="color:#7dff9e">🏆 DIV${o.seasonDiv}制覇! 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」獲得!</div>`;
+      if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
+    }
+    e.innerHTML=html;
+    showStatOverlay(M.home,M.away);
+    const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";
+    b.onclick=()=>{MC=null; if(!finalizeCareerIfDone())gotoCareer();};
+    e.appendChild(b);
+    await save();MC=null;
   }},
 };
 async function endMatch(){

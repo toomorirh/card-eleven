@@ -447,7 +447,14 @@
 - **正規化**: `mgrBoosts(m)`/`mgrTacs(m)` が単数(名将)/複数(カスタム)を配列に統一。エンジンは常に配列で処理=名将は完全に従来通り。
 - **適用**: `mgrMul` は該当する全 boost を**乗算**。采配は `mgrCarryTac`(攻撃tac群を順に判定)と `mgrCbTac`(守備cb tacを取得)で**複数tac**に対応。
 - **生成/保持/起用**: `createCustomManager({name,boosts,tacs})` が `S.customMgrs` に登録。`managerById`/`activeManager` が名将とカスタムの両方を解決。`renderManagers` の「🎓 あなたのカスタム監督」セクションから**コイン不要で起用**(`rentManager` が `m.custom` を分岐)。肖像はシート未登録のため `mgrPortrait` がプレースホルダ(🎓バッジ)を描画。
-- 次フェーズ: 48ステップのキャリアループ(リーグ→boost / カップ→tac / 練習→OVR上限緩和)で `boosts/tacs` を積み上げて確定。
+- **キャリアループ(フェーズ2・実装済み)**: `CAREER`設定。任期 `steps`=48・1ステップ=1試合。`S.career{name,step,div,node,pts,gf,ga,ovrCap,boosts[],tacs[]}`。
+  - **編成**: 手持ち(`S.coll`)から **OVR合計が `ovrCap` 以内の最強XI** を自動構築(`careerTeam`=貪欲+トリム)。練習で `ovrCap` を `practiceCap` ずつ緩和(`capMax` 上限)。
+  - **①リーグ**: DIV3→2→1(各 `nodes`=6節)。`startCareerMatch` が div相応lv(`divLv`)の相手と1試合(`MATCH_MODES.career`)。試合中は**育成中の監督(その時点の boosts/tacs)を自チームに適用**(`homeManager`)。
+  - **boost獲得**: 6節消化で `careerRecordResult` が成績連動の boost を付与(`1+boostBase[div]×perf`、perf=0.4〜1.0=勝点比)→ DIV1まで自動昇格。
+  - **③練習**: `careerPractice` で `ovrCap` 緩和。②カップは準備中(フェーズ3)。
+  - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
+  - **画面**: `#scr-career`(`gotoCareer`/`renderCareer`)。監督室の「🎓 監督キャリア」から開始/再開。
+  - 次(フェーズ3+): カップ→tac付与 / 6大陸リーグ(ステ系統分岐)/ 国際スキル / 契約延長。
 
 ### 7.11 名コンビ(ホットライン): 象徴的な固有選手ペアの連携
 特定の固有選手ペア(`DUOS`=[{a,b,name}]・`data.js`)が**両方スタメン**だと、片割れがボールを持った瞬間に専用連携が発動。采配と同型のトリガー。**ホーム/アウェイ両対応**(相手チームも名コンビを繰り出す)。

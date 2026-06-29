@@ -43,7 +43,7 @@ function recalcAuras(t){
 function buildTeam(cards,side,form){
   const t={players:cards,tactic:"bal",style:"center",score:0,side,form};
   cards.forEach(p=>{p.fside=side;p.stat={shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0};});
-  if(side==="H")t.mgr=activeManager(); // 名将ブーストは自チームのみ
+  if(side==="H")t.mgr=homeManager(); // 自チームの監督(キャリア中は育成中監督・通常は起用中の名将/カスタム)
   recalcAuras(t);
   return t;
 }
@@ -81,6 +81,52 @@ function myTeam(){
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1});
   });
   return buildTeam(cards,"H",S.form);
+}
+// 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
+function careerTeam(cap){
+  const ovr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+  const form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
+  const used=new Set(), picks=[];
+  form.forEach((sl)=>{ // 各枠に未使用の最良(適性→OVR)を割当
+    let best=null,bs=-1;
+    for(const c of S.coll){ if(used.has(c.id))continue;
+      const sc=posFit(c.sub,sl[0])*1000+ovr(c); if(sc>bs){bs=sc;best=c;} }
+    if(best){used.add(best.id);picks.push({c:best,sub:sl[0]});}
+  });
+  // 超過分のトリム: 削減効率が最大の枠を、同枠のより弱い候補へ差し替え(これ以上弱くできなければ打ち切り)
+  const tot=()=>picks.reduce((s,p)=>s+ovr(p.c),0);
+  let guard=0;
+  while(tot()>cap && guard++<300){
+    let pick=null,alt=null,bestSave=0;
+    for(const p of picks){
+      let a=null,as=-1;
+      for(const c of S.coll){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
+        const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
+      if(a){const save=ovr(p.c)-ovr(a); if(save>bestSave){bestSave=save;pick=p;alt=a;}}
+    }
+    if(!pick)break;
+    used.delete(pick.c.id);used.add(alt.id);pick.c=alt;
+  }
+  const cards=picks.map((p,i)=>({c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
+    x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1}));
+  return buildTeam(cards,"H",S.form);
+}
+// キャリアの戦績処理(純粋・DOM非依存)。cr を更新し {res,pts,promoted,boost,seasonEnd,msg} を返す。
+function careerRecordResult(cr,sh,sa){
+  const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0;
+  cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
+  cr.node++; cr.step++;
+  const out={res,pts,seasonEnd:false,promoted:false,boost:null};
+  if(cr.node>=CAREER.nodes){ // シーズン終了→DIV制覇→成績連動でboost獲得
+    const perf=0.4+0.6*(cr.pts/(CAREER.nodes*3));          // 0.4(不振)〜1.0(完全優勝)
+    const mul=Math.round((1+(CAREER.boostBase[cr.div]||0.01)*perf)*1000)/1000;
+    const boost={pos:"all",stat:"all",mul};
+    cr.boosts.push(boost);
+    out.seasonEnd=true; out.boost=boost; out.seasonPts=cr.pts; out.seasonDiv=cr.div;
+    if(cr.div>1){cr.div--;out.promoted=true;}              // DIV1まで自動昇格、DIV1は連戦でboost積み増し
+    cr.node=0;cr.pts=0;cr.gf=0;cr.ga=0;
+  }
+  return out;
 }
 function oppTeam(lv,club){
   if(typeof club==="string")club={form:club}; // 後方互換(form文字列)
