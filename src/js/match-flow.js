@@ -485,6 +485,7 @@ function _beginMatch(away,name,form,lv,idx){
   const home=myTeam();
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
+  MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   document.getElementById("subN").textContent=3;
   buildField();
@@ -702,9 +703,10 @@ function renderSubList(){
 function renderBench(pi){
   const out=MC.home.players[pi];
   const onField=MC.home.players.map(p=>p.c.id);
-  const bench=S.coll.filter(c=>!onField.includes(c.id))
+  const benchedOut=MC.subbedOut||(MC.subbedOut=new Set()); // 既に交代退場した選手は戻せない
+  const bench=S.coll.filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id))
     .sort((a,b)=>posFit(b.sub,out.subRole)-posFit(a.sub,out.subRole)||total(b)-total(a));
-  if(!bench.length){toast("ベンチに選手がいません!ガチャで増やそう");return;}
+  if(!bench.length){toast("交代で投入できる控え選手がいません");return;}
   document.getElementById("subTitle").textContent=`INする選手を選択(OUT: ${out.c.name} / 枠は${out.subRole||out.role})`;
   document.getElementById("subList").style.display="none";
   const g=document.getElementById("subBench");g.style.display="flex";g.innerHTML="";
@@ -714,6 +716,7 @@ function renderBench(pi){
       const np={c,role:out.role,subRole:out.subRole,pen:posFit(c.sub,out.subRole),x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,cur:out.cur,
         stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0},
         keyStat:out.keyStat||null,keyMul:out.keyMul||1};
+      benchedOut.add(out.c.id); // OUTした選手は以後ベンチに出さない(再投入不可)
       MC.home.players[pi]=np;
       if(np.el){np.el.innerHTML="";
         const rg=document.createElement("div");rg.className="ring H";
