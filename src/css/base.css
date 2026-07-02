@@ -600,6 +600,7 @@ canvas.sprite{image-rendering:auto}
 /* 監督キャリアの現在行(▶ 次の活動)はゴールド枠で強調(スケジュールは wt-card 縦リストを流用) */
 .wt-card.cur{border-color:var(--gold);box-shadow:0 0 6px rgba(232,194,90,.5)}
 .wt-card.future{opacity:.4}
+.wt-card.cupwk{opacity:.85;border-color:#6a5a2a;background:#241f10} /* 未来のカップ参加機会週(事前アイコン) */
 /* カップ報酬オファー / カップ選択のオーバーレイ */
 .tac-offer{position:fixed;inset:0;z-index:150;background:rgba(4,8,16,.82);display:flex;align-items:center;justify-content:center;padding:16px}
 .tac-offer-in{background:var(--night2);border:2px solid var(--gold);border-radius:12px;padding:14px;max-width:360px;width:100%;max-height:82vh;overflow:auto}

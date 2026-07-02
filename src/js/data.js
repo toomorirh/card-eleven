@@ -286,15 +286,20 @@ const CAREER_TACS={
   ],
 };
 // カップ(監督キャリア): 勝ち抜き need 連勝で優勝→采配tac報酬。出場条件(cond)・相手lv・報酬プール。
+// need=連勝数 / lv=相手 / period=エントリー可能な週(この倍数の週のみ) / cond=前提条件。
 const CUPS=[
-  {id:"domestic",     name:"国内カップ", emoji:"🏆", need:3, lv:5, pool:"basic",
+  {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", need:3, lv:5, pool:"basic",  period:5,
    cond:cr=>cr.div<=2,                                   condText:"DIV2到達"},
-  {id:"continental",  name:"大陸カップ", emoji:"🌍", need:5, lv:7, pool:"strong",
-   cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または 国内カップ優勝"},
-  {id:"international", name:"国際カップ", emoji:"🌐", need:5, lv:8, pool:"team",
-   cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"大陸カップ優勝"},
+  {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", need:5, lv:7, pool:"strong", period:7,
+   cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または キングズクラブカップ優勝"},
+  {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", need:5, lv:8, pool:"team",   period:13,
+   cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"コンチネンタルカップ優勝"},
 ];
 function cupById(id){return CUPS.find(c=>c.id===id)||null;}
+// その週(0基点stepの週=step+1)がカップのエントリー週か(periodの倍数)。
+function cupEntryWeek(cup,step){return ((step+1)%cup.period)===0;}
+// 今この週にエントリー可能か(エントリー週 かつ 前提条件を満たす)。
+function cupEnterable(cup,cr){return cupEntryWeek(cup,cr.step)&&cup.cond(cr);}
 // キャリア中の試合では「育成中の監督(その時点のboosts/tacs)」を自チームに適用する。
 function homeManager(){
   if(typeof S!=="undefined"&&S._careerMatch&&S.career)

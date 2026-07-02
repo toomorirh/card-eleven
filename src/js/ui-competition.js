@@ -463,10 +463,16 @@ function careerScheduleList(cr){
       wrap.appendChild(row("played","💪",wk,`練習試合 ・ OVR上限→${h.cap||""}`,`<span class="wt-res">💪</span>`));
     }else if(h&&h.act==="C"){
       wrap.appendChild(row("played","🏆",wk,`カップ ${h.name||""}`,`<span class="wt-res ${h.res||""}">${h.res||""}</span>`));
-    }else if(i===cr.step){ // 現在(次の活動を選ぶ週)
-      wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節 ・ 下のボタンで選択`,`<span class="wt-res cur">選択</span>`));
-    }else{ // 未来週(未定)
-      wrap.appendChild(row("future","・",wk,"未定",`<span class="wt-res">—</span>`));
+    }else{
+      const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i)); // この週にエントリー機会があるカップ(事前表示)
+      if(i===cr.step){ // 現在(次の活動を選ぶ週)
+        const opp=cupsHere.length?` ・ ${cupsHere.map(c=>c.emoji).join("")}カップ参加機会`:"";
+        wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節${opp} ・ 下のボタンで選択`,`<span class="wt-res cur">選択</span>`));
+      }else if(cupsHere.length){ // 未来のカップ参加機会週(アイコン事前設定)
+        wrap.appendChild(row("cupwk",cupsHere.map(c=>c.emoji).join(""),wk,cupsHere.map(c=>c.name).join(" / ")+" 参加機会",`<span class="wt-res">🎫</span>`));
+      }else{ // 未来週(未定)
+        wrap.appendChild(row("future","・",wk,"未定",`<span class="wt-res">—</span>`));
+      }
     }
   }
   return wrap;
@@ -497,7 +503,7 @@ function renderCareer(){
     return;
   }
   act.appendChild(mkBtn("① リーグ進行",startCareerMatch));
-  act.appendChild(mkBtn("② カップ挑戦",careerCupPicker));
+  act.appendChild(mkBtn("② カップ"+(CUPS.some(c=>cupEnterable(c,cr))?" ★":""),careerCupPicker));
   act.appendChild(mkBtn(`③ 練習(上限+${CAREER.practiceCap})`,careerPractice,true));
   box.appendChild(act);
   box.appendChild(mk("div","banner","― 📅 スケジュール(全48週) ―"));
@@ -510,10 +516,13 @@ function careerCupPicker(){
   const inn=document.createElement("div");inn.className="tac-offer-in";
   inn.innerHTML=`<div class="banner">🏆 カップ挑戦</div><div class="lg">${cr.cup?"":"勝ち抜きで優勝すると采配スキルを獲得。負けると敗退(週は消費)。"}</div>`;
   CUPS.forEach(cup=>{
-    const ok=cup.cond(cr), won=(cr.cupsWon||[]).includes(cup.id);
-    const b=document.createElement("button");b.className="btn"+(ok?"":" ghost");b.style.cssText="margin-top:6px;text-align:left";
-    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.need}連勝)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配"} ・ ${ok?"出場可":"🔒 "+cup.condText}</span>`;
-    if(ok)b.onclick=()=>{ov.remove();startCup(cup.id);};
+    const condOk=cup.cond(cr), entryOk=cupEntryWeek(cup,cr.step), enter=condOk&&entryOk, won=(cr.cupsWon||[]).includes(cup.id);
+    const nextWk=Math.ceil((cr.step+1)/cup.period)*cup.period; // 次のエントリー週
+    const status=!condOk?`🔒 ${cup.condText}`:!entryOk?`第${nextWk}週にエントリー可(${cup.period}の倍数週)`:"✅ 今週エントリー可能!";
+    const reward=cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配";
+    const b=document.createElement("button");b.className="btn"+(enter?"":" ghost");b.style.cssText="margin-top:6px;text-align:left";
+    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.need}連勝・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${reward} ・ ${status}</span>`;
+    if(enter)b.onclick=()=>{ov.remove();startCup(cup.id);};
     inn.appendChild(b);
   });
   const bk=document.createElement("button");bk.className="btn ghost";bk.style.marginTop="8px";bk.textContent="閉じる";bk.onclick=()=>ov.remove();
