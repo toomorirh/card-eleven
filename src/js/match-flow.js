@@ -616,7 +616,7 @@ let _statTeams=null;
 function renderStatRows(team,opp){
   const rows=team.players.map(p=>({p,r:statRating(p,opp)})).sort((a,b)=>b.r-a.r);
   const mom=rows[0];
-  let h='<table class="statTbl"><tr><th>枠</th><th>選手</th><th>評価</th><th>関与</th><th>G</th><th>A</th><th>デュエル</th><th>SV</th></tr>';
+  let h='<table class="statTbl"><tr><th>枠 '+helpIcon("statLegend")+'</th><th>選手</th><th>評価</th><th>関与</th><th>G</th><th>A</th><th>デュエル</th><th>SV</th></tr>';
   rows.forEach(({p,r})=>{
     const s=p.stat,isMom=p===mom.p,low=r<5.0;
     h+=`<tr class="${isMom?"mom":""}${low?" lowform":""}">
@@ -630,7 +630,7 @@ function renderStatRows(team,opp){
       <td>${p.role==="GK"?s.saves:"-"}</td>
     </tr>`;
   });
-  h+='</table><div class="lg" style="margin-top:4px">★MOM(最優秀選手) / 関与=試合への絡んだ回数 / 評価5.0未満は次戦の入れ替え候補</div>';
+  h+='</table>';
   return h;
 }
 function renderStatTab(which){

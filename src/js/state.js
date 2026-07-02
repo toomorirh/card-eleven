@@ -113,6 +113,19 @@ function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}
 function coinUI(){document.getElementById("coinN").textContent=S.coins;}
 function myName(){return (S.teamName||"").trim()||"マイチーム";} // 自チーム表示名(プロフィール)
+// ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====
+// helpIcon(key) を見出し等に埋め込み、タップで HELP[key] をポップアップ。data-help属性を委譲処理。
+function helpIcon(key){return '<span class="help" data-help="'+key+'" role="button" aria-label="説明">?</span>';}
+function showHelp(html){
+  const ov=document.createElement("div");ov.className="help-pop";
+  ov.innerHTML='<div class="help-pop-in">'+(html||"")+'<div class="help-close">タップで閉じる</div></div>';
+  ov.onclick=()=>ov.remove();
+  document.body.appendChild(ov);
+}
+if(typeof document!=="undefined"&&document.addEventListener){
+  document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest(".help");
+    if(h){e.stopPropagation();showHelp((typeof HELP!=="undefined"&&HELP[h.dataset.help])||h.dataset.help||"");}});
+}
 
 // ================= 画面切替 =================
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{

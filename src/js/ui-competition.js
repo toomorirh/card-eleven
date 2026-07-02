@@ -123,7 +123,7 @@ function renderLeagueMode(){
   const fb=document.getElementById("fixtureBox");
   const tbl=document.getElementById("standings");
   if(!lg){
-    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ―</div><div class="lg">全9チームの総当たり(8節)。優勝で🏆+賞金🪙500(初優勝は実績でチャンピオンパック!)</div>';
+    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ― '+helpIcon("league")+'</div>';
     fb.innerHTML="";tbl.innerHTML="";
     const b=document.createElement("button");b.className="btn";b.textContent="シーズン開始";
     b.onclick=startSeason;fb.appendChild(b);
@@ -208,8 +208,8 @@ function renderWorld(){
   const done=tour.i>=WORLD_NATIONS.length;
   const wins=tour.res.filter(x=>x==="W").length;
   document.getElementById("worldHead").innerHTML=
-    `<div class="banner" style="font-size:15px">― 🌍 ワールドツアー ${Math.min(tour.i+(done?0:1),WORLD_NATIONS.length)}/${WORLD_NATIONS.length} ―</div>`
-    +`<div class="lg">強豪国代表(平均OVR90↑・国籍ボーナス満)を${WORLD_NATIONS.length}連戦。勝敗に関わらず次へ進む。${wins}勝</div>`;
+    `<div class="banner" style="font-size:15px">― 🌍 ワールドツアー ${Math.min(tour.i+(done?0:1),WORLD_NATIONS.length)}/${WORLD_NATIONS.length} ― ${helpIcon("world")}</div>`
+    +`<div class="lg">${wins}勝</div>`;
   const list=document.getElementById("worldList");list.innerHTML="";
   WORLD_NATIONS.forEach((nation,k)=>{
     const res=tour.res[k], cur=(k===tour.i)&&!done, locked=k>tour.i;
@@ -308,8 +308,7 @@ function importTeam(raw){
 let _pendingChallenge=null; // チャレンジURL(#team=)で来たコードを保持
 function renderFriend(){
   document.getElementById("friendHead").innerHTML=
-    '<div class="banner" style="font-size:15px">― 🤝 フレンド対戦 ―</div>'
-    +'<div class="lg">自分のチームをURLで共有し、相手のURL/コードを貼って非同期で対戦。サーバ不要・カジュアル用(コードは編集可能)。</div>';
+    '<div class="banner" style="font-size:15px">― 🤝 フレンド対戦 ― '+helpIcon("friend")+'</div>';
   const body=document.getElementById("friendBody");body.innerHTML="";
   const add=el=>body.appendChild(el), mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
   // 共有(URL生成)
@@ -394,8 +393,7 @@ function renderManagers(){
   const box=document.getElementById("ofMgr");box.innerHTML="";
   S.mgrOwned=S.mgrOwned||[];
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
-  const head=mk("div","banner");head.style.cssText="font-size:14px";head.textContent="― 🎯 監督(契約) ―";box.appendChild(head);
-  const lead=mk("div","lg");lead.innerHTML="監督を契約・起用すると自チームが少し強化されます(起用は1名・交代制)。新しい監督は<b>ガチャ</b>の「監督スカウト」、または<b>リーグの「🎓 監督キャリア」</b>で育成。";box.appendChild(lead);
+  const head=mk("div","banner");head.style.cssText="font-size:14px";head.innerHTML="― 🎯 監督(契約) ― "+helpIcon("office");box.appendChild(head);
   // 現在の起用
   const act=activeManager();
   const cur=mk("div","wt-card");
@@ -504,9 +502,9 @@ function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
   const cr=S.career;
-  box.appendChild(mk("div","banner",'― 🎓 監督キャリア ―'));
+  box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
   if(!cr){ // 未開始
-    box.appendChild(mk("div","lg","限られた任期(<b>48ステップ=12ヶ月×4週</b>)で監督を育成する、リーグの最上位コンテンツ。①リーグ制覇でバフ獲得 / ③練習で編成OVR上限が緩む。満了で<b>あなた(オーナー)の名を冠したカスタム監督</b>が完成し、他モードでも起用できます。"));
+    box.appendChild(mk("div","lg","限られた任期(48週)で自分だけの<b>カスタム監督</b>を育成する最上位コンテンツ。詳しくは見出しの「?」。"));
     const b=mk("button","btn");b.textContent="🎓 監督キャリアを始める";b.onclick=()=>startCareer();box.appendChild(b);
     if((S.customMgrs||[]).length)box.appendChild(mk("div","lg",`これまで育てた監督: ${S.customMgrs.length}名(監督室で起用可)`));
     return;
@@ -524,8 +522,7 @@ function renderCareer(){
       return idx<cr.cup.win?`✅${nm}`:idx===cr.cup.i?`<b style="color:var(--gold)">▶${nm}${boss}</b>`:`${nm}${boss}`;}).join(" → ");
     box.appendChild(mk("div","lg","ブラケット: "+line));
   }
-  box.appendChild(mk("div","banner",`― 📅 スケジュール(全${cr.stepsMax||CAREER.steps}週) ―`));
-  box.appendChild(mk("div","lg","次の実施を「今週」の箱のボタンから選択(①リーグ/大陸 / ②カップ / ③練習)。カップ中は決着まで他は選べません。"));
+  box.appendChild(mk("div","banner",`― 📅 スケジュール(全${cr.stepsMax||CAREER.steps}週) ― `+helpIcon("careerFlow")));
   // 現在週へスクロールして見やすく
   const list=careerScheduleList(cr);box.appendChild(list);
   const cur=list.querySelector(".wt-card.cur");if(cur)setTimeout(()=>{try{cur.scrollIntoView({block:"center"});}catch(e){}},0);

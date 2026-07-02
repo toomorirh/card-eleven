@@ -604,6 +604,16 @@ canvas.sprite{image-rendering:auto}
 /* 現在週の実施ボタン(スケジュールの箱の中に表示) */
 .cur-actions{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px;padding:0 2px}
 .cur-actions .btn{width:auto;flex:1 1 30%;font-size:12px}
+/* ヘルプ(?)バッジ + 説明ポップアップ(説明文を収納しUIをクリーンに) */
+.help{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;
+  background:#2a3d56;color:#cfe0f2;font-size:11px;font-weight:900;line-height:1;cursor:pointer;margin-left:5px;
+  vertical-align:middle;border:1px solid #3a4f6c;user-select:none}
+.help:active{transform:scale(.9)}
+.help-pop{position:fixed;inset:0;z-index:200;background:rgba(4,8,16,.72);display:flex;align-items:center;justify-content:center;padding:22px}
+.help-pop-in{background:var(--night2);border:1px solid #3a4f6c;border-radius:12px;padding:16px;max-width:340px;
+  font-family:'M PLUS 1p',sans-serif;font-size:13px;line-height:1.7;color:#dfe8f2}
+.help-pop-in b{color:#fff}
+.help-close{margin-top:12px;text-align:center;font-size:11px;color:#8fa3b8}
 /* カップ報酬オファー / カップ選択のオーバーレイ */
 .tac-offer{position:fixed;inset:0;z-index:150;background:rgba(4,8,16,.82);display:flex;align-items:center;justify-content:center;padding:16px}
 .tac-offer-in{background:var(--night2);border:2px solid var(--gold);border-radius:12px;padding:14px;max-width:360px;width:100%;max-height:82vh;overflow:auto}
