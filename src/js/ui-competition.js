@@ -444,20 +444,31 @@ function gotoCareer(){
   const nav=document.querySelector('[data-s="home"]'); if(nav)nav.click();
   const btn=document.querySelector('#modeRow [data-m="career"]'); if(btn)btn.click(); else renderCareer();
 }
-// 48ステップの活動カレンダー(12ヶ月×4週)。各セル=活動+結果を可視化(カップ開始日もここで示す)。
-function careerCalendar(cr){
-  const g=document.createElement("div");g.className="career-cal";
-  for(let i=0;i<CAREER.steps;i++){
-    const h=cr.history&&cr.history[i], cur=(i===cr.step), c=document.createElement("div");
-    c.className="cal-cell"+(cur?" cur":"")+(h?" done "+(h.act==="L"?("res-"+h.res):h.act==="P"?"prac":"cup"):"");
-    let ic="",sub="";
-    if(h){ if(h.act==="L"){ic=h.season?"🏆":"⚽";sub=h.res;} else if(h.act==="P"){ic="💪";sub="+";} else {ic="🏆";sub=h.res||"";} }
-    else if(cur){ic="▶";}
-    c.innerHTML=`<div class="cal-ic">${ic}</div><div class="cal-sub">${sub}</div>`;
-    c.title=`第${i+1}節`+(h?`: ${h.act==="L"?"リーグ "+h.sc+" "+h.res+(h.season?" DIV制覇!":""):h.act==="P"?"練習(上限UP)":"カップ"}`:cur?": 次の活動":"");
-    g.appendChild(c);
+// 活動スケジュール(ワールドツアーと同じ wt-card 縦リスト)。各行=週の活動+結果。現在=▶で強調。
+function careerScheduleList(cr){
+  const wrap=document.createElement("div");
+  const hist=cr.history||[];
+  const row=(cls,flag,name,sub,chip)=>{
+    const d=document.createElement("div");d.className="wt-card "+cls;
+    d.innerHTML=`<div class="wt-flag">${flag}</div><div class="wt-info"><div class="wt-name">${name}</div><div class="lv">${sub}</div></div>${chip||""}`;
+    return d;
+  };
+  for(let i=0;i<hist.length;i++){
+    const h=hist[i];
+    if(h.act==="L"){
+      const chip=`<span class="wt-res ${h.res}">${h.res==="W"?"🏆 勝":h.res==="D"?"🤝 分":"😢 敗"}</span>`;
+      const sub=`DIV${h.div} 第${h.nd||"?"}節 ・ ${h.sc||""}${h.season?` ・ 🏆制覇! バフ+${h.pct}%`:""}`;
+      wrap.appendChild(row("played",h.season?"🏆":"⚽",`第${i+1}週`,sub,chip));
+    }else if(h.act==="P"){
+      wrap.appendChild(row("played","💪",`第${i+1}週`,`練習試合 ・ OVR上限→${h.cap||""}`,`<span class="wt-res">💪</span>`));
+    }else{
+      wrap.appendChild(row("played","🏆",`第${i+1}週`,"カップ",`<span class="wt-res ${h.res||""}">${h.res||""}</span>`));
+    }
   }
-  return g;
+  if(cr.step<CAREER.steps){ // 現在(次の活動を選ぶ週)
+    wrap.appendChild(row("cur","▶",`第${cr.step+1}週 ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節 ・ 下のボタンで選択`,`<span class="wt-res cur">選択</span>`));
+  }
+  return wrap;
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
@@ -470,17 +481,17 @@ function renderCareer(){
     if((S.customMgrs||[]).length)box.appendChild(mk("div","lg",`これまで育てた監督: ${S.customMgrs.length}名(監督室で起用可)`));
     return;
   }
-  box.appendChild(mk("div","lg",`👤 <b>${cr.name}</b> 監督 ・ 進行 <b>${cr.step}/${CAREER.steps}</b> ステップ`));
+  box.appendChild(mk("div","lg",`👤 <b>${cr.name}</b> 監督 ・ 進行 <b>${cr.step}/${CAREER.steps}</b> 週`));
   box.appendChild(mk("div","lg",`現在: <b>DIV${cr.div}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ シーズン勝点 ${cr.pts||0} ・ 編成OVR上限 <b>${cr.ovrCap}</b>`));
   box.appendChild(mk("div","lg",`🔼 獲得バフ(${cr.boosts.length}): ${cr.boosts.length?cr.boosts.map(boostDesc1).join(" / "):"(まだ無し)"}`));
-  box.appendChild(careerCalendar(cr));
-  box.appendChild(mk("div","lg",'<span class="cal-lg res-W">⚽勝</span> <span class="cal-lg res-D">分</span> <span class="cal-lg res-L">敗</span> <span class="cal-lg prac">💪練習</span> <span class="cal-lg">▶次</span>'));
   const act=mk("div","wt-card");act.style.cssText="flex-wrap:wrap;gap:8px";
   const mkBtn=(label,fn,ghost,dis)=>{const b=mk("button","btn"+(ghost?" ghost":""));b.textContent=label;b.style.cssText="width:auto;flex:1 1 28%";if(dis){b.disabled=true;b.style.opacity=".45";}else b.onclick=fn;return b;};
   act.appendChild(mkBtn("① リーグ進行",startCareerMatch));
   act.appendChild(mkBtn("② カップ(準備中)",null,true,true));
   act.appendChild(mkBtn(`③ 練習(上限+${CAREER.practiceCap})`,careerPractice,true));
   box.appendChild(act);
+  box.appendChild(mk("div","banner","― 📅 スケジュール ―"));
+  box.appendChild(careerScheduleList(cr));
 }
 // 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
 function scoutManager(){

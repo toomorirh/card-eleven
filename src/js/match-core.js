@@ -115,7 +115,7 @@ function careerTeam(cap){
 function careerRecordResult(cr,sh,sa){
   const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0, divBefore=cr.div;
   cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
-  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,div:divBefore}; // 活動カレンダー用の記録
+  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,div:divBefore,nd:(cr.node||0)+1}; // スケジュール表示用の記録
   cr.node++; cr.step++;
   const out={res,pts,seasonEnd:false,promoted:false,boost:null};
   if(cr.node>=CAREER.nodes){ // シーズン終了→DIV制覇→成績連動でboost獲得

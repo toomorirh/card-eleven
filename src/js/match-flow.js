@@ -541,7 +541,7 @@ function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const cr=S.career; if(!cr||cr.finished)return;
   if(finalizeCareerIfDone())return;
   cr.ovrCap=Math.min(CAREER.capMax, cr.ovrCap+CAREER.practiceCap);
-  (cr.history=cr.history||[])[cr.step]={act:"P"}; cr.step++;
+  (cr.history=cr.history||[])[cr.step]={act:"P",cap:cr.ovrCap}; cr.step++;
   toast(`💪 練習試合! 編成OVR上限 +${CAREER.practiceCap}(現在 ${cr.ovrCap})`);
   save(); if(!finalizeCareerIfDone())renderCareer();
 }
