@@ -485,14 +485,40 @@ function renderCareer(){
   box.appendChild(mk("div","lg",`👤 <b>${cr.name}</b> 監督 ・ 進行 <b>${cr.step}/${CAREER.steps}</b> 週`));
   box.appendChild(mk("div","lg",`現在: <b>DIV${cr.div}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ シーズン勝点 ${cr.pts||0} ・ 編成OVR上限 <b>${cr.ovrCap}</b>`));
   box.appendChild(mk("div","lg",`🔼 獲得バフ(${cr.boosts.length}): ${cr.boosts.length?cr.boosts.map(boostDesc1).join(" / "):"(まだ無し)"}`));
+  box.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
   const act=mk("div","wt-card");act.style.cssText="flex-wrap:wrap;gap:8px";
   const mkBtn=(label,fn,ghost,dis)=>{const b=mk("button","btn"+(ghost?" ghost":""));b.textContent=label;b.style.cssText="width:auto;flex:1 1 28%";if(dis){b.disabled=true;b.style.opacity=".45";}else b.onclick=fn;return b;};
+  if(cr.cup){ // カップ進行中: 次戦のみ
+    box.appendChild(mk("div","banner",`${cr.cup.emoji} ${cr.cup.name} ・ ${cr.cup.win}/${cr.cup.need}勝`));
+    act.appendChild(mkBtn(`▶ 第${cr.cup.i+1}/${cr.cup.need}戦 (勝ち抜き)`,startCareerMatch));
+    box.appendChild(act);
+    box.appendChild(mk("div","banner","― 📅 スケジュール(全48週) ―"));
+    box.appendChild(careerScheduleList(cr));
+    return;
+  }
   act.appendChild(mkBtn("① リーグ進行",startCareerMatch));
-  act.appendChild(mkBtn("② カップ(準備中)",null,true,true));
+  act.appendChild(mkBtn("② カップ挑戦",careerCupPicker));
   act.appendChild(mkBtn(`③ 練習(上限+${CAREER.practiceCap})`,careerPractice,true));
   box.appendChild(act);
   box.appendChild(mk("div","banner","― 📅 スケジュール(全48週) ―"));
   box.appendChild(careerScheduleList(cr));
+}
+// カップ選択(出場条件を満たすカップに挑戦)。オーバーレイで一覧表示。
+function careerCupPicker(){
+  const cr=S.career; if(!cr||cr.cup)return;
+  const ov=document.createElement("div");ov.className="tac-offer";
+  const inn=document.createElement("div");inn.className="tac-offer-in";
+  inn.innerHTML=`<div class="banner">🏆 カップ挑戦</div><div class="lg">${cr.cup?"":"勝ち抜きで優勝すると采配スキルを獲得。負けると敗退(週は消費)。"}</div>`;
+  CUPS.forEach(cup=>{
+    const ok=cup.cond(cr), won=(cr.cupsWon||[]).includes(cup.id);
+    const b=document.createElement("button");b.className="btn"+(ok?"":" ghost");b.style.cssText="margin-top:6px;text-align:left";
+    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.need}連勝)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配"} ・ ${ok?"出場可":"🔒 "+cup.condText}</span>`;
+    if(ok)b.onclick=()=>{ov.remove();startCup(cup.id);};
+    inn.appendChild(b);
+  });
+  const bk=document.createElement("button");bk.className="btn ghost";bk.style.marginTop="8px";bk.textContent="閉じる";bk.onclick=()=>ov.remove();
+  inn.appendChild(bk);
+  ov.appendChild(inn);document.body.appendChild(ov);
 }
 // 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
 function scoutManager(){

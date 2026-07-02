@@ -264,6 +264,37 @@ const CAREER={
   divLv:{3:3, 2:5, 1:7},          // 各DIVの相手lv(DIV3=格下〜DIV1=強豪)
   boostBase:{3:0.010, 2:0.020, 1:0.030}, // DIV制覇の基準バフ%(成績で×0.4〜1.0)
 };
+// カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
+const CAREER_TACS={
+  basic:[
+    {name:"電光タクト",     from:"omf", cond:[["OMF","tec",18]], chance:0.45},
+    {name:"アーリークロス", from:"sb",  cond:[["LSB","tec",16]], chance:0.45},
+    {name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",18]], chance:0.45},
+    {name:"密集ブロック",   from:"cb",  cond:[["CB","def",18]],  chance:0.45},
+  ],
+  strong:[
+    {name:"閃光のスルーパス",   from:"omf", cond:[["OMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"必殺のアーリークロス", from:"sb", cond:[["LSB","tec",16]], chance:0.55, pow:1.3},
+    {name:"疾風のカウンター",   from:"wg",  cond:[["LWG","spd",18]], chance:0.55, pow:1.3},
+    {name:"鉄壁の密集ブロック", from:"cb",  cond:[["CB","def",18]],  chance:0.60},
+  ],
+  team:[ // 国際チームスキル: 発動でチーム全体が数ティック底上げ(surge)
+    {name:"無敵艦隊",       kind:"team", flag:"🇪🇸", cond:[["CMF","tec",18]], chance:0.50, surge:{mul:1.25,ticks:3}},
+    {name:"ジョゴ・ボニート", kind:"team", flag:"🇧🇷", cond:[["OMF","tec",18]], chance:0.50, surge:{mul:1.28,ticks:3}},
+    {name:"ゲルマン魂",     kind:"team", flag:"🇩🇪", cond:[["CB","def",18]],  chance:0.50, surge:{mul:1.30,ticks:3}},
+    {name:"カテナチオ",     kind:"team", flag:"🇮🇹", cond:[["CB","def",18]],  chance:0.50, surge:{mul:1.22,ticks:4}},
+  ],
+};
+// カップ(監督キャリア): 勝ち抜き need 連勝で優勝→采配tac報酬。出場条件(cond)・相手lv・報酬プール。
+const CUPS=[
+  {id:"domestic",     name:"国内カップ", emoji:"🏆", need:3, lv:5, pool:"basic",
+   cond:cr=>cr.div<=2,                                   condText:"DIV2到達"},
+  {id:"continental",  name:"大陸カップ", emoji:"🌍", need:5, lv:7, pool:"strong",
+   cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または 国内カップ優勝"},
+  {id:"international", name:"国際カップ", emoji:"🌐", need:5, lv:8, pool:"team",
+   cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"大陸カップ優勝"},
+];
+function cupById(id){return CUPS.find(c=>c.id===id)||null;}
 // キャリア中の試合では「育成中の監督(その時点のboosts/tacs)」を自チームに適用する。
 function homeManager(){
   if(typeof S!=="undefined"&&S._careerMatch&&S.career)

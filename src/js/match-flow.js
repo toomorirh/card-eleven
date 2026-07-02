@@ -110,18 +110,27 @@ function mgrCarryTac(A,carrier){
   if(A.side!=="H"||!A.mgr)return null;
   for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
     if(tac.from==="cb")continue;                              // cb(密集ブロック)は守備采配=tryShot側
+    if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance)return tac; continue; } // 国際チームスキルはfrom不問
     if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))continue; // 起点が采配のキープレイヤーか
     if(Math.random()<tac.chance)return tac;
   }
   return null;
 }
 async function mgrTacAction(A,D,min,carrier,tac,who){
+  if(tac.kind==="team"){ // 国際チームスキル: チーム全体を数ティック底上げ(surge)
+    const s=tac.surge||{}; A._surgeUntil=min+(s.ticks||3)*TUNING.match.tickMin; A._surgeMul=s.mul||1.2;
+    feed(`${who}🌟 監督の采配!【${tac.name}】 チーム全体が覚醒した!`,"goal");
+    addVolt(TUNING.volt.goal);
+    await tacCutin(tac,A.mgr,carrier);
+    return;
+  }
   feed(`${who}🎓 監督の采配!【${tac.name}】が炸裂!`,"goal");
   addVolt(TUNING.volt.shot);
   await tacCutin(tac,A.mgr,carrier);
+  const pw=tac.pow||1; // 強化采配は効果増
   if(tac.from==="sb"){ // アーリークロス → 空中戦(采配ボーナス)
     await ballTo(curP(carrier).x,curP(carrier).y,0.2);
-    await aerialBox(A,D,min,carrier,{a:1.3,d:1,bonus:1.3},who);
+    await aerialBox(A,D,min,carrier,{a:1.3*pw,d:1,bonus:1.3*pw},who);
     return;
   }
   // 電光タクト / 電撃カウンター: 抜け出すランナーへ決定的スルー → 1対1
@@ -525,17 +534,27 @@ function startFriendMatch(team,coach,tn,form){
 function startCareer(){
   const nm=((typeof S.coach==="string"&&S.coach.trim())||myName()||"オーナー").slice(0,16); // 監督名はオーナー名を踏襲
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0,
-    ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], finished:false};
+    ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[], cup:null, finished:false};
   save(); gotoCareer();
 }
-function startCareerMatch(){ // ①リーグ: 上限内編成で div相応の相手と1試合
+function startCareerMatch(){ // ①リーグ / カップ戦の1試合。上限内編成で相応の相手と対戦。
   const cr=S.career; if(!cr||cr.finished)return;
   if(finalizeCareerIfDone())return;
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
   const team=careerTeam(cr.ovrCap);
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
-  const lv=CAREER.divLv[cr.div]||5;
-  _beginMatch(oppTeam(lv,{form:"4-4-2"}), `DIV${cr.div} 第${cr.node+1}節`, "4-4-2", lv, -1, team);
+  let lv,name;
+  if(cr.cup){ lv=cr.cup.lv; name=`${cr.cup.emoji} ${cr.cup.name} 第${cr.cup.i+1}/${cr.cup.need}戦`; }
+  else { lv=CAREER.divLv[cr.div]||5; name=`DIV${cr.div} 第${cr.node+1}節`; }
+  _beginMatch(oppTeam(lv,{form:"4-4-2"}), name, "4-4-2", lv, -1, team);
+}
+function startCup(id){ // ②カップ: 出場条件を満たせばカップを開始(以後 startCareerMatch がカップ戦になる)
+  const cr=S.career; if(!cr||cr.finished||cr.cup)return;
+  const cup=cupById(id); if(!cup){return;}
+  if(!cup.cond(cr)){toast(`出場条件を満たしていません(${cup.condText})`);return;}
+  cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,need:cup.need,lv:cup.lv,pool:cup.pool,win:0,i:0};
+  save(); renderCareer();
+  toast(`${cup.emoji} ${cup.name}に出場! ${cup.need}連勝で優勝だ`);
 }
 function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const cr=S.career; if(!cr||cr.finished)return;
@@ -686,25 +705,56 @@ const MATCH_MODES={
     checkAchievements(); // ステージ攻略の達成で実績報酬を付与
     await save();
   }},
-  career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ1試合
+  career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ/カップ1試合
     S._careerMatch=false;
-    const cr=S.career; const o=cr?careerRecordResult(cr,sh,sa):{res:"-"};
+    const cr=S.career, inCup=cr&&cr.cup;
     const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
     const e=document.getElementById("matchEnd");
-    let html=`<div class="banner">${head} ${sh}-${sa}</div>`;
-    if(o.seasonEnd){
-      const pct=Math.round((o.boost.mul-1)*1000)/10;
-      html+=`<div class="banner" style="color:#7dff9e">🏆 DIV${o.seasonDiv}制覇! 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」獲得!</div>`;
-      if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
+    let html=`<div class="banner">${head} ${sh}-${sa}</div>`, champCup=null;
+    if(inCup){
+      const cupName=cr.cup.name, o=careerCupResult(cr,sh,sa);
+      if(o.champion){champCup=o.cup; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
+      else if(o.advance)html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;
+      else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
+    }else{
+      const o=cr?careerRecordResult(cr,sh,sa):{};
+      if(o.seasonEnd){
+        const pct=Math.round((o.boost.mul-1)*1000)/10;
+        html+=`<div class="banner" style="color:#7dff9e">🏆 DIV${o.seasonDiv}制覇! 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」獲得!</div>`;
+        if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
+      }
     }
     e.innerHTML=html;
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";
-    b.onclick=()=>{MC=null; if(!finalizeCareerIfDone())gotoCareer();};
+    b.onclick=()=>{MC=null; if(finalizeCareerIfDone())return; if(champCup)offerCareerTac(champCup.pool,champCup); else gotoCareer();};
     e.appendChild(b);
     await save();MC=null;
   }},
 };
+// カップ優勝報酬: プールからランダム3提示→1つ選んで監督のtacに追加(重複語は除外)。
+function offerCareerTac(pool,cup){
+  const cr=S.career; if(!cr){gotoCareer();return;}
+  const owned=new Set((cr.tacs||[]).map(t=>t.name));
+  let cand=(CAREER_TACS[pool]||CAREER_TACS.basic).filter(t=>!owned.has(t.name));
+  if(!cand.length)cand=CAREER_TACS[pool]||CAREER_TACS.basic; // 全所持なら重複可
+  // ランダム3(または残り全部)
+  const pick=[]; const src=cand.slice();
+  while(pick.length<3&&src.length)pick.push(src.splice(ri(0,src.length-1),1)[0]);
+  gotoCareer();
+  const box=document.getElementById("careerBox"); if(!box){cr.tacs.push(pick[0]);save();return;}
+  const ov=document.createElement("div");ov.className="tac-offer";
+  ov.innerHTML=`<div class="tac-offer-in"><div class="banner">${cup.emoji} ${cup.name} 優勝報酬</div><div class="lg">獲得する采配スキルを1つ選択</div></div>`;
+  const inn=ov.querySelector(".tac-offer-in");
+  pick.forEach(t=>{
+    const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
+    const eff=t.kind==="team"?`🌟 国際チームスキル: 発動で全体+${Math.round((t.surge.mul-1)*100)}%(${t.surge.ticks}T)`:t.from==="cb"?"守備采配: シュートブロック":t.from==="sb"?"攻撃采配: アーリークロス":t.from==="wg"?"攻撃采配: 電撃カウンター":"攻撃采配: 決定的スルー";
+    b.innerHTML=`<b>${t.flag||""}${t.name}</b><br><span class="lv">${eff} ・ 発動率${Math.round(t.chance*100)}%</span>`;
+    b.onclick=()=>{cr.tacs.push({...t}); save(); ov.remove(); toast(`采配「${t.name}」を習得!`); renderCareer();};
+    inn.appendChild(b);
+  });
+  document.body.appendChild(ov);
+}
 async function endMatch(){
   const M=MC,sh=M.home.score,sa=M.away.score;
   await gameSetCutin(sh,sa); // 試合終了カットイン(共通)

@@ -130,6 +130,19 @@ function careerRecordResult(cr,sh,sa){
   }
   return out;
 }
+// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり、引分/敗北で敗退。need連勝で優勝。
+function careerCupResult(cr,sh,sa){
+  const cup=cr.cup, res=sh>sa?"W":sh===sa?"D":"L";
+  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:sh+"-"+sa,rnd:cup.i+1,need:cup.need};
+  cr.step++;
+  const out={res,cup};
+  if(res==="W"){
+    cup.win++; cup.i++;
+    if(cup.win>=cup.need){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); cr.cup=null; out.champion=true; }
+    else out.advance=true;
+  }else{ cr.cup=null; out.eliminated=true; }
+  return out;
+}
 function oppTeam(lv,club){
   if(typeof club==="string")club={form:club}; // 後方互換(form文字列)
   club=club||{};
@@ -227,7 +240,8 @@ function mgrMul(p,k,T){
 }
 function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
-  return p.c[k]*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T);
+  const surge=(T&&T._surgeUntil&&min<T._surgeUntil)?(T._surgeMul||1):1; // 国際チームスキル(kind:team)発動中の一時バフ
+  return p.c[k]*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge;
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=密集ブロック)を1つ返す(発動抽選は呼び出し側)。
