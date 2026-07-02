@@ -114,18 +114,29 @@ function careerTeam(cap){
 // キャリアの戦績処理(純粋・DOM非依存)。cr を更新し {res,pts,promoted,boost,seasonEnd,msg} を返す。
 function careerRecordResult(cr,sh,sa){
   const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0, divBefore=cr.div;
+  const cont=cr.contId?continentById(cr.contId):null; // 大陸リーグ中か
   cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
-  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,div:divBefore,nd:(cr.node||0)+1,opp:cr.oppName||""}; // スケジュール表示用の記録
+  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,nd:(cr.node||0)+1,opp:cr.oppName||"",
+    div:cont?undefined:divBefore, cont:cont?cont.name:undefined}; // スケジュール表示用の記録
   cr.node++; cr.step++;
   const out={res,pts,seasonEnd:false,promoted:false,boost:null};
-  if(cr.node>=CAREER.nodes){ // シーズン終了→DIV制覇→成績連動でboost獲得
+  if(cr.node>=CAREER.nodes){ // シーズン終了
     const perf=0.4+0.6*(cr.pts/(CAREER.nodes*3));          // 0.4(不振)〜1.0(完全優勝)
-    const mul=Math.round((1+(CAREER.boostBase[cr.div]||0.01)*perf)*1000)/1000;
-    const boost={pos:"all",stat:"all",mul};
-    cr.boosts.push(boost);
-    out.seasonEnd=true; out.boost=boost; out.seasonPts=cr.pts; out.seasonDiv=cr.div;
-    cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10; // 制覇マーク
-    if(cr.div>1){cr.div--;out.promoted=true;}              // DIV1まで自動昇格、DIV1は連戦でboost積み増し
+    if(cont){ // 大陸リーグ制覇 → その大陸の系統ステに特化したboost(高倍率)
+      const mul=Math.round((1+cont.base*perf)*1000)/1000;
+      const boost={pos:"all",stat:cont.stat,mul};
+      cr.boosts.push(boost); cr.contWon=cr.contWon||[]; cr.contWon.push(cont.id);
+      out.seasonEnd=true; out.boost=boost; out.contName=cont.name; out.contStat=cont.stat; out.seasonPts=cr.pts;
+      cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
+      cr.contId=null;                                     // 次の大陸を選べる
+    }else{ // DIV制覇 → 全能力boost + 昇格 / DIV1制覇で大陸リーグ解禁
+      const mul=Math.round((1+(CAREER.boostBase[cr.div]||0.01)*perf)*1000)/1000;
+      const boost={pos:"all",stat:"all",mul};
+      cr.boosts.push(boost);
+      out.seasonEnd=true; out.boost=boost; out.seasonPts=cr.pts; out.seasonDiv=cr.div;
+      cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
+      if(cr.div>1){cr.div--;out.promoted=true;} else {cr.stage="cont";out.toCont=true;} // DIV1制覇→大陸リーグへ
+    }
     cr.node=0;cr.pts=0;cr.gf=0;cr.ga=0;
   }
   return out;

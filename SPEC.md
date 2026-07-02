@@ -469,7 +469,8 @@
     - **リーグ**: `CAREER_LEAGUE[div]` に各DIV 6クラブを**固定順**配置(DIV1周回で同じ強豪と再戦=ライバル化)。
     - **カップ**: `CUP_BRACKETS[id]` に**固定ブラケット**(いつも当たる相手・末尾=看板ボス)。カップ中はブラケット全体を進捗付き(✅/▶/👑)で提示。
     - `careerOpponent(cr)` が現在の相手クラブを返し、`startCareerMatch` が `oppTeam(lv,{form,seed})` で対戦。現在週の箱に**相手名+OVR+陣形**を表示、**🔍偵察**(`careerScout`→`renderScout`)で相手XIをプレビュー→戦術/スタイル/陣形を事前に合わせられる。消化週の行にも相手名を記録表示。
-  - 次(フェーズ4+): 6大陸リーグ(ステ系統分岐)/ 契約延長。
+  - **6大陸リーグ(フェーズ4)**: DIV1制覇で `cr.stage="cont"` に移行し**大陸リーグ解禁**。①で `careerContPicker` から大陸を選び6節シーズンを戦う(`startCont`→`cr.contId`)。制覇で**その大陸の系統ステに特化した boost**(`{pos:"all",stat:大陸stat}`・base0.045×perf=DIVより高倍率)を獲得(`careerRecordResult` continental分岐)。別大陸も順に制覇可=系統分岐で個性化。`CONTINENTS`(6): 🇪🇺欧州tec/🌏アジアspd/🌎南米off/🌍アフリカsta/🗽北中米pow/🏝オセアニアdef。各6節=共通強豪5+大陸王者(lv10・`*_ch`)。
+  - **契約延長(フェーズ4)**: 任期満了(`cr.stepsMax`)時、**好成績(カップ優勝/DIV1制覇/大陸制覇 ≥1)なら `offerContractExtension`** で +`extendWeeks`(24週)を選択(最大 `extendMax`=2=最長96週)。引退で確定(`careerFinalize`)。スケジュールは `stepsMax` 週まで描画。
 
 ### 7.11 名コンビ(ホットライン): 象徴的な固有選手ペアの連携
 特定の固有選手ペア(`DUOS`=[{a,b,name}]・`data.js`)が**両方スタメン**だと、片割れがボールを持った瞬間に専用連携が発動。采配と同型のトリガー。**ホーム/アウェイ両対応**(相手チームも名コンビを繰り出す)。

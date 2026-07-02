@@ -261,6 +261,7 @@ const CAREER={
   steps:48,                       // 任期の総ステップ
   nodes:6,                        // 各DIVの節数(6試合=1シーズン)
   startCap:660, practiceMin:30, practiceMax:50, capMax:1200, // 編成のOVR合計上限(練習で+30〜50ランダム緩和)
+  extendWeeks:24, extendMax:2,     // 契約延長: 好成績で+24週・最大2回(48→最大96週)
   divLv:{3:3, 2:5, 1:7},          // 各DIVの相手lv(DIV3=格下〜DIV1=強豪)
   boostBase:{3:0.010, 2:0.020, 1:0.030}, // DIV制覇の基準バフ%(成績で×0.4〜1.0)
 };
@@ -320,7 +321,25 @@ const OPP_CLUBS={
   grandex:{name:"グランデックス",   lv:9, form:"4-2-3-1", seed:3014, boss:true},
   aurum:  {name:"オーラムFC",       lv:9, form:"4-3-3",   seed:3015, boss:true},
   titania:{name:"ティターニア",     lv:9, form:"4-3-1-2", seed:3016, boss:true},
+  // 大陸王者(lv10・大陸リーグ決勝の看板)
+  eu_ch:{name:"パラティーノ・レアル", lv:10, form:"4-3-3",   seed:3020, boss:true},
+  as_ch:{name:"東方蒼龍FC",         lv:10, form:"4-2-3-1", seed:3021, boss:true},
+  sa_ch:{name:"サンバ・レイズ",       lv:10, form:"4-3-3",   seed:3022, boss:true},
+  af_ch:{name:"サバンナ・ライオンズ", lv:10, form:"3-5-2",   seed:3023, boss:true},
+  na_ch:{name:"リバティ・スターズ",   lv:10, form:"4-4-2",   seed:3024, boss:true},
+  oc_ch:{name:"サザンクロス",         lv:10, form:"5-4-1",   seed:3025, boss:true},
 };
+// 大陸リーグ(DIV1制覇後に解禁・6節シーズン制)。制覇でその大陸の系統ステに特化したboostを獲得(高倍率)。
+// clubs=6節の相手(共通強豪5+大陸王者)。stat=伸びる系統 / base=boost基準(×perf 0.4〜1.0)。
+const CONTINENTS=[
+  {id:"eu",name:"ヨーロッパ",  emoji:"🇪🇺",stat:"tec",base:0.045,clubs:["estrella","pantera","nordstern","imperio","volca","eu_ch"]},
+  {id:"as",name:"アジア",      emoji:"🌏",stat:"spd",base:0.045,clubs:["estrella","pantera","nordstern","imperio","volca","as_ch"]},
+  {id:"sa",name:"南米",        emoji:"🌎",stat:"off",base:0.045,clubs:["estrella","pantera","nordstern","imperio","volca","sa_ch"]},
+  {id:"af",name:"アフリカ",    emoji:"🌍",stat:"sta",base:0.045,clubs:["estrella","pantera","nordstern","imperio","volca","af_ch"]},
+  {id:"na",name:"北中米",      emoji:"🗽",stat:"pow",base:0.045,clubs:["estrella","pantera","nordstern","imperio","volca","na_ch"]},
+  {id:"oc",name:"オセアニア",  emoji:"🏝",stat:"def",base:0.045,clubs:["estrella","pantera","nordstern","imperio","volca","oc_ch"]},
+];
+function continentById(id){return CONTINENTS.find(c=>c.id===id)||null;}
 // リーグは各DIV 6節を固定順で配置(周回で同じ強豪と再戦=ライバル化)。
 const CAREER_LEAGUE={
   3:["aizen","norte","verde","gale","rosa","grif"],
@@ -338,6 +357,7 @@ function careerOpponent(cr){
   if(!cr)return null;
   let id;
   if(cr.cup){ id=(CUP_BRACKETS[cr.cup.id]||[])[cr.cup.i]; }
+  else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
   else { const pool=CAREER_LEAGUE[cr.div]||CAREER_LEAGUE[3]; id=pool[(cr.node||0)%pool.length]; }
   return id?Object.assign({id},OPP_CLUBS[id]):null;
 }
