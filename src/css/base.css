@@ -601,6 +601,9 @@ canvas.sprite{image-rendering:auto}
 .wt-card.cur{border-color:var(--gold);box-shadow:0 0 6px rgba(232,194,90,.5)}
 .wt-card.future{opacity:.4}
 .wt-card.cupwk{opacity:.85;border-color:#6a5a2a;background:#241f10} /* 未来のカップ参加機会週(事前アイコン) */
+/* 現在週の実施ボタン(スケジュールの箱の中に表示) */
+.cur-actions{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px;padding:0 2px}
+.cur-actions .btn{width:auto;flex:1 1 30%;font-size:12px}
 /* カップ報酬オファー / カップ選択のオーバーレイ */
 .tac-offer{position:fixed;inset:0;z-index:150;background:rgba(4,8,16,.82);display:flex;align-items:center;justify-content:center;padding:16px}
 .tac-offer-in{background:var(--night2);border:2px solid var(--gold);border-radius:12px;padding:14px;max-width:360px;width:100%;max-height:82vh;overflow:auto}

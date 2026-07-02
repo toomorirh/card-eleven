@@ -451,7 +451,8 @@
   - **編成**: 手持ち(`S.coll`)から **OVR合計が `ovrCap` 以内の最強XI** を自動構築(`careerTeam`=貪欲+トリム)。練習で `ovrCap` を `practiceCap` ずつ緩和(`capMax` 上限)。
   - **①リーグ**: DIV3→2→1(各 `nodes`=6節)。`startCareerMatch` が div相応lv(`divLv`)の相手と1試合(`MATCH_MODES.career`)。試合中は**育成中の監督(その時点の boosts/tacs)を自チームに適用**(`homeManager`)。
   - **boost獲得**: 6節消化で `careerRecordResult` が成績連動の boost を付与(`1+boostBase[div]×perf`、perf=0.4〜1.0=勝点比)→ DIV1まで自動昇格。
-  - **③練習**: `careerPractice` で `ovrCap` 緩和。②カップは準備中(フェーズ3)。
+  - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
+  - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
   - **配置**: リーグ画面(`scr-home`)の **`#modeRow [data-m="career"]`「🎓 監督」モード**(ステージ/リーグと並ぶリーグ内コンテンツ)。`#careerMode`/`renderCareer`。`gotoCareer` は home+careerモードへ遷移。
   - **監督名**: 入力なし。**オーナー名(`S.coach`)を踏襲**(`startCareer` が採用)。
@@ -462,6 +463,7 @@
     - **カップ一覧**: 🏆キングズクラブカップ(3連勝・**5の倍数週**・DIV2到達) / 🌍コンチネンタルカップ(5連勝・**7の倍数週**・DIV1 or キングズ優勝) / 🌐インターナショナルクラブカップ(5連勝・**13の倍数週**・コンチネンタル優勝)。`cr.cupsWon` で記録。
     - **エントリー週**: 各カップは `period`(5/7/13)の倍数の週(週=step+1)のみエントリー可(`cupEntryWeek`/`cupEnterable`)。スケジュールの未来週に**該当カップのアイコンを事前表示**(`.wt-card.cupwk`=参加機会)。②ボタンは今週エントリー可なら★。
     - **任期延長**: 任期(48週)満了時に**カップ進行中なら確定を保留し、カップ決着(優勝/敗退)まで延長**(`finalizeCareerIfDone` が `cr.cup` 中は false)。優勝報酬の采配は習得後に確定判定。
+    - **カップ中ロック**: カップ開始後は決着(優勝/敗退)まで、現在週の箱は**カップ戦ボタンのみ**(リーグ/練習は選べない)。
     - カップ戦もスケジュール(`history{act:"C"}`)に🏆で記録。
   - 次(フェーズ4+): 6大陸リーグ(ステ系統分岐)/ 契約延長。
 

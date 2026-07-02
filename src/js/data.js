@@ -260,7 +260,7 @@ function mgrTacDesc(m){const a=mgrTacs(m);return a.length?a.map(t=>`采配「${t
 const CAREER={
   steps:48,                       // 任期の総ステップ
   nodes:6,                        // 各DIVの節数(6試合=1シーズン)
-  startCap:660, practiceCap:40, capMax:1200, // 編成のOVR合計上限(練習で緩和)
+  startCap:660, practiceMin:30, practiceMax:50, capMax:1200, // 編成のOVR合計上限(練習で+30〜50ランダム緩和)
   divLv:{3:3, 2:5, 1:7},          // 各DIVの相手lv(DIV3=格下〜DIV1=強豪)
   boostBase:{3:0.010, 2:0.020, 1:0.030}, // DIV制覇の基準バフ%(成績で×0.4〜1.0)
 };

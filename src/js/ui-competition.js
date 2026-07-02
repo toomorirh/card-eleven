@@ -453,6 +453,8 @@ function careerScheduleList(cr){
     d.innerHTML=`<div class="wt-flag">${flag}</div><div class="wt-info"><div class="wt-name">${name}</div><div class="lv">${sub}</div></div>${chip||""}`;
     return d;
   };
+  const actBtn=(label,fn,dis)=>{const b=document.createElement("button");b.className="btn"+(dis?" ghost":"");b.textContent=label;
+    if(dis){b.disabled=true;b.style.opacity=".45";}else b.onclick=fn;return b;};
   for(let i=0;i<CAREER.steps;i++){
     const h=cr.history&&cr.history[i], wk=`第${i+1}週`;
     if(h&&h.act==="L"){
@@ -460,19 +462,30 @@ function careerScheduleList(cr){
       const sub=`DIV${h.div} 第${h.nd||"?"}節 ・ ${h.sc||""}${h.season?` ・ 🏆制覇! バフ+${h.pct}%`:""}`;
       wrap.appendChild(row("played",h.season?"🏆":"⚽",wk,sub,chip));
     }else if(h&&h.act==="P"){
-      wrap.appendChild(row("played","💪",wk,`練習試合 ・ OVR上限→${h.cap||""}`,`<span class="wt-res">💪</span>`));
+      wrap.appendChild(row("played","💪",wk,`練習 ・ OVR上限+${h.gain||"?"}→${h.cap||""}`,`<span class="wt-res">💪</span>`));
     }else if(h&&h.act==="C"){
-      wrap.appendChild(row("played","🏆",wk,`カップ ${h.name||""}`,`<span class="wt-res ${h.res||""}">${h.res||""}</span>`));
-    }else{
-      const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i)); // この週にエントリー機会があるカップ(事前表示)
-      if(i===cr.step){ // 現在(次の活動を選ぶ週)
+      const chip=`<span class="wt-res ${h.res}">${h.res==="W"?"🏆 勝":h.res==="D"?"🤝 分":"😢 敗"}</span>`;
+      wrap.appendChild(row("played","🏆",wk,`${h.name||"カップ"} ${h.rnd||""}/${h.need||""}戦 ・ ${h.sc||""}`,chip));
+    }else if(i===cr.step){ // 現在週=次の実施を選ぶ箱(ボタン内蔵)
+      if(cr.cup){ // カップ進行中: 敗退/優勝までカップ戦のみ選択可
+        wrap.appendChild(row("cur",cr.cup.emoji,`${wk} ・ ${cr.cup.name}`,`${cr.cup.win}/${cr.cup.need}勝 ・ 勝ち抜き(優勝か敗退まで他の予定は選べません)`,`<span class="wt-res cur">${cr.cup.win}/${cr.cup.need}</span>`));
+        const panel=document.createElement("div");panel.className="cur-actions";
+        panel.appendChild(actBtn(`▶ 第${cr.cup.i+1}/${cr.cup.need}戦 (勝ち抜き)`,startCareerMatch));
+        wrap.appendChild(panel);
+      }else{
+        const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i));
         const opp=cupsHere.length?` ・ ${cupsHere.map(c=>c.emoji).join("")}カップ参加機会`:"";
-        wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節${opp} ・ 下のボタンで選択`,`<span class="wt-res cur">選択</span>`));
-      }else if(cupsHere.length){ // 未来のカップ参加機会週(アイコン事前設定)
-        wrap.appendChild(row("cupwk",cupsHere.map(c=>c.emoji).join(""),wk,cupsHere.map(c=>c.name).join(" / ")+" 参加機会",`<span class="wt-res">🎫</span>`));
-      }else{ // 未来週(未定)
-        wrap.appendChild(row("future","・",wk,"未定",`<span class="wt-res">—</span>`));
+        wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節${opp}`,""));
+        const panel=document.createElement("div");panel.className="cur-actions";
+        panel.appendChild(actBtn("① リーグ進行",startCareerMatch));
+        panel.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr)))); // 参加不可なら非活性
+        panel.appendChild(actBtn("③ 練習(+30〜50)",careerPractice));
+        wrap.appendChild(panel);
       }
+    }else{ // 未来週
+      const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i));
+      if(cupsHere.length)wrap.appendChild(row("cupwk",cupsHere.map(c=>c.emoji).join(""),wk,cupsHere.map(c=>c.name).join(" / ")+" 参加機会",`<span class="wt-res">🎫</span>`));
+      else wrap.appendChild(row("future","・",wk,"未定",`<span class="wt-res">—</span>`));
     }
   }
   return wrap;
@@ -492,22 +505,12 @@ function renderCareer(){
   box.appendChild(mk("div","lg",`現在: <b>DIV${cr.div}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ シーズン勝点 ${cr.pts||0} ・ 編成OVR上限 <b>${cr.ovrCap}</b>`));
   box.appendChild(mk("div","lg",`🔼 獲得バフ(${cr.boosts.length}): ${cr.boosts.length?cr.boosts.map(boostDesc1).join(" / "):"(まだ無し)"}`));
   box.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
-  const act=mk("div","wt-card");act.style.cssText="flex-wrap:wrap;gap:8px";
-  const mkBtn=(label,fn,ghost,dis)=>{const b=mk("button","btn"+(ghost?" ghost":""));b.textContent=label;b.style.cssText="width:auto;flex:1 1 28%";if(dis){b.disabled=true;b.style.opacity=".45";}else b.onclick=fn;return b;};
-  if(cr.cup){ // カップ進行中: 次戦のみ
-    box.appendChild(mk("div","banner",`${cr.cup.emoji} ${cr.cup.name} ・ ${cr.cup.win}/${cr.cup.need}勝`));
-    act.appendChild(mkBtn(`▶ 第${cr.cup.i+1}/${cr.cup.need}戦 (勝ち抜き)`,startCareerMatch));
-    box.appendChild(act);
-    box.appendChild(mk("div","banner","― 📅 スケジュール(全48週) ―"));
-    box.appendChild(careerScheduleList(cr));
-    return;
-  }
-  act.appendChild(mkBtn("① リーグ進行",startCareerMatch));
-  act.appendChild(mkBtn("② カップ"+(CUPS.some(c=>cupEnterable(c,cr))?" ★":""),careerCupPicker));
-  act.appendChild(mkBtn(`③ 練習(上限+${CAREER.practiceCap})`,careerPractice,true));
-  box.appendChild(act);
+  if(cr.cup)box.appendChild(mk("div","banner",`${cr.cup.emoji} ${cr.cup.name} 進行中 ・ ${cr.cup.win}/${cr.cup.need}勝`));
   box.appendChild(mk("div","banner","― 📅 スケジュール(全48週) ―"));
-  box.appendChild(careerScheduleList(cr));
+  box.appendChild(mk("div","lg","次の実施を「今週」の箱のボタンから選択(①リーグ / ②カップ / ③練習)。カップ中は決着まで他は選べません。"));
+  // 現在週へスクロールして見やすく
+  const list=careerScheduleList(cr);box.appendChild(list);
+  const cur=list.querySelector(".wt-card.cur");if(cur)setTimeout(()=>{try{cur.scrollIntoView({block:"center"});}catch(e){}},0);
 }
 // カップ選択(出場条件を満たすカップに挑戦)。オーバーレイで一覧表示。
 function careerCupPicker(){
