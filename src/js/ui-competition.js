@@ -444,29 +444,30 @@ function gotoCareer(){
   const nav=document.querySelector('[data-s="home"]'); if(nav)nav.click();
   const btn=document.querySelector('#modeRow [data-m="career"]'); if(btn)btn.click(); else renderCareer();
 }
-// 活動スケジュール(ワールドツアーと同じ wt-card 縦リスト)。各行=週の活動+結果。現在=▶で強調。
+// 活動スケジュール(ワールドツアーと同じ wt-card 縦リスト)。48週ぶんの行を先に全て並べ、
+// 進行した週(cr.history[i])だけ活動+結果を記録表示。現在週=▶で強調、未来週=淡色の未定。
 function careerScheduleList(cr){
   const wrap=document.createElement("div");
-  const hist=cr.history||[];
   const row=(cls,flag,name,sub,chip)=>{
     const d=document.createElement("div");d.className="wt-card "+cls;
     d.innerHTML=`<div class="wt-flag">${flag}</div><div class="wt-info"><div class="wt-name">${name}</div><div class="lv">${sub}</div></div>${chip||""}`;
     return d;
   };
-  for(let i=0;i<hist.length;i++){
-    const h=hist[i];
-    if(h.act==="L"){
+  for(let i=0;i<CAREER.steps;i++){
+    const h=cr.history&&cr.history[i], wk=`第${i+1}週`;
+    if(h&&h.act==="L"){
       const chip=`<span class="wt-res ${h.res}">${h.res==="W"?"🏆 勝":h.res==="D"?"🤝 分":"😢 敗"}</span>`;
       const sub=`DIV${h.div} 第${h.nd||"?"}節 ・ ${h.sc||""}${h.season?` ・ 🏆制覇! バフ+${h.pct}%`:""}`;
-      wrap.appendChild(row("played",h.season?"🏆":"⚽",`第${i+1}週`,sub,chip));
-    }else if(h.act==="P"){
-      wrap.appendChild(row("played","💪",`第${i+1}週`,`練習試合 ・ OVR上限→${h.cap||""}`,`<span class="wt-res">💪</span>`));
-    }else{
-      wrap.appendChild(row("played","🏆",`第${i+1}週`,"カップ",`<span class="wt-res ${h.res||""}">${h.res||""}</span>`));
+      wrap.appendChild(row("played",h.season?"🏆":"⚽",wk,sub,chip));
+    }else if(h&&h.act==="P"){
+      wrap.appendChild(row("played","💪",wk,`練習試合 ・ OVR上限→${h.cap||""}`,`<span class="wt-res">💪</span>`));
+    }else if(h&&h.act==="C"){
+      wrap.appendChild(row("played","🏆",wk,`カップ ${h.name||""}`,`<span class="wt-res ${h.res||""}">${h.res||""}</span>`));
+    }else if(i===cr.step){ // 現在(次の活動を選ぶ週)
+      wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節 ・ 下のボタンで選択`,`<span class="wt-res cur">選択</span>`));
+    }else{ // 未来週(未定)
+      wrap.appendChild(row("future","・",wk,"未定",`<span class="wt-res">—</span>`));
     }
-  }
-  if(cr.step<CAREER.steps){ // 現在(次の活動を選ぶ週)
-    wrap.appendChild(row("cur","▶",`第${cr.step+1}週 ・ 次の活動`,`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節 ・ 下のボタンで選択`,`<span class="wt-res cur">選択</span>`));
   }
   return wrap;
 }
@@ -490,7 +491,7 @@ function renderCareer(){
   act.appendChild(mkBtn("② カップ(準備中)",null,true,true));
   act.appendChild(mkBtn(`③ 練習(上限+${CAREER.practiceCap})`,careerPractice,true));
   box.appendChild(act);
-  box.appendChild(mk("div","banner","― 📅 スケジュール ―"));
+  box.appendChild(mk("div","banner","― 📅 スケジュール(全48週) ―"));
   box.appendChild(careerScheduleList(cr));
 }
 // 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
