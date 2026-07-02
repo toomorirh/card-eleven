@@ -395,13 +395,7 @@ function renderManagers(){
   S.mgrOwned=S.mgrOwned||[];
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
   const head=mk("div","banner");head.style.cssText="font-size:14px";head.textContent="― 🎯 監督(契約) ―";box.appendChild(head);
-  const lead=mk("div","lg");lead.innerHTML="監督を契約・起用すると自チームが少し強化されます(起用は1名・交代制)。新しい監督は<b>ガチャ</b>の「監督スカウト」で。";box.appendChild(lead);
-  // 監督キャリア(自作監督を育成するエンドコンテンツ)への導線
-  const cc=mk("div","wt-card");
-  const ci=mk("div","wt-info");ci.innerHTML=`<div class="wt-name">🎓 監督キャリア</div><div class="lv">${S.career?`進行中: ${S.career.name} (${S.career.step}/${CAREER.steps})`:"任期48ステップで自分だけのカスタム監督を育成"}</div>`;
-  cc.appendChild(ci);
-  const cb=mk("button","btn");cb.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";cb.textContent=S.career?"再開":"始める";
-  cb.onclick=()=>gotoCareer();box.appendChild(cc);cc.appendChild(cb);
+  const lead=mk("div","lg");lead.innerHTML="監督を契約・起用すると自チームが少し強化されます(起用は1名・交代制)。新しい監督は<b>ガチャ</b>の「監督スカウト」、または<b>リーグの「🎓 監督キャリア」</b>で育成。";box.appendChild(lead);
   // 現在の起用
   const act=activeManager();
   const cur=mk("div","wt-card");
@@ -444,40 +438,49 @@ function renderManagers(){
     });
   }
 }
-// ===== 監督キャリア画面 =====
+// ===== 監督キャリア(リーグ内モード) =====
+// リーグ画面(scr-home)の career モードを開く。試合終了後の復帰などから呼ぶ。
 function gotoCareer(){
-  document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
-  document.getElementById("scr-career").classList.add("on");
-  const wrap=document.querySelector(".wrap");if(wrap)wrap.classList.add("no-title");
-  document.body.classList.remove("on-title");
-  renderCareer();
+  const nav=document.querySelector('[data-s="home"]'); if(nav)nav.click();
+  const btn=document.querySelector('#modeRow [data-m="career"]'); if(btn)btn.click(); else renderCareer();
+}
+// 48ステップの活動カレンダー(12ヶ月×4週)。各セル=活動+結果を可視化(カップ開始日もここで示す)。
+function careerCalendar(cr){
+  const g=document.createElement("div");g.className="career-cal";
+  for(let i=0;i<CAREER.steps;i++){
+    const h=cr.history&&cr.history[i], cur=(i===cr.step), c=document.createElement("div");
+    c.className="cal-cell"+(cur?" cur":"")+(h?" done "+(h.act==="L"?("res-"+h.res):h.act==="P"?"prac":"cup"):"");
+    let ic="",sub="";
+    if(h){ if(h.act==="L"){ic=h.season?"🏆":"⚽";sub=h.res;} else if(h.act==="P"){ic="💪";sub="+";} else {ic="🏆";sub=h.res||"";} }
+    else if(cur){ic="▶";}
+    c.innerHTML=`<div class="cal-ic">${ic}</div><div class="cal-sub">${sub}</div>`;
+    c.title=`第${i+1}節`+(h?`: ${h.act==="L"?"リーグ "+h.sc+" "+h.res+(h.season?" DIV制覇!":""):h.act==="P"?"練習(上限UP)":"カップ"}`:cur?": 次の活動":"");
+    g.appendChild(c);
+  }
+  return g;
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
   const cr=S.career;
-  if(!cr){ // 未開始: 監督名を入力して開始
-    box.appendChild(mk("div","lg","限られた任期(<b>48ステップ</b>)で監督を育成し、<b>自分だけのカスタム監督</b>を作るエンドコンテンツ。①リーグ制覇でバフ獲得 / ③練習で編成OVR上限が緩む。満了で監督が確定し、他モードでも起用できます。"));
-    const row=mk("div","wt-card");
-    const inp=document.createElement("input");inp.id="careerName";inp.placeholder="監督名(16文字まで)";inp.maxLength=16;
-    inp.style.cssText="flex:1;min-width:0;padding:8px;border-radius:8px;border:1px solid #3a4f6c;background:#0f1c2f;color:#eef4fb;font-size:13px";
-    row.appendChild(inp);
-    const b=mk("button","btn");b.textContent="🎓 開始";b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
-    b.onclick=()=>startCareer((document.getElementById("careerName").value||"").trim());
-    row.appendChild(b);box.appendChild(row);
-    const bk=mk("button","btn ghost","← 監督室へ戻る");bk.style.marginTop="8px";bk.onclick=()=>gotoOffice("mgr");box.appendChild(bk);
+  box.appendChild(mk("div","banner",'― 🎓 監督キャリア ―'));
+  if(!cr){ // 未開始
+    box.appendChild(mk("div","lg","限られた任期(<b>48ステップ=12ヶ月×4週</b>)で監督を育成する、リーグの最上位コンテンツ。①リーグ制覇でバフ獲得 / ③練習で編成OVR上限が緩む。満了で<b>あなた(オーナー)の名を冠したカスタム監督</b>が完成し、他モードでも起用できます。"));
+    const b=mk("button","btn");b.textContent="🎓 監督キャリアを始める";b.onclick=()=>startCareer();box.appendChild(b);
+    if((S.customMgrs||[]).length)box.appendChild(mk("div","lg",`これまで育てた監督: ${S.customMgrs.length}名(監督室で起用可)`));
     return;
   }
-  box.appendChild(mk("div","banner",`👤 ${cr.name} ・ ${cr.step}/${CAREER.steps} ステップ`));
+  box.appendChild(mk("div","lg",`👤 <b>${cr.name}</b> 監督 ・ 進行 <b>${cr.step}/${CAREER.steps}</b> ステップ`));
   box.appendChild(mk("div","lg",`現在: <b>DIV${cr.div}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ シーズン勝点 ${cr.pts||0} ・ 編成OVR上限 <b>${cr.ovrCap}</b>`));
   box.appendChild(mk("div","lg",`🔼 獲得バフ(${cr.boosts.length}): ${cr.boosts.length?cr.boosts.map(boostDesc1).join(" / "):"(まだ無し)"}`));
+  box.appendChild(careerCalendar(cr));
+  box.appendChild(mk("div","lg",'<span class="cal-lg res-W">⚽勝</span> <span class="cal-lg res-D">分</span> <span class="cal-lg res-L">敗</span> <span class="cal-lg prac">💪練習</span> <span class="cal-lg">▶次</span>'));
   const act=mk("div","wt-card");act.style.cssText="flex-wrap:wrap;gap:8px";
   const mkBtn=(label,fn,ghost,dis)=>{const b=mk("button","btn"+(ghost?" ghost":""));b.textContent=label;b.style.cssText="width:auto;flex:1 1 28%";if(dis){b.disabled=true;b.style.opacity=".45";}else b.onclick=fn;return b;};
   act.appendChild(mkBtn("① リーグ進行",startCareerMatch));
   act.appendChild(mkBtn("② カップ(準備中)",null,true,true));
   act.appendChild(mkBtn(`③ 練習(上限+${CAREER.practiceCap})`,careerPractice,true));
   box.appendChild(act);
-  const bk=mk("button","btn ghost","← 中断(進行は保存)");bk.style.marginTop="8px";bk.onclick=()=>gotoOffice("mgr");box.appendChild(bk);
 }
 // 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
 function scoutManager(){
@@ -520,14 +523,16 @@ function renderHome(){
   if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
+  else if(m==="career")renderCareer();
   else renderLeague();
 }
-// モード切替(stage / league / world)
+// モード切替(stage / league / career / world)
 document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
   const m=b.dataset.m;
   document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
   document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
+  document.getElementById("careerMode").style.display=m==="career"?"block":"none";
   document.getElementById("worldMode").style.display=m==="world"?"block":"none";
-  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else renderLeague();
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="career")renderCareer();else renderLeague();
 });

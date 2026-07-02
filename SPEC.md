@@ -453,8 +453,10 @@
   - **boost獲得**: 6節消化で `careerRecordResult` が成績連動の boost を付与(`1+boostBase[div]×perf`、perf=0.4〜1.0=勝点比)→ DIV1まで自動昇格。
   - **③練習**: `careerPractice` で `ovrCap` 緩和。②カップは準備中(フェーズ3)。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
-  - **画面**: `#scr-career`(`gotoCareer`/`renderCareer`)。監督室の「🎓 監督キャリア」から開始/再開。
-  - 次(フェーズ3+): カップ→tac付与 / 6大陸リーグ(ステ系統分岐)/ 国際スキル / 契約延長。
+  - **配置**: リーグ画面(`scr-home`)の **`#modeRow [data-m="career"]`「🎓 監督」モード**(ステージ/リーグと並ぶリーグ内コンテンツ)。`#careerMode`/`renderCareer`。`gotoCareer` は home+careerモードへ遷移。
+  - **監督名**: 入力なし。**オーナー名(`S.coach`)を踏襲**(`startCareer` が採用)。
+  - **可視化**: 48ステップを **活動カレンダー(12ヶ月×4週)** で表示(`careerCalendar`)。各セル=活動(⚽リーグ/💪練習/🏆カップ)+結果(W緑/D灰/L赤・DIV制覇🏆)。現在セルは▶で強調、未来は空欄(カップ開始日をここで示す土台)。`cr.history[step]` に記録。
+  - 次(フェーズ3+): カップ→tac付与(カレンダーにカップ日程を配置)/ 6大陸リーグ(ステ系統分岐)/ 国際スキル / 契約延長。
 
 ### 7.11 名コンビ(ホットライン): 象徴的な固有選手ペアの連携
 特定の固有選手ペア(`DUOS`=[{a,b,name}]・`data.js`)が**両方スタメン**だと、片割れがボールを持った瞬間に専用連携が発動。采配と同型のトリガー。**ホーム/アウェイ両対応**(相手チームも名コンビを繰り出す)。

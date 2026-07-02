@@ -522,9 +522,10 @@ function startFriendMatch(team,coach,tn,form){
   _beginMatch(team, tn||`${coach}監督`, form, 0, -1);
 }
 // ===== 監督キャリア(WCCF風・カスタム監督育成) =====
-function startCareer(name){
-  S.career={name:(name||"新人監督").slice(0,16), step:0, div:3, node:0, pts:0, gf:0, ga:0,
-    ovrCap:CAREER.startCap, boosts:[], tacs:[], finished:false};
+function startCareer(){
+  const nm=((typeof S.coach==="string"&&S.coach.trim())||myName()||"オーナー").slice(0,16); // 監督名はオーナー名を踏襲
+  S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0,
+    ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], finished:false};
   save(); gotoCareer();
 }
 function startCareerMatch(){ // ①リーグ: 上限内編成で div相応の相手と1試合
@@ -539,9 +540,10 @@ function startCareerMatch(){ // ①リーグ: 上限内編成で div相応の相
 function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const cr=S.career; if(!cr||cr.finished)return;
   if(finalizeCareerIfDone())return;
-  cr.ovrCap=Math.min(CAREER.capMax, cr.ovrCap+CAREER.practiceCap); cr.step++;
+  cr.ovrCap=Math.min(CAREER.capMax, cr.ovrCap+CAREER.practiceCap);
+  (cr.history=cr.history||[])[cr.step]={act:"P"}; cr.step++;
   toast(`💪 練習試合! 編成OVR上限 +${CAREER.practiceCap}(現在 ${cr.ovrCap})`);
-  save(); if(!finalizeCareerIfDone())gotoCareer();
+  save(); if(!finalizeCareerIfDone())renderCareer();
 }
 function finalizeCareerIfDone(){ // 48ステップ到達→カスタム監督を確定して登録
   const cr=S.career; if(!cr||cr.step<CAREER.steps)return false;

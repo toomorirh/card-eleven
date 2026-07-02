@@ -113,8 +113,9 @@ function careerTeam(cap){
 }
 // キャリアの戦績処理(純粋・DOM非依存)。cr を更新し {res,pts,promoted,boost,seasonEnd,msg} を返す。
 function careerRecordResult(cr,sh,sa){
-  const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0;
+  const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0, divBefore=cr.div;
   cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
+  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,div:divBefore}; // 活動カレンダー用の記録
   cr.node++; cr.step++;
   const out={res,pts,seasonEnd:false,promoted:false,boost:null};
   if(cr.node>=CAREER.nodes){ // シーズン終了→DIV制覇→成績連動でboost獲得
@@ -123,6 +124,7 @@ function careerRecordResult(cr,sh,sa){
     const boost={pos:"all",stat:"all",mul};
     cr.boosts.push(boost);
     out.seasonEnd=true; out.boost=boost; out.seasonPts=cr.pts; out.seasonDiv=cr.div;
+    cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10; // 制覇マーク
     if(cr.div>1){cr.div--;out.promoted=true;}              // DIV1まで自動昇格、DIV1は連戦でboost積み増し
     cr.node=0;cr.pts=0;cr.gf=0;cr.ga=0;
   }
