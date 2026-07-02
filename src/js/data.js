@@ -296,6 +296,51 @@ const CUPS=[
    cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"コンチネンタルカップ優勝"},
 ];
 function cupById(id){return CUPS.find(c=>c.id===id)||null;}
+// ===== 監督キャリアの相手クラブ(名前付き・OVR Tier・seedでロスター固定=偵察可) =====
+// lv=強さ(6.6+lv が1ステ平均) / form=陣形 / seed=固定ロスター / boss=看板強敵。
+const OPP_CLUBS={
+  // T1(lv3-4)
+  aizen:{name:"アイゼンFC",         lv:3, form:"4-4-2",   seed:3001},
+  norte:{name:"ノルテ・ウニオン",   lv:3, form:"5-3-2",   seed:3002},
+  verde:{name:"リオ・ヴェルデ",     lv:4, form:"4-4-2",   seed:3003},
+  gale: {name:"サザン・ゲイル",     lv:4, form:"4-3-3",   seed:3004},
+  // T2(lv5-6)
+  rosa: {name:"モンテローザ",       lv:5, form:"4-3-1-2", seed:3005},
+  grif: {name:"グリフォンSC",       lv:5, form:"4-2-3-1", seed:3006},
+  azur: {name:"アズーリ・ノヴァ",   lv:5, form:"3-5-2",   seed:3007},
+  caled:{name:"カレドニア",         lv:6, form:"4-4-2",   seed:3008},
+  // T3(lv7)
+  estrella:{name:"エストレージャ",  lv:7, form:"4-3-3",   seed:3009},
+  pantera: {name:"パンテーラ",      lv:7, form:"4-2-3-1", seed:3010},
+  nordstern:{name:"ノルトシュテルン",lv:7, form:"5-4-1",  seed:3011},
+  // T4(lv8)
+  imperio:{name:"インペリオ",       lv:8, form:"4-3-3",   seed:3012},
+  volca:  {name:"ヴォルカニカ",     lv:8, form:"3-4-3",   seed:3013},
+  // T5(lv9・看板ボス)
+  grandex:{name:"グランデックス",   lv:9, form:"4-2-3-1", seed:3014, boss:true},
+  aurum:  {name:"オーラムFC",       lv:9, form:"4-3-3",   seed:3015, boss:true},
+  titania:{name:"ティターニア",     lv:9, form:"4-3-1-2", seed:3016, boss:true},
+};
+// リーグは各DIV 6節を固定順で配置(周回で同じ強豪と再戦=ライバル化)。
+const CAREER_LEAGUE={
+  3:["aizen","norte","verde","gale","rosa","grif"],
+  2:["rosa","grif","azur","caled","estrella","pantera"],
+  1:["estrella","pantera","nordstern","imperio","volca","grandex"],
+};
+// カップは固定ブラケット(いつも当たる相手)。末尾=決勝の看板ボス。
+const CUP_BRACKETS={
+  domestic:     ["norte","rosa","caled"],
+  continental:  ["azur","estrella","pantera","imperio","aurum"],
+  international: ["pantera","imperio","volca","grandex","titania"],
+};
+// 現在の対戦相手クラブ(カップ中はブラケット、通常はDIVの節)を返す。
+function careerOpponent(cr){
+  if(!cr)return null;
+  let id;
+  if(cr.cup){ id=(CUP_BRACKETS[cr.cup.id]||[])[cr.cup.i]; }
+  else { const pool=CAREER_LEAGUE[cr.div]||CAREER_LEAGUE[3]; id=pool[(cr.node||0)%pool.length]; }
+  return id?Object.assign({id},OPP_CLUBS[id]):null;
+}
 // その週(0基点stepの週=step+1)がカップのエントリー週か(periodの倍数)。
 function cupEntryWeek(cup,step){return ((step+1)%cup.period)===0;}
 // 今この週にエントリー可能か(エントリー週 かつ 前提条件を満たす)。

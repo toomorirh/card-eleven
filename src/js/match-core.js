@@ -115,7 +115,7 @@ function careerTeam(cap){
 function careerRecordResult(cr,sh,sa){
   const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0, divBefore=cr.div;
   cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
-  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,div:divBefore,nd:(cr.node||0)+1}; // スケジュール表示用の記録
+  const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,div:divBefore,nd:(cr.node||0)+1,opp:cr.oppName||""}; // スケジュール表示用の記録
   cr.node++; cr.step++;
   const out={res,pts,seasonEnd:false,promoted:false,boost:null};
   if(cr.node>=CAREER.nodes){ // シーズン終了→DIV制覇→成績連動でboost獲得
@@ -133,7 +133,7 @@ function careerRecordResult(cr,sh,sa){
 // カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり、引分/敗北で敗退。need連勝で優勝。
 function careerCupResult(cr,sh,sa){
   const cup=cr.cup, res=sh>sa?"W":sh===sa?"D":"L";
-  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:sh+"-"+sa,rnd:cup.i+1,need:cup.need};
+  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:sh+"-"+sa,rnd:cup.i+1,need:cup.need,opp:cr.oppName||""};
   cr.step++;
   const out={res,cup};
   if(res==="W"){
