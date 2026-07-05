@@ -182,6 +182,12 @@ const TUNING={
   volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10, tacGate:0.5, heatReset:0.4},
   // トレードマーク(必殺の型)の発動: 熱気volt以上の局面で、その局面(mark.at)に合致した型が chance で炸裂。
   mark:{chance:0.13, volt:0.4},
+  // モメンタム&テリトリー(勢い/陣地): 試合中の行動が支配率と起点位置にフィードバックする戦術レイヤー。
+  // mom(-1..1)は行動で動き毎ティック中立へ減衰。possK=支配率反映 / terr=起点前後 / chanBias=起点選定バイアス /
+  // ctrlK=支配力による獲得増 / resistK=相手支配力によるモメンタム奪取耐性(=mid支配率スキルの有効化)。「大きめ」設定。
+  flow:{ decay:0.88, cap:1.0,
+    duel:0.11, pass:0.06, shot:0.08, turnover:0.24, goal:0.36, streak:0.11, lost:0.10,
+    possK:0.55, terr:15, terrCtrl:8, chanBias:0.8, ctrlK:0.9, resistK:0.6 },
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性

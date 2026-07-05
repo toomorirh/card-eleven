@@ -275,6 +275,14 @@ function midPower(T,opT,min){
   const sf=(STYLES[T.style]||{}).mid||1;
   return m*tf*sf;
 }
+// 支配力(control): mid スキル保有と支配型(type.poss)の超過分を合算した「試合を落ち着かせ押し上げる力」。1+ を返す。
+// モメンタムの獲得倍率・相手モメンタムへの耐性・テリトリー基準ラインに効く(=mid支配率スキルの有効化)。
+function flowControl(T){
+  let c=0;
+  T.players.forEach(p=>{ if(p.role==="GK")return;
+    c += Math.max(0,(fx(p).mid||1)-1) + Math.max(0,(typeOf(p.c).poss||1)-1)*0.5; });
+  return 1+c;
+}
 function pickW(list,wfn){
   if(!list.length)return null;
   const tot=list.reduce((s,x)=>s+wfn(x),0);let r=Math.random()*tot;
@@ -347,9 +355,12 @@ const CHANNELS={
 };
 function chanMaxLink(channel){return (CHANNELS[channel]||{}).maxLink??3;}
 // 通常起点のチャンネル選択。weightを持つチャンネルのみ対象に、基準重み×スタイルバイアスで抽選。
-function pickChannel(T,opp,min){
+// terr(-1..1)=攻撃側のテリトリー傾向。押し込むほど高い起点(build/overlap)、押されるほど深い起点(feed)を好む。
+function pickChannel(T,opp,min,terr){
   const bias=(STYLES[T.style]||{}).channelBias||{}, w={};
-  for(const id in CHANNELS){ const ch=CHANNELS[id]; if(!ch.weight)continue; w[id]=ch.weight(T,opp,min)*ch.base*(bias[id]||1); }
+  const tb=TUNING.flow.chanBias*(terr||0), terrMul={build:1+tb*0.6, overlap:1+tb, feed:1-tb};
+  for(const id in CHANNELS){ const ch=CHANNELS[id]; if(!ch.weight)continue;
+    w[id]=ch.weight(T,opp,min)*ch.base*(bias[id]||1)*Math.max(0.15,terrMul[id]||1); }
   return pickW(Object.keys(w),k=>w[k]);
 }
 // チャンネル内の起点選手を抽選

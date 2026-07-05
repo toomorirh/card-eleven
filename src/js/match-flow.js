@@ -28,7 +28,7 @@ async function egoRun(ctx,type){
   const won=resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
   await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)",won);
   if(won){
-    carrier.stat.duelW++;
+    carrier.stat.duelW++;addFlow(A,TUNING.flow.duel); // 抜き去り成功→流れ
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
     if(!await trademark(carrier,"ego"))await dribbleCutin(carrier,type); // 稀にトレードマーク、通常は駆け抜け演出
@@ -39,6 +39,7 @@ async function egoRun(ctx,type){
   }
   carrier.stat.duelL++;df.stat.duelW++;df.stat.tkl++;
   feed(`${who}${df.c.name}(守${df.c.def})が${type==="cutin"?"カットイン":"ドリブル"}を止めた!`);if(fx(df).duelD)await skillHit(df);
+  addFlow(D,TUNING.flow.lost); // タックル成功→守備側に流れ
   await trademark(df,"stop"); // 守備の型のトレードマーク(ブロック/刈り取り)
   return {lost:true,reason:"tackle"};
 }
@@ -55,13 +56,14 @@ const LINKS={
     await ballTo(curP(carrier).x+dir*2,curP(carrier).y,0.3);
     await ballTo(curP(mate).x+dir*3,curP(mate).y,0.3,null,A.side);
     if(resolveLink("combination",mate,df,A,D,min,tf.a,tf.d,tf.bonus)){
-      mate.stat.duelW++;
+      mate.stat.duelW++;addFlow(A,TUNING.flow.pass); // つなぎ成功→流れ
       feed(`${who}🔄 <b>${carrier.c.name}</b>→<b>${mate.c.name}</b> ワンツーで前進!`,"chance");
       if(skillShow())await passCutin(carrier,mate,"ワンツー"); // パス左流れ演出(熱気で頻度調整)
       await skillAny(mate,["duelTec","mid"]);
       return {receiver:mate,assist:carrier};
     }
     df.stat.tkl++;feed(`${who}${df.c.name}がパスをカット!`);if(fx(df).duelD)await skillHit(df);
+    addFlow(D,TUNING.flow.lost); // インターセプト→守備側に流れ
     return {lost:true,reason:"intercept"};
   }},
   // 縦パス(終端): 抜け出すランナーへ。成功でGKと1対1。
@@ -76,7 +78,7 @@ const LINKS={
     const won=resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
     await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)",won);
     if(won){
-      r.stat.duelW++;
+      r.stat.duelW++;addFlow(A,TUNING.flow.duel); // 裏抜け成功→流れ
       feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
       if(await trademark(carrier,"through")){}else if(skillShow())await passCutin(carrier,r,"スルーパス"); // 稀に司令塔のトレードマーク
       if(fx(r).duelSpd)await skillHit(r);
@@ -86,6 +88,7 @@ const LINKS={
       return {shot:true};
     }
     df.stat.tkl++;feed(`${who}${df.c.name}(速${df.c.spd})が先回りしてクリア!`);if(fx(df).duelD)await skillHit(df);
+    addFlow(D,TUNING.flow.lost); // クリア→守備側に流れ
     if(Math.random()<TUNING.setpiece.cornerOnClear){await setCorner(A,D,min);return {shot:true};}
     return {lost:true,reason:"clear"};
   }},
@@ -257,7 +260,7 @@ async function aerialBox(A,D,min,deliverer,tf,who){
   movePlayer(t,cx-dir*2,cy,0.4);movePlayer(df,cx+dir*2,cy+ri(-4,4),0.4);
   await ballTo(cx,cy,0.4,null,A.side);hot(t);hot(df);
   if(resolveLink("cross",t,df,A,D,min,tf.a,tf.d,tf.bonus)){
-    t.stat.duelW++;
+    t.stat.duelW++;addFlow(A,TUNING.flow.duel); // 空中戦勝ち→流れ
     feed(`${who}中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
     if(fx(t).duelPow)await skillHit(t);
     await trademark(t,"aerial"); // ポスト系のトレードマーク(収めて起点)
@@ -265,6 +268,7 @@ async function aerialBox(A,D,min,deliverer,tf,who){
     return {shot:true};
   }
   df.stat.tkl++;feed(`${who}${df.c.name}(力${df.c.pow})が跳ね返した!`);if(fx(df).duelD)await skillHit(df);
+  addFlow(D,TUNING.flow.lost); // 跳ね返し→守備側に流れ
   return {clear:true};
 }
 // セットプレー レジストリ(pk/fk/ck)。各 run は自己完結(キッカー選定→演出→spShot/aerialBox)。
@@ -336,10 +340,31 @@ function addVolt(x){
   MC.volt=Math.min(1,(MC.volt||0)+x);
   if(MC.volt>=0.7&&!MC._heated){MC._heated=true;feed("🔥 ヒートアップ!スタジアムが沸いてきた!","chance");}
 }
+// ===== モメンタム&テリトリー(勢い/陣地): 行動が支配率と起点位置にフィードバックする戦術レイヤー =====
+// mom: -1(相手優勢)〜+1(自チーム優勢)。volt(演出の熱気)とは別系統。攻撃側から見た自分の勢い=momOf。
+const momOf=T=>(T&&T.side==="A")?-(MC.mom||0):(MC.mom||0);
+const _ctrlOf=T=>((T===MC.home?MC.home:MC.away)._ctrl)||1;
+// 行動→モメンタム加算。良いプレーをした側Tが得る。支配力で獲得増、相手の支配力で目減り(流れを渡さない)。
+function addFlow(T,base){
+  if(!MC||!T)return;
+  const F=TUNING.flow, gain=T.side==="H"?1:-1;
+  const other=T===MC.home?MC.away:MC.home;
+  const delta=base*(1+(_ctrlOf(T)-1)*F.ctrlK)/(1+(_ctrlOf(other)-1)*F.resistK);
+  MC.mom=Math.max(-F.cap,Math.min(F.cap,(MC.mom||0)+gain*delta));
+}
+// 攻撃側のテリトリー(起点の前後押し・render攻撃軸のオフセット): 自分の勢い×terr + 支配力による基準押上げ。
+function territory(T){ const F=TUNING.flow; return momOf(T)*F.terr+(_ctrlOf(T)-1)*F.terrCtrl; }
+// 起点選定用の正規化テリトリー(-1..1)。
+const terrNorm=T=>Math.max(-1,Math.min(1, momOf(T)+(_ctrlOf(T)-1)*0.3));
+// 支配率バー(HUD)を現在の支配率シェアで更新。押し込み/押し下げを可視化。
+function updateMomBar(share){
+  const f=document.getElementById("mbarFill"); if(f)f.style.width=Math.round(Math.max(4,Math.min(96,share*100)))+"%";
+}
 // ゴール演出の集約: 加点 + 種別/スーパー判定 + スコアpop/歓声 + バナー/カットイン + 流れ(同点・勝ち越し・ハット)。
 async function goalCelebrate(scorer,A,D,min,opts={}){
   const preA=A.score, preD=D.score;
   addVolt(TUNING.volt.goal); // 得点で熱気が一気に上がる
+  addFlow(A,TUNING.flow.goal); // 得点で流れを大きく引き寄せる
   A.score++; scorer.stat.goals++; if(opts.assist)opts.assist.stat.assists++;
   document.getElementById(A.side==="H"?"sH":"sA").textContent=A.score;
   scorePop(A.side); crowdPulse();
@@ -378,6 +403,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
   }
   atk.stat.shots++;
   addVolt(TUNING.volt.shot); // シュートで熱気が上がる
+  addFlow(A,TUNING.flow.shot); // シュートまで持ち込めば流れを引き寄せる
   const gk=pickGK(D);
   atk.stat.inv++;gk.stat.inv++;defLoad(D,TUNING.fatigue.dloadShot);
   await auraSkill(A,"teamChance",TUNING.aura.teamChance); // 決定機を演出した司令塔役(teamChance)の発動を明示
@@ -426,26 +452,32 @@ async function tickAsync(){
   // ボルテージ: 停滞で冷め(decay)、時間で下限が上昇。閾値未満でヒートアップ告知をリセット。
   M.volt=Math.max((M.volt||0)*TUNING.volt.decay, M.min/MT.fullMin*TUNING.volt.timeFloor);
   if(M.volt<TUNING.volt.heatReset)M._heated=false;
+  M.mom=(M.mom||0)*TUNING.flow.decay; // モメンタム: 毎ティック中立へ減衰(流れは移ろう)
+  M.home._ctrl=flowControl(M.home); M.away._ctrl=flowControl(M.away); // 支配力(mid支配率スキル/支配型)を毎ティック算出
   M.home.tactic=S.tactic;M.home.style=S.style;
   if(M.min===MT.oppAdjustMin){
     M.away.tactic=M.away.score<M.home.score?"atk":M.away.score>M.home.score?"def":"bal";
     if(M.away.tactic==="atk")feed(`${M.name}がカードを前に動かしてきた!攻勢だ!`);
   }
-  const mh=midPower(M.home,M.away,M.min),ma=midPower(M.away,M.home,M.min);
+  // 支配率シェア = midPower比 に モメンタム(勢い)を反映(良いプレーを続けた側が実際に支配を上げる)。
+  const fk=TUNING.flow.possK;
+  const mh=midPower(M.home,M.away,M.min)*Math.max(0.2,1+M.mom*fk), ma=midPower(M.away,M.home,M.min)*Math.max(0.2,1-M.mom*fk);
+  const tShare=mh/(mh+ma); updateMomBar(tShare); // HUDの支配率バーを更新
   // 主導権(支配率比) → 奪取(カウンター)判定 → チャンネル/起点選択
-  let T=Math.random()<mh/(mh+ma)?M.home:M.away;
+  let T=Math.random()<tShare?M.home:M.away;
   let D=T===M.home?M.away:M.home;
   let channel,origin;
   if(rollTurnover(T,D,M.min)){
     [T,D]=[D,T];channel="win";origin=pickWinner(T,D,M.min);
+    addFlow(T,TUNING.flow.turnover); // 奪取=大きな流れの転換
     feed(`${whoPrefix(T)}⚡ ${origin.c.name}がボールを奪った!カウンターのチャンス!`,"chance");
   }else{
-    channel=pickChannel(T,D,M.min);
+    channel=pickChannel(T,D,M.min,terrNorm(T)); // 起点選定もテリトリー連動(押し込む=高い起点/押される=深い起点)
     origin=pickOriginPlayer(T,D,channel,M.min);
   }
   // モメンタム(連続攻撃): 同じチームが攻め続けると「猛攻」コール
   if(M._lastAtk===T.side){M._streak=(M._streak||1)+1;}else{M._streak=1;M._lastAtk=T.side;}
-  if(M._streak===MT.streakHeat){feed(`${whoPrefix(T)}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);}
+  if(M._streak===MT.streakHeat){feed(`${whoPrefix(T)}🔥 ${teamName(T)}の猛攻!押し込んでいる!`,"chance");addVolt(TUNING.volt.surge);addFlow(T,TUNING.flow.streak);}
   const dir=dirOf(T);
   defLoad(D,1); // 被攻撃ぶんの守備負荷を相手DFラインに分担(忙しい試合ほどDFが疲れる)
   await auraSkill(T,"mid",TUNING.aura.mid); // 中盤を支配した側の mid 系スキル(支配率)の発動を明示
@@ -455,9 +487,11 @@ async function tickAsync(){
     origin._gassed=true;
     feed(`${whoPrefix(T)}💨 ${origin.c.name}に疲れが見える…動きが重くなってきた`);
   }
-  await ballTo(curP(origin).x+dir*2,curP(origin).y,0.4); // 起点へボールが収まる
+  const terr=territory(T), ox=clX(curP(origin).x+dir*(2+terr)); // 勢い/支配で起点位置が上下(押し込み/押し下げ)
+  movePlayer(origin,ox,curP(origin).y,0.5);
+  await ballTo(ox,curP(origin).y,0.4); // 起点へボールが収まる
   updateField(T.side);
-  const tShare=mh/(mh+ma), edge=(T===M.home)?tShare:1-tShare;
+  const edge=(T===M.home)?tShare:1-tShare;
   if(buildupSuccess(channel,edge)){
     recordOrigin(M,channel,origin);
     addVolt(TUNING.volt.atk); // 攻撃が形になると熱気が上がる
@@ -500,12 +534,13 @@ function _beginMatch(away,name,form,lv,idx,home0){
   document.getElementById("sH").textContent=0;document.getElementById("sA").textContent=0;
   document.getElementById("feed").innerHTML="";document.getElementById("matchEnd").innerHTML="";
   const clk=document.getElementById("clock");if(clk){clk.textContent="0分";clk.classList.remove("late");}
+  updateMomBar(0.5); // 支配率バーを中立へリセット
   hideStatOverlay();
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
   const home=home0||myTeam();
   away.style=oppPickStyle(away);
-  MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
+  MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   document.getElementById("subN").textContent=3;

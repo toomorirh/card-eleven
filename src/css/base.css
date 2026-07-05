@@ -260,6 +260,9 @@ canvas.sprite{image-rendering:auto}
 .score .t{font-size:12px;font-weight:900;width:34%}.score .t.away{text-align:right;color:#ffb3a8}
 .score .s{font-family:'DotGothic16';font-size:30px;color:var(--gold)}
 .clock{text-align:center;font-family:'DotGothic16';font-size:15px;color:var(--cyan);margin:4px 0}
+/* 支配率(勢い)バー: 左=自チーム(青)/右=相手(赤)。幅が支配率シェア。押し込み/押し下げを可視化。 */
+.mbar{height:7px;border-radius:5px;overflow:hidden;background:#d3564a;margin:-2px 0 4px;border:1px solid #2a3d56;position:relative}
+.mbar-fill{height:100%;width:50%;background:linear-gradient(90deg,#3f7fd0,#5aa0e6);transition:width .45s ease;box-shadow:2px 0 6px rgba(90,160,230,.6)}
 .ballbar{position:relative;height:14px;background:linear-gradient(90deg,#2a5d8f,#234,#8f3a2a);
   border-radius:7px;margin:8px 0;overflow:hidden;border:1px solid #2a3d56}
 .ballbar .b{position:absolute;top:1px;width:12px;height:12px;background:#fff;border-radius:50%;
