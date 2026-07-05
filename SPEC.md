@@ -201,7 +201,8 @@
 実在モチーフのスペシャル選手。データ駆動の `SIGNATURES` 配列(`data.js`)で定義し、追加は1要素足すだけ。
 - 各エントリ: `{id, name, flag, pos, sub, type, stats{6}, skill{name,desc,fx}}`。**不変条件: 6ステ合計=100(レジェンド級)/ いずれか1つ以上が20 / `subGroup(sub)===pos`**。
 - `makeSignature(id)` でカード化。`rar:"l"`(レジェンド枠の演出を流用)+ `sig` 識別子を持ち、固定ステ・ユニークスキル・固有名・国籍を持つ。図鑑/カードでは **★★★★** 表示で通常LEGEND(ランダム生成)と区別。
-- **モチーフ画像**: `src/assets/signatures/<id>.png` に1ポーズ(背景透過推奨)を置くと、`build.py` が **SIGNATURESに登録済みのidと一致するものだけ** base64 データURI化して `window.SIG_IMG` を生成し、JSバンドル先頭(`"use strict";`直後)に注入(オフライン単一HTMLを維持)。`spriteCanvas` が `c.sig` で分岐してこの画像を描画(未配置時は★プレースホルダ)。複数ポーズ入りの生ソースはここに置いても切り出して`<id>.png`にするまで埋め込まれない。
+- **モチーフ画像**: `src/assets/signatures/<id>.webp`(または png/jpg)に1ポーズを置くと、`build.py` が **SIGNATURESに登録済みのidと一致するものだけ** base64 データURI化して `window.SIG_IMG` を生成し、JSバンドル先頭に注入(単一HTML維持)。`spriteCanvas` が `c.sig` で分岐して描画(未配置時は★)。複数ポーズ入りの生ソース(`ce_py*`)は`<id>`にクロップするまで埋め込まれない。
+  - **WebP圧縮(300体規模対応)**: クロップは `tools/crop_signature.py` が**高さ320px・WebP(q85)**で出力(`<id>.webp`)。PNG比 約92%削減(31体で 8MB→0.65MB / index.html 12.8MB→2.9MB)。300体でも約6MBで単一HTMLを維持できる。既存クロップも webp へ変換済み(生 `ce_py*.png` は再クロップ用に保持)。
 - **入手**: 実績(トロフィー)報酬のみ。コイン購入・通常ガチャ・かけら合成は不可で、アスピレーショナルな到達目標として位置づける。詳細は §7.6。基本は**ランダム確定パック**(`S.sigPacks`)で入手し、特別な実績では**選択券**(`S.sigSelect`、好きな1名を指名獲得)が手に入る。
 - 全31名(上限): メッシ/C.ロナウド/ハーランド/エムバペ/ケイン/カカ/モドリッチ/ネイマール/ファン・ダイク/マルディーニ/ノイアー/久保/ベルカンプ/ヴィエラ/アンリ/ブッフォン/ククレジャ(🇪🇸LSB)/アラウホ(🇺🇾CB)/デ・ヨング(🇳🇱CMF)/ベッカム(🇬🇧RMF)/テリー(🇬🇧CB)/ネドベド(🇨🇿LMF)/アーノルド(🇬🇧RSB)/ブスケツ(🇪🇸DMF)/ヤマル(🇪🇸RWG)/カフー(🇧🇷RSB)/マテウス(🇩🇪CMF)/R.カルロス(🇧🇷LSB)/マラドーナ(🇦🇷OMF)/ラーム(🇩🇪RSB)/イギータ(🇨🇴GK)。全31名(QRの sig は5bit=最大31体まで)。
 
@@ -410,7 +411,9 @@
 ### 7.8 フレンド対戦(チームコード共有・非同期/サーバ不要)
 **監督室**(フッタータブ🎩=旧🏅実績・`scr-office`)の「🤝 対戦」サブタブに集約。サーバを持たず、**編成をコード化したチャレンジURLを送り合って非同期対戦**する(カジュアル用途・コードは編集可能なので厳格な競争には非対応)。`renderFriend` が共有(QR/URL/コピー)＋取り込み(相手確認→キックオフ)一式を `#ofMatch`(`friendHead`/`friendBody`)へ描画。
 
-- **エクスポート(コンパクト)**: `exportTeam()` がスタメン11＋お気に入りを**ビット詰めバイナリ→base64url**化。1カード=61bit(sub4/rar2/type2/head5/bodyVar2/6ステ各5/flag4/sig5/skill1/name6)。監督名・チーム名のみ可変長UTF8で先頭に格納(識別バイト`0xC2`)。**約154文字**(旧JSON比≈8%)でQRに載るサイズ。`challengeURL()` が `location...#team=<コード>`(フラグメント=サーバ非送出)を生成。名前/スキルはインデックス参照(`NAMES`/`SKILLS`/`LSKILLS`)、固有選手は sig id から `makeSignature` で復元(共有ステで上書き)。
+- **エクスポート(コンパクト)**: `exportTeam()` がスタメン11＋お気に入りを**ビット詰めバイナリ→base64url**化。1カード=sub4/rar2/type2/head5/bodyVar2/6ステ各5/flag4/**sig(可変)**/skill1/name6。監督名・チーム名のみ可変長UTF8で先頭に格納。
+  - **バージョン(sigビット幅)**: 先頭バイト `0xC3`=**v3(sig 10bit=最大1023体・300体対応)**。旧 `0xC2`=v2(sig 5bit=31体)も**読込互換**(`importTeam` が先頭バイトで `sigBits` を5/10に切替、`_encCard/_decCard` に渡す)。エクスポートは常にv3。
+  - `challengeURL()` が `location...#team=<コード>`(フラグメント=サーバ非送出)を生成。名前/スキルはインデックス参照、固有選手は sig id から `makeSignature` で復元(共有ステで上書き)。
 - **インポート**: `importTeam(URL or コード)` が復元(`rebuildCard`: 固有は `makeSignature`＋共有ステ上書き、通常は素のカード生成)。陣形の各枠へ配置し `posFit` で pen を反映、`buildTeam` で相手チーム化。
 - **対戦**: `startFriendMatch(team,coach)` → 通常の試合エンジンで自チーム vs 相手チーム。`endMatch` のフレンド分岐で **`S.friendRec[coach]={w,d,l}`** に成績をローカル記録。
 - **QRコード**: 共有URL生成時に **QRを `<canvas>` 表示**(`qrcode-generator` 2.0.4 MITを `src/js/qr.js` にインライン=オフライン)。相手はスマホのカメラ/QRアプリで読めば開くだけで対戦。`qr.js` は `build.py` のJSにのみ含め(テスト連結 `_setup.js` には入れない)、`renderFriend` から遅延使用(未定義でも try/catch)。生成QRは `jsqr` でデコード往復一致を確認済み(開発時検証)。

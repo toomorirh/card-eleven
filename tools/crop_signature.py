@@ -108,9 +108,13 @@ def main():
     if args.dry_run:
         print("dry-run のため保存しません。")
         return
-    out = SIG_DIR / f"{args.id}.png"
-    crop.save(out)
-    print(f"保存 -> {out.relative_to(ROOT)}")
+    # 高さ320pxに縮小して WebP(q85) で保存(埋め込みサイズを ~92% 削減=300体規模でも単一HTML維持)
+    w, h = crop.size
+    if h > 320:
+        crop = crop.resize((max(1, round(w * 320 / h)), 320))
+    out = SIG_DIR / f"{args.id}.webp"
+    crop.save(out, "WEBP", quality=85, method=6)
+    print(f"保存 -> {out.relative_to(ROOT)}  ({out.stat().st_size // 1024}KB)")
     print("次: data.js の SIGNATURES に id を登録し、`python build.py` を実行してください。")
 
 

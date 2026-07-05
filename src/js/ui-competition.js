@@ -271,7 +271,9 @@ function _BW(){return {b:[],c:0,n:0,
   done(){if(this.n)this.b.push(this.c<<(8-this.n));return this.b;}};}
 function _BR(bytes){return {bytes,bit:0,
   read(bits){let v=0;for(let i=0;i<bits;i++){const byte=this.bytes[this.bit>>3]||0,bv=(byte>>(7-(this.bit&7)))&1;v=(v<<1)|bv;this.bit++;}return v;}};}
-function _encCard(w,c){
+const _SIGBITS=10; // v3(0xC3): sigインデックスのビット幅=最大1023体(将来300体まで対応)。v2(0xC2)は5bit。
+function _encCard(w,c,sigBits){
+  sigBits=sigBits||5;
   const pos=subGroup(c.sub);
   const sig=c.sig?Math.max(0,SIGNATURES.findIndex(s=>s.id===c.sig)+1):0;
   let skCh=0;
@@ -283,15 +285,16 @@ function _encCard(w,c){
   w.push((c.look&&c.look.bodyVar)||0,2);
   ["off","def","pow","tec","spd","sta"].forEach(k=>w.push(Math.min(31,Math.max(0,c[k]|0)),5));
   w.push(Math.max(0,FLAGS.indexOf(c.flag)),4);
-  w.push(sig,5);
+  w.push(sig,sigBits);
   w.push(skCh,1);
   w.push(c.sig?0:Math.max(0,NAMES.indexOf(c.name)),6);
 }
-function _decCard(r){
+function _decCard(r,sigBits){
+  sigBits=sigBits||5;
   const sub=_SUBS[r.read(4)]||"CMF", rar=_RARS[r.read(2)]||"n", pos=subGroup(sub);
   const tIdx=r.read(2), head=r.read(5), bv=r.read(2);
   const st=[r.read(5),r.read(5),r.read(5),r.read(5),r.read(5),r.read(5)];
-  const flagIdx=r.read(4), sig=r.read(5), skCh=r.read(1), nameIdx=r.read(6);
+  const flagIdx=r.read(4), sig=r.read(sigBits), skCh=r.read(1), nameIdx=r.read(6);
   if(sig>0&&SIGNATURES[sig-1]){const c=makeSignature(SIGNATURES[sig-1].id)||makeCard("FW","l");
     ["off","def","pow","tec","spd","sta"].forEach((k,i)=>c[k]=st[i]); return c;}
   const tk=Object.keys(TYPES[pos]); const type=tk[tIdx]||tk[0];
@@ -305,10 +308,10 @@ function exportTeam(){
   w.push(Math.max(0,_FORMS.indexOf(S.form)),3);
   const favC=S.favId&&S.coll.find(k=>k.id===S.favId);
   w.push(favC?1:0,1);
-  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]));});
-  if(favC)_encCard(w,favC);
+  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]),_SIGBITS);});
+  if(favC)_encCard(w,favC,_SIGBITS);
   const bits=w.done();
-  const head=[0xC2,coach.length,...coach,team.length,...team]; // 0xC2=v2バイナリ識別
+  const head=[0xC3,coach.length,...coach,team.length,...team]; // 0xC3=v3(sig 10bit)。0xC2=v2(sig 5bit)は読込互換
   return _b64u(Uint8Array.from(head.concat(bits)));
 }
 function challengeURL(){return location.origin+location.pathname+"#team="+exportTeam();}
@@ -316,14 +319,15 @@ function importTeam(raw){
   let code=(raw||"").trim();
   const m=code.match(/team=([A-Za-z0-9_-]+)/); if(m)code=m[1]; // URL貼り付けにも対応
   const bytes=_unb64u(code);
-  if(bytes[0]!==0xC2)throw new Error("bad");
+  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3)throw new Error("bad");
+  const sigBits=ver===0xC3?10:5; // バージョンで sig ビット幅を切替(v2=5/v3=10)
   let p=1; const cl=bytes[p++], coach=_us(bytes.slice(p,p+cl)); p+=cl;
   const tl=bytes[p++], team=_us(bytes.slice(p,p+tl)); p+=tl;
   const r=_BR(bytes.slice(p));
   const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
-  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r);
+  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits);
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
-  const fav=favFlag?_decCard(r):null;
+  const fav=favFlag?_decCard(r,sigBits):null;
   return {team:buildTeam(cards,"A",form), coach:(coach||"名無し監督").slice(0,20),
     teamName:(team||"相手チーム").slice(0,20), fav, form};
 }
