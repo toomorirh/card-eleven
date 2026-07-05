@@ -463,10 +463,9 @@ function renderManagers(){
   }
 }
 // ===== 監督キャリア(リーグ内モード) =====
-// リーグ画面(scr-home)の career モードを開く。試合終了後の復帰などから呼ぶ。
+// 監督育成の独立画面(下部メニュー「🎓 育成」= scr-career)を開く。試合終了後の復帰などから呼ぶ。
 function gotoCareer(){
-  const nav=document.querySelector('[data-s="home"]'); if(nav)nav.click();
-  const btn=document.querySelector('#modeRow [data-m="career"]'); if(btn)btn.click(); else renderCareer();
+  const nav=document.querySelector('.tabs [data-s="career"]'); if(nav)nav.click(); else renderCareer();
 }
 // 活動スケジュール(ワールドツアーと同じ wt-card 縦リスト)。48週ぶんの行を先に全て並べ、
 // 進行した週(cr.history[i])だけ活動+結果を記録表示。現在週=▶で強調、未来週=淡色の未定。
@@ -639,18 +638,16 @@ function renderHome(){
   if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
-  else if(m==="career")renderCareer();
   else if(m==="daily")renderDaily();
   else renderLeague();
 }
-// モード切替(stage / league / career / daily / world)
+// モード切替(stage / league / daily / world)。監督育成は下部メニューの独立モード(scr-career)。
 document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
   const m=b.dataset.m;
   document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
   document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
-  document.getElementById("careerMode").style.display=m==="career"?"block":"none";
   document.getElementById("dailyMode").style.display=m==="daily"?"block":"none";
   document.getElementById("worldMode").style.display=m==="world"?"block":"none";
-  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="career")renderCareer();else if(m==="daily")renderDaily();else renderLeague();
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="daily")renderDaily();else renderLeague();
 });

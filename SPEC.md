@@ -464,7 +464,7 @@
   - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
   - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
-  - **配置**: リーグ画面(`scr-home`)の **`#modeRow [data-m="career"]`「🎓 監督」モード**(ステージ/リーグと並ぶリーグ内コンテンツ)。`#careerMode`/`renderCareer`。`gotoCareer` は home+careerモードへ遷移。
+  - **配置**: **下部メニューの独立モード「🎓 育成」**(`.tabs [data-s="career"]`→`scr-career`/`#careerBox`)。リーグとは別の最上位コンテンツとして扱う。`show("career")`→`renderCareer`、`gotoCareer` は育成タブへ遷移。(旧: リーグ画面のmodeRow内モード)
   - **監督名**: 入力なし。**オーナー名(`S.coach`)を踏襲**(`startCareer` が採用)。
   - **可視化**: 活動スケジュールを **ワールドツアーと同じ `wt-card` 縦リスト**で表示(`careerScheduleList`)。各行=第N週の活動(⚽リーグ/💪練習/🏆カップ)+詳細(DIV/節/スコア)+結果チップ(🏆勝/🤝分/😢敗)。現在週は ▶「次の活動」行(`.wt-card.cur`=ゴールド枠)。`cr.history[step]` に記録(後でカップ開始日を行として差し込む土台)。
   - **②カップ(フェーズ3・実装済み)**: `CUPS`(国内3試合/大陸5/国際5)。`cond` を満たすと `careerCupPicker` から挑戦→`startCup`。以後 `startCareerMatch` がカップ戦(相手lv=cup.lv)になり、**勝ち抜き(need連勝で優勝・引分/敗北で敗退)**。`careerCupResult`(純粋)。
