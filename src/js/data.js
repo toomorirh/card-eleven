@@ -727,6 +727,21 @@ const SIGNATURES=[
   {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"stopper",
    stats:{off:16,def:16,pow:14,tec:15,spd:20,sta:19},
    skill:{name:"疾走の右サイド", desc:"止まらぬオーバーラップで右を制圧する。スピード勝負と対人守備を大幅強化", fx:{duelSpd:1.35,duelD:1.2}}},
+  {id:"matheus", name:"ローター・マテウス", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b",
+   stats:{off:16,def:15,pow:20,tec:17,spd:14,sta:18},
+   skill:{name:"ゲルマンの主将", desc:"中盤を支配し強烈なミドルも放つ主将。支配率とシュートを大幅強化", fx:{mid:1.4,shoot:1.25}}},
+  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"stopper",
+   stats:{off:14,def:16,pow:20,tec:15,spd:19,sta:16},
+   skill:{name:"重戦車の左足", desc:"爆発的な上下動と強烈な左足。スピードとパワー勝負を大幅強化", fx:{duelSpd:1.35,duelPow:1.25}}},
+  {id:"maradona", name:"ディエゴ・マラドーナ", flag:"🇦🇷", pos:"MF", sub:"OMF", type:"maker",
+   stats:{off:18,def:15,pow:16,tec:20,spd:16,sta:15},
+   skill:{name:"神の子", desc:"神懸かりのドリブルと創造性で違いを生む至宝。技術勝負とチャンス創出を大幅強化", fx:{duelTec:1.45,teamChance:1.35}}},
+  {id:"lahm", name:"フィリップ・ラーム", flag:"🇩🇪", pos:"DF", sub:"RSB", type:"cover",
+   stats:{off:15,def:20,pow:15,tec:18,spd:15,sta:17},
+   skill:{name:"万能の名手", desc:"知性で守りも組み立ても担う万能SB。対人守備と支配率を強化", fx:{duelD:1.3,mid:1.2}}},
+  {id:"higuita", name:"レネ・イギータ", flag:"🇨🇴", pos:"GK", sub:"GK", type:"sweeper",
+   stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
+   skill:{name:"エル・ロコ", desc:"飛び出しと奇抜な反応で守る型破りの守護神。セーブとチーム守備を強化", fx:{save:1.55,teamDef:1.1}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){
