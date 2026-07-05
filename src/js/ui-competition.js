@@ -234,6 +234,28 @@ function renderWorld(){
     b.onclick=()=>{S.tour={i:0,res:[]};save();renderWorld();};foot.appendChild(b);
   }
 }
+// ================= デイリークエスト(毎日2チーム・全勝でシグネチャーチケット) =================
+function renderDaily(){
+  const d=ensureDaily(), doneN=d.done.filter(x=>x).length, allDone=doneN>=d.teams.length;
+  document.getElementById("dailyHead").innerHTML=
+    `<div class="banner" style="font-size:15px">― 📅 デイリークエスト ${doneN}/${d.teams.length} ― ${helpIcon("daily")}</div>`
+    +`<div class="lg">本日の全チーム撃破で <b>🎟️シグネチャーチケット</b>(1日1枚)。状態: ${d.claimed?"🎟️獲得済(また明日)":allDone?"未受取":"挑戦中"}</div>`;
+  const list=document.getElementById("dailyList");list.innerHTML="";
+  d.teams.forEach((t,k)=>{
+    const nation=WORLD_NATIONS[t.idx], away=worldTeam(nation,t.idx);
+    const ovr=Math.round(away.players.reduce((s,p)=>s+p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta,0)/away.players.length);
+    const sigs=SIGNATURES.filter(s=>s.flag===nation.flag), cleared=d.done[k];
+    const card=document.createElement("div");card.className="wt-card"+(cleared?" played":" cur");
+    card.innerHTML=`<div class="wt-flag">${nation.flag}</div>
+      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} <span class="scout-hint">🔍</span></div>
+      <div class="lv">平均OVR ${ovr} ・ 陣形 ${nation.form}</div></div>
+      ${cleared?`<span class="wt-res W">🏆 撃破</span>`:`<span class="wt-res cur">▶ 挑戦</span>`}`;
+    card.querySelector(".wt-info").onclick=()=>renderScout(`偵察: ${nation.flag} ${nation.name}`,
+      `平均OVR <b style="color:var(--gold)">${ovr}</b> / 陣形 <b>${nation.form}</b>${sigs.length?`<br><span class="lc-desc">⚠ 固有: ${sigs.map(s=>s.name).join("、")}</span>`:""}`, away);
+    if(!cleared){const ko=document.createElement("button");ko.className="btn ko-btn";ko.textContent="KickOff";ko.onclick=()=>startDailyMatch(k);card.appendChild(ko);}
+    list.appendChild(card);
+  });
+}
 // ================= フレンド対戦(チームコード共有・非同期/サーバ不要) =================
 // スタメン11+お気に入り+陣形+監督名/チーム名を「ビット詰めバイナリ→base64url」で短縮共有(QR向け)。
 // 1カード=61bit。監督名/チーム名のみ可変長UTF8(先頭にバイト整列で格納)、以降はビットストリーム。
@@ -614,15 +636,17 @@ function renderHome(){
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
   else if(m==="career")renderCareer();
+  else if(m==="daily")renderDaily();
   else renderLeague();
 }
-// モード切替(stage / league / career / world)
+// モード切替(stage / league / career / daily / world)
 document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
   const m=b.dataset.m;
   document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
   document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
   document.getElementById("careerMode").style.display=m==="career"?"block":"none";
+  document.getElementById("dailyMode").style.display=m==="daily"?"block":"none";
   document.getElementById("worldMode").style.display=m==="world"?"block":"none";
-  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="career")renderCareer();else renderLeague();
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="career")renderCareer();else if(m==="daily")renderDaily();else renderLeague();
 });

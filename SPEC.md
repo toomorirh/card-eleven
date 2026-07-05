@@ -401,6 +401,12 @@
 - **報酬**: ①署名保有国に**勝利**で `TUNING.worldSigDrop`(15%)の低確率、その国の固有選手をドロップ(未所持優先)。②**全16勝**で実績 `worldTourPerfect`→シグネチャー選択券(一度きり)。
 - 偵察/開始の共通化: `renderScout(title,info,team)` を `openScout`(ステージ)/`openWorldScout` で共用。試合開始は `_beginMatch(away,name,form,lv,idx)` を `startMatch`/`startWorldMatch`/`startFriendMatch` で共用。
 
+### 7.7.1 デイリークエスト(毎日2チーム・全勝でシグネチャーチケット)
+`modeRow` の `📅 デイリー` モード。シグネチャーを狙って集めやすくする毎日更新のイベント。
+- **出題**: `S.daily={date,teams[2],done[],claimed}`。`ensureDaily` が日付(`todayStr`)を見て変わっていれば `pickDailyTeams`(日付ハッシュ`seedRandom`で当日固定=リロードで不変)が**ワールド代表から2チームをランダム選出**(将来 `{mode,idx}` で他モードのチームにも拡張可)。
+- **報酬**: 各チーム撃破で **10%固有ドロップ(`TUNING.worldSigDrop`・未所持優先)**。**当日の全チーム全勝で `S.sigPacks`+1(1日1枚・`claimed`で重複防止)**=シグネチャーパック券(未所持固有を優先確定)。
+- **試合**: `startDailyMatch(k)`→`worldTeam` と対戦(`MATCH_MODES.daily`)。`renderDaily`(`ui-competition.js`)が `.wt-card` で2チーム(名前/OVR/陣形/🔍偵察)+撃破🏆/挑戦▶ を表示。
+
 ### 7.8 フレンド対戦(チームコード共有・非同期/サーバ不要)
 **監督室**(フッタータブ🎩=旧🏅実績・`scr-office`)の「🤝 対戦」サブタブに集約。サーバを持たず、**編成をコード化したチャレンジURLを送り合って非同期対戦**する(カジュアル用途・コードは編集可能なので厳格な競争には非対応)。`renderFriend` が共有(QR/URL/コピー)＋取り込み(相手確認→キックオフ)一式を `#ofMatch`(`friendHead`/`friendBody`)へ描画。
 

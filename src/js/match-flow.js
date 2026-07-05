@@ -499,7 +499,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
-  MC.mode=S._careerMatch?"career":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
@@ -517,6 +517,14 @@ function startMatch(idx){
   if(!_checkSquad())return;
   const club=CLUBS[idx];
   _beginMatch(oppTeam(club.lv,club),club.name,club.form,club.lv,idx);
+}
+function startDailyMatch(k){ // デイリー: 当日の1チームに挑戦。勝利で撃破(10%固有ドロップ)、全勝でチケット。
+  const d=ensureDaily(), t=d.teams[k]; if(!t)return;
+  if(d.done[k]){toast("この相手は撃破済み(明日更新)");return;}
+  if(!_checkSquad())return;
+  S._dailyMatch=k;
+  const nation=WORLD_NATIONS[t.idx];
+  _beginMatch(worldTeam(nation,t.idx), `📅 デイリー: ${nation.flag} ${nation.name}`, nation.form, 0, t.idx);
 }
 function startWorldMatch(){
   if(!_checkSquad())return;
@@ -739,6 +747,31 @@ const MATCH_MODES={
     MC=null;
     checkAchievements(); // ステージ攻略の達成で実績報酬を付与
     await save();
+  }},
+  daily:{ async onEnd(M,sh,sa){ // デイリークエスト: 勝利で撃破+10%固有ドロップ、全勝でシグネチャーチケット1枚/日
+    const k=S._dailyMatch; S._dailyMatch=null;
+    const d=S.daily, t=d&&d.teams[k], nation=t?WORLD_NATIONS[t.idx]:null, win=sh>sa;
+    const head=win?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const e=document.getElementById("matchEnd");
+    let html=`<div class="banner">${head} ${sh}-${sa}</div>`, extra="";
+    if(win&&d&&nation){
+      d.done[k]=true;
+      const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
+      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop){ // 10%固有ドロップ(未所持優先)
+        const own=new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));
+        const pool=sigs.filter(s=>!own.has(s.id)); const cand=pool.length?pool:sigs; const pick=cand[ri(0,cand.length-1)];
+        S.coll.push(makeSignature(pick.id));
+        extra+=`<div class="banner" style="font-size:14px;color:#ff9ec4">🌟 固有選手「${pick.name}」を獲得!!</div>`;
+      }
+      if(d.done.every(x=>x)&&!d.claimed){ d.claimed=true; S.sigPacks=(S.sigPacks||0)+1; // 全勝→チケット
+        extra+=`<div class="banner" style="color:#ffd24a">🎟️ デイリー全勝! シグネチャーガチャチケットを獲得!(ガチャで開封)</div>`; }
+    }
+    e.innerHTML=html+extra;
+    showStatOverlay(M.home,M.away);
+    const b=document.createElement("button");b.className="btn";b.textContent="デイリーへ戻る";
+    b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="daily"]').click();};
+    e.appendChild(b);
+    await save();MC=null;
   }},
   career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ/カップ1試合
     S._careerMatch=false;

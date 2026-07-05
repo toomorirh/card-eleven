@@ -892,7 +892,12 @@ h1{text-shadow:3px 3px 0 #06301c}
       <button data-m="stage" class="on">🗺️ ステージ</button>
       <button data-m="league">🏆 リーグ</button>
       <button data-m="career">🎓 監督</button>
+      <button data-m="daily">📅 デイリー</button>
       <button data-m="world" style="display:none">🌍 ツアー</button>
+    </div>
+    <div id="dailyMode" style="display:none">
+      <div id="dailyHead"></div>
+      <div id="dailyList"></div>
     </div>
     <div id="stageMode">
       <div class="banner" style="font-size:15px">― ステージ攻略 ―</div>
@@ -1071,6 +1076,7 @@ const HELP={
   career:"限られた任期(48週=12ヶ月×4週)で監督を育成する最上位コンテンツ。①リーグ制覇でバフ / ②カップ優勝で采配 / ③練習で編成OVR上限が緩む。満了でオーナー名を冠した<b>カスタム監督</b>が完成し他モードで起用可。DIV1制覇で大陸リーグ解禁、好成績で契約延長も。",
   careerFlow:"「今週」の箱のボタンで次の実施を選択(①リーグ/大陸 ②カップ ③練習)。カップ中は決着まで他は選べません。🔍偵察で相手を下見して戦術を合わせよう。",
   statLegend:"★=MOM(最優秀選手) / 関与=試合に絡んだ回数 / 評価5.0未満は次戦の入れ替え候補。",
+  daily:"毎日ランダムに2チーム(強豪国代表)が出題されます。撃破すると10%で固有選手ドロップ、<b>2チーム全勝でシグネチャーガチャチケットを1日1枚</b>獲得(ガチャで未所持の固有選手を優先確定)。日付が変わると更新。",
 };
 const NAMES=["バルデロ","シュナイト","ロッカ","カミナリオ","ドゥエルテ","オリベンサ","ガルシェス","モンターレ","リヴェッツ","ハーケン","ブランドル","ソリス","ナバーロ","クレスポリ","ヴェントゥス","ダリオン","フェルマー","ロドリゲルス","アスラン","ビョルケ","コルテーゼ","マルディン","サヴォナ","グリンデル","ペトロフスキ","ランベール","オドネガル","ジェミニ","カッサーノ","トレドル","ヴァルガ","ニエミネン","ボルヘード","ファルケ","ドミンゴス","レーヴェ","アルマンド","キリエンコ","サントーレ","ブレイズ","モルテン","イシドロ","ガッツォ","ペレイロ","ハルバード","ロサーノ","ティグレス","ヴァンデル","オスカリオ","ミラベル","デルガード","フロスト","ラザフォル","コンスタン","ジオット","バレンテ","ノルドハイム","アグイラル","ストラーダ","カンペオン"];
 const FLAGS=["🇧🇷","🇦🇷","🇮🇹","🇪🇸","🇩🇪","🇫🇷","🇬🇧","🇳🇱","🇵🇹","🇯🇵","🇺🇾","🇭🇷","🇸🇪","🇲🇽","🇧🇪","🇩🇰"];
@@ -4264,6 +4270,28 @@ if(typeof document!=="undefined"&&document.addEventListener){
   document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest(".help");
     if(h){e.stopPropagation();showHelp((typeof HELP!=="undefined"&&HELP[h.dataset.help])||h.dataset.help||"");}});
 }
+// ===== デイリークエスト: 毎日ランダムに2チーム(現状ワールドツアー)を挑戦。全勝でシグネチャーチケット1枚/日。 =====
+const DAILY_COUNT=2; // 1日の挑戦チーム数
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function _hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+// その日付でランダムに DAILY_COUNT チームを固定選出(seedで日毎に一定・リロードで変わらない)。
+function pickDailyTeams(dateStr){
+  const restore=seedRandom(_hashStr(dateStr));
+  const idxs=[...Array(WORLD_NATIONS.length).keys()], picks=[];
+  for(let i=0;i<DAILY_COUNT&&idxs.length;i++){picks.push({mode:"world",idx:idxs.splice(Math.floor(Math.random()*idxs.length),1)[0]});}
+  restore();
+  return picks;
+}
+// 当日分のデイリーを保証(日付が変わっていれば作り直し)。
+function ensureDaily(){
+  const t=todayStr();
+  if(!S.daily||S.daily.date!==t){
+    const teams=pickDailyTeams(t);
+    S.daily={date:t, teams, done:teams.map(()=>false), claimed:false};
+    save();
+  }
+  return S.daily;
+}
 
 // ================= 画面切替 =================
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
@@ -5123,6 +5151,28 @@ function renderWorld(){
     b.onclick=()=>{S.tour={i:0,res:[]};save();renderWorld();};foot.appendChild(b);
   }
 }
+// ================= デイリークエスト(毎日2チーム・全勝でシグネチャーチケット) =================
+function renderDaily(){
+  const d=ensureDaily(), doneN=d.done.filter(x=>x).length, allDone=doneN>=d.teams.length;
+  document.getElementById("dailyHead").innerHTML=
+    `<div class="banner" style="font-size:15px">― 📅 デイリークエスト ${doneN}/${d.teams.length} ― ${helpIcon("daily")}</div>`
+    +`<div class="lg">本日の全チーム撃破で <b>🎟️シグネチャーチケット</b>(1日1枚)。状態: ${d.claimed?"🎟️獲得済(また明日)":allDone?"未受取":"挑戦中"}</div>`;
+  const list=document.getElementById("dailyList");list.innerHTML="";
+  d.teams.forEach((t,k)=>{
+    const nation=WORLD_NATIONS[t.idx], away=worldTeam(nation,t.idx);
+    const ovr=Math.round(away.players.reduce((s,p)=>s+p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta,0)/away.players.length);
+    const sigs=SIGNATURES.filter(s=>s.flag===nation.flag), cleared=d.done[k];
+    const card=document.createElement("div");card.className="wt-card"+(cleared?" played":" cur");
+    card.innerHTML=`<div class="wt-flag">${nation.flag}</div>
+      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} <span class="scout-hint">🔍</span></div>
+      <div class="lv">平均OVR ${ovr} ・ 陣形 ${nation.form}</div></div>
+      ${cleared?`<span class="wt-res W">🏆 撃破</span>`:`<span class="wt-res cur">▶ 挑戦</span>`}`;
+    card.querySelector(".wt-info").onclick=()=>renderScout(`偵察: ${nation.flag} ${nation.name}`,
+      `平均OVR <b style="color:var(--gold)">${ovr}</b> / 陣形 <b>${nation.form}</b>${sigs.length?`<br><span class="lc-desc">⚠ 固有: ${sigs.map(s=>s.name).join("、")}</span>`:""}`, away);
+    if(!cleared){const ko=document.createElement("button");ko.className="btn ko-btn";ko.textContent="KickOff";ko.onclick=()=>startDailyMatch(k);card.appendChild(ko);}
+    list.appendChild(card);
+  });
+}
 // ================= フレンド対戦(チームコード共有・非同期/サーバ不要) =================
 // スタメン11+お気に入り+陣形+監督名/チーム名を「ビット詰めバイナリ→base64url」で短縮共有(QR向け)。
 // 1カード=61bit。監督名/チーム名のみ可変長UTF8(先頭にバイト整列で格納)、以降はビットストリーム。
@@ -5503,17 +5553,19 @@ function renderHome(){
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
   else if(m==="career")renderCareer();
+  else if(m==="daily")renderDaily();
   else renderLeague();
 }
-// モード切替(stage / league / career / world)
+// モード切替(stage / league / career / daily / world)
 document.querySelectorAll("#modeRow [data-m]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#modeRow [data-m]").forEach(x=>x.classList.toggle("on",x===b));
   const m=b.dataset.m;
   document.getElementById("stageMode").style.display=m==="stage"?"block":"none";
   document.getElementById("leagueMode").style.display=m==="league"?"block":"none";
   document.getElementById("careerMode").style.display=m==="career"?"block":"none";
+  document.getElementById("dailyMode").style.display=m==="daily"?"block":"none";
   document.getElementById("worldMode").style.display=m==="world"?"block":"none";
-  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="career")renderCareer();else renderLeague();
+  if(m==="league")renderLeagueMode();else if(m==="world")renderWorld();else if(m==="career")renderCareer();else if(m==="daily")renderDaily();else renderLeague();
 });
 
 // ================= 試合コア(純粋シミュレーション&バランス・DOM非依存) =================
@@ -6817,7 +6869,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
-  MC.mode=S._careerMatch?"career":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
@@ -6835,6 +6887,14 @@ function startMatch(idx){
   if(!_checkSquad())return;
   const club=CLUBS[idx];
   _beginMatch(oppTeam(club.lv,club),club.name,club.form,club.lv,idx);
+}
+function startDailyMatch(k){ // デイリー: 当日の1チームに挑戦。勝利で撃破(10%固有ドロップ)、全勝でチケット。
+  const d=ensureDaily(), t=d.teams[k]; if(!t)return;
+  if(d.done[k]){toast("この相手は撃破済み(明日更新)");return;}
+  if(!_checkSquad())return;
+  S._dailyMatch=k;
+  const nation=WORLD_NATIONS[t.idx];
+  _beginMatch(worldTeam(nation,t.idx), `📅 デイリー: ${nation.flag} ${nation.name}`, nation.form, 0, t.idx);
 }
 function startWorldMatch(){
   if(!_checkSquad())return;
@@ -7057,6 +7117,31 @@ const MATCH_MODES={
     MC=null;
     checkAchievements(); // ステージ攻略の達成で実績報酬を付与
     await save();
+  }},
+  daily:{ async onEnd(M,sh,sa){ // デイリークエスト: 勝利で撃破+10%固有ドロップ、全勝でシグネチャーチケット1枚/日
+    const k=S._dailyMatch; S._dailyMatch=null;
+    const d=S.daily, t=d&&d.teams[k], nation=t?WORLD_NATIONS[t.idx]:null, win=sh>sa;
+    const head=win?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const e=document.getElementById("matchEnd");
+    let html=`<div class="banner">${head} ${sh}-${sa}</div>`, extra="";
+    if(win&&d&&nation){
+      d.done[k]=true;
+      const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
+      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop){ // 10%固有ドロップ(未所持優先)
+        const own=new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));
+        const pool=sigs.filter(s=>!own.has(s.id)); const cand=pool.length?pool:sigs; const pick=cand[ri(0,cand.length-1)];
+        S.coll.push(makeSignature(pick.id));
+        extra+=`<div class="banner" style="font-size:14px;color:#ff9ec4">🌟 固有選手「${pick.name}」を獲得!!</div>`;
+      }
+      if(d.done.every(x=>x)&&!d.claimed){ d.claimed=true; S.sigPacks=(S.sigPacks||0)+1; // 全勝→チケット
+        extra+=`<div class="banner" style="color:#ffd24a">🎟️ デイリー全勝! シグネチャーガチャチケットを獲得!(ガチャで開封)</div>`; }
+    }
+    e.innerHTML=html+extra;
+    showStatOverlay(M.home,M.away);
+    const b=document.createElement("button");b.className="btn";b.textContent="デイリーへ戻る";
+    b.onclick=()=>{MC=null;document.querySelector('[data-s="home"]').click();document.querySelector('#modeRow [data-m="daily"]').click();};
+    e.appendChild(b);
+    await save();MC=null;
   }},
   career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ/カップ1試合
     S._careerMatch=false;

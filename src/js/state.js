@@ -126,6 +126,28 @@ if(typeof document!=="undefined"&&document.addEventListener){
   document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest(".help");
     if(h){e.stopPropagation();showHelp((typeof HELP!=="undefined"&&HELP[h.dataset.help])||h.dataset.help||"");}});
 }
+// ===== デイリークエスト: 毎日ランダムに2チーム(現状ワールドツアー)を挑戦。全勝でシグネチャーチケット1枚/日。 =====
+const DAILY_COUNT=2; // 1日の挑戦チーム数
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+function _hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+// その日付でランダムに DAILY_COUNT チームを固定選出(seedで日毎に一定・リロードで変わらない)。
+function pickDailyTeams(dateStr){
+  const restore=seedRandom(_hashStr(dateStr));
+  const idxs=[...Array(WORLD_NATIONS.length).keys()], picks=[];
+  for(let i=0;i<DAILY_COUNT&&idxs.length;i++){picks.push({mode:"world",idx:idxs.splice(Math.floor(Math.random()*idxs.length),1)[0]});}
+  restore();
+  return picks;
+}
+// 当日分のデイリーを保証(日付が変わっていれば作り直し)。
+function ensureDaily(){
+  const t=todayStr();
+  if(!S.daily||S.daily.date!==t){
+    const teams=pickDailyTeams(t);
+    S.daily={date:t, teams, done:teams.map(()=>false), claimed:false};
+    save();
+  }
+  return S.daily;
+}
 
 // ================= 画面切替 =================
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
