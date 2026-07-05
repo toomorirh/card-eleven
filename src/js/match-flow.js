@@ -23,7 +23,7 @@ async function egoRun(ctx,type){
   const ey=type==="cutin"?(curP(carrier).y<50?38:62):30+ri(0,40);
   const ex=gx-dir*15;
   movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
-  await ballTo(ex-dir*3,ey,0.4);hot(carrier);hot(df);
+  await ballTo(ex-dir*3,ey,0.4,null,A.side);hot(carrier);hot(df);
   const foul=rollFoul(df,type,carrier); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
   const won=resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
   await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)",won);
@@ -32,7 +32,8 @@ async function egoRun(ctx,type){
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
     await dribbleCutin(carrier,type); // 左→右へ駆け抜けるスピード演出(語句/色はタイプ別)
-    await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3);
+    collapseDefenders(D,gx-dir*12,ey,1,0.35); // B: カバーの守備者が寄せる→抜き去りで置き去りに
+    await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3,null,A.side);
     await tryShot(carrier,A,D,min,false,null,null,null,"ego");
     return {shot:true};
   }
@@ -51,7 +52,7 @@ const LINKS={
     const df=matchupDefender(mate,D); recMatch(mate,df);
     carrier.stat.inv++;mate.stat.inv++;df.stat.inv++;hot(carrier);hot(mate);
     await ballTo(curP(carrier).x+dir*2,curP(carrier).y,0.3);
-    await ballTo(curP(mate).x+dir*3,curP(mate).y,0.3);
+    await ballTo(curP(mate).x+dir*3,curP(mate).y,0.3,null,A.side);
     if(resolveLink("combination",mate,df,A,D,min,tf.a,tf.d,tf.bonus)){
       mate.stat.duelW++;
       feed(`${who}🔄 <b>${carrier.c.name}</b>→<b>${mate.c.name}</b> ワンツーで前進!`,"chance");
@@ -69,7 +70,7 @@ const LINKS={
     carrier.stat.inv++;r.stat.inv++;df.stat.inv++;
     const lx=gx-dir*18, ly=20+ri(0,60);
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
-    await ballTo(lx,ly,0.5);hot(r);hot(df);
+    await ballTo(lx,ly,0.5,null,A.side);hot(r);hot(df);
     const foul=rollFoul(df,"through",r); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
     const won=resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
     await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)",won);
@@ -78,7 +79,8 @@ const LINKS={
       feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
       if(skillShow())await passCutin(carrier,r,"スルーパス"); // パス左流れ演出(熱気で頻度調整)
       if(fx(r).duelSpd)await skillHit(r);
-      await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3);
+      collapseDefenders(D,gx-dir*10,ly,1,0.35); // B: 最終ラインのカバーが寄せる
+      await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3,null,A.side);
       await tryShot(r,A,D,min,false,null,null,carrier);
       return {shot:true};
     }
@@ -92,7 +94,7 @@ const LINKS={
     carrier.stat.inv++;
     feed(`${who}🏃 <b>${carrier.c.name}</b>がクロスを上げる!`,"chance");
     if(skillShow())await crossCutin(carrier); // クロスのスピード演出(熱気で頻度調整)
-    await ballTo(curP(carrier).x,curP(carrier).y,0.25);
+    await ballTo(curP(carrier).x,curP(carrier).y,0.25,null,A.side);
     const r=await aerialBox(A,D,min,carrier,tf,who);
     if(r.shot)return {shot:true};
     if(Math.random()<TUNING.setpiece.cornerOnClear){await setCorner(A,D,min);return {shot:true};} // 危険なクリア→CK
@@ -203,11 +205,12 @@ async function runChain(channel,A,D,min,origin){
     const type=pickW(types,t=>linkWeight(t,carrier,min,A,D));
     recordLink(MC,type,carrier);
     const out=await LINKS[type].run(ctx);
-    if(out.lost){await ballTo(curP(carrier).x-dir*8,curP(carrier).y+ri(-10,10),0.5);return;}
+    if(out.lost){await ballTo(curP(carrier).x-dir*8,curP(carrier).y+ri(-10,10),0.5,null,D.side);return;}
     if(out.shot)return;
     carrier=out.receiver; if(out.assist)assist=out.assist; steps++;
     prog=Math.min(0.9,prog+L.progStep);
     movePlayer(carrier,gx-dir*(18-steps*4),curP(carrier).y,0.4); // 連結のたびに受け手が前進
+    reactField(A.side,0.4); // A: 連結が進むたびにブロック全体が前進(ボールだけが進む違和感を解消)
   }
 }
 // 試合テレメトリ(中検証で読む)。起点/リンク/エゴ/マッチアップ整合を集計。
@@ -249,8 +252,9 @@ async function aerialBox(A,D,min,deliverer,tf,who){
   const t=pickTarget(A),df=matchupDefender(t,D); recMatch(t,df);
   t.stat.inv++;df.stat.inv++;
   const cx=gx-dir*7, cy=42+ri(0,16);
+  collapseDefenders(D,cx,cy,2,0.4); // B: 守備陣がボックスに密集
   movePlayer(t,cx-dir*2,cy,0.4);movePlayer(df,cx+dir*2,cy+ri(-4,4),0.4);
-  await ballTo(cx,cy,0.4);hot(t);hot(df);
+  await ballTo(cx,cy,0.4,null,A.side);hot(t);hot(df);
   if(resolveLink("cross",t,df,A,D,min,tf.a,tf.d,tf.bonus)){
     t.stat.duelW++;
     feed(`${who}中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
@@ -380,6 +384,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
   const gy=42+ri(0,16);
   movePlayer(atk,sx,sy,0.3);
   movePlayer(gk,gx-dir*2,gy,0.3);     // GKがコースに立つ
+  reactField(A.side,0.3); // 全体がゴール前へ詰める(ボールだけがゴール前にいる違和感を解消)
   hot(atk);hot(gk);
   await wordCutin(atk,A,header?"ヘディング!!":"シュート!!",false,750);
   if(resolveShot(atk,gk,header,A,D,min)){
@@ -448,7 +453,7 @@ async function tickAsync(){
     feed(`${whoPrefix(T)}💨 ${origin.c.name}に疲れが見える…動きが重くなってきた`);
   }
   await ballTo(curP(origin).x+dir*2,curP(origin).y,0.4); // 起点へボールが収まる
-  updateField();
+  updateField(T.side);
   const tShare=mh/(mh+ma), edge=(T===M.home)?tShare:1-tShare;
   if(buildupSuccess(channel,edge)){
     recordOrigin(M,channel,origin);

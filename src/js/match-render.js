@@ -28,7 +28,7 @@ function movePlayer(p,x,y,dur){
   if(!p.el)return;
   x=clX(x);y=clY(y);p.cur={x,y};setPos(p.el,x,y,dur);
 }
-async function ballTo(x,y,dur,ease){ // ボールを実際に移動(待ち合わせ可能)
+async function ballTo(x,y,dur,ease,react){ // ボールを実際に移動(待ち合わせ可能)。react=攻撃側("H"/"A")を渡すと陣形も追従(A案)
   const fb=document.getElementById("fball");
   x=clX(x);y=clY(y);
   const tm=ease==="linear"?"steps(4,end)":"steps(6,end)";
@@ -36,6 +36,7 @@ async function ballTo(x,y,dur,ease){ // ボールを実際に移動(待ち合わ
   fb.style.transition=`left ${dur}s ${tm}, top ${dur}s ${tm}`;
   fb.style.left=s.sx+"%";fb.style.top=s.sy+"%";
   if(MC){MC.bx=x;MC.by=y;MC.ball=x;}
+  if(react)reactField(react===true?null:react,Math.min(dur,0.6)); // ボール移動に合わせて陣形ブロックが追従
   await sleep(dur*1000);
 }
 const dirOf=T=>T.side==="H"?1:-1;       // 攻める方向
@@ -60,40 +61,72 @@ function buildField(){
   MC.bx=50;MC.by=50;
 }
 function laneY(p){return p.fside==="H"?10+p.x*0.80:90-p.x*0.80;}
-function updateField(){ // 陣形ブロックがボールに追従して全員が敵陣⇔自陣をスライド
+// 陣形ブロックの目標座標(現在のボール位置に追従)。updateField(ティック単位)/reactField(連鎖中)で共有。
+// roamScale=ランダム揺れの倍率(連鎖中は控えめにして滑らかに)。
+function blockPos(p,roamScale){
+  const M=MC, ty=typeOf(p.c);
+  const ballT=p.fside==="H"?M.bx:100-M.bx;        // チーム座標系のボール位置
+  const front=Math.min(90,Math.max(45,ballT+16)); // 最前線
+  const back=Math.min(58,Math.max(10,ballT-34));  // 最終ライン
+  if(p.role==="GK"){
+    const xT=Math.min(26,Math.max(5,back-6+ty.adv*0.7)); // スイーパーは高め
+    return {x:p.fside==="H"?xT:100-xT, y:50+(M.by-50)*0.3};
+  }
+  const depth=Math.min(1,Math.max(0,(91-p.y)/73)); // GK=0..FW=1
+  const xT=back+depth*(front-back)+ty.adv;
+  let y=laneY(p)+(laneY(p)<50?-1:1)*(ty.wide||0)*0.6;
+  y+=(M.by-y)*0.12;                                // コンパクトネス
+  let x=p.fside==="H"?xT:100-xT;
+  const dx=M.bx-x,dy=M.by-y,dist=Math.hypot(dx,dy);
+  if(dist<26){const k=(26-dist)/26*ty.chase;x+=dx*k;y+=dy*k;} // 近ければボールへ寄る
+  const rs=roamScale==null?1:roamScale;
+  x+=(Math.random()*2-1)*ty.roam*rs;
+  y+=(Math.random()*2-1)*ty.roam*1.3*rs;
+  return {x,y};
+}
+// C: 攻撃側のオフザボールのラン。高run選手1人がゴール方向へ+ボールの縦位置へ寄せて走り込む(崩しの連動)。
+function offBallRun(attSide,dur){
+  const M=MC;if(!M||!attSide)return;
+  const T=attSide==="H"?M.home:M.away, dir=attSide==="H"?1:-1;
+  const near=p=>Math.hypot(curP(p).x-M.bx,curP(p).y-M.by)<12;
+  const r=pickW(T.players.filter(p=>p.el&&p.role!=="GK"&&!near(p)),q=>typeOf(q.c).run||0.2);
+  if(!r)return;
+  const tx=curP(r).x+dir*ri(5,11);
+  const ty=curP(r).y+(M.by-curP(r).y)*0.35+ri(-4,4); // ゴール方向へ+ボールの縦へ寄せる
+  movePlayer(r,tx,ty,dur||0.55);
+}
+function updateField(attSide){ // 陣形ブロックがボールに追従して全員が敵陣⇔自陣をスライド(ティック単位)
   const M=MC;if(!M)return;
   [...M.home.players,...M.away.players].forEach(p=>{
     if(!p.el)return;
-    const ty=typeOf(p.c);
-    const ballT=p.fside==="H"?M.bx:100-M.bx;        // チーム座標系のボール位置
-    const front=Math.min(90,Math.max(45,ballT+16)); // 最前線
-    const back=Math.min(58,Math.max(10,ballT-34));  // 最終ライン
-    let xT,y;
-    if(p.role==="GK"){
-      xT=Math.min(26,Math.max(5,back-6+ty.adv*0.7)); // スイーパーは高め
-      y=50+(M.by-50)*0.3;
-    }else{
-      const depth=Math.min(1,Math.max(0,(91-p.y)/73)); // GK=0..FW=1
-      xT=back+depth*(front-back)+ty.adv;
-      y=laneY(p)+(laneY(p)<50?-1:1)*(ty.wide||0)*0.6;
-      y+=(M.by-y)*0.12;                                // コンパクトネス
-    }
-    let x=p.fside==="H"?xT:100-xT;
-    if(p.role!=="GK"){
-      const dx=M.bx-x,dy=M.by-y,dist=Math.hypot(dx,dy);
-      if(dist<26){const k=(26-dist)/26*ty.chase;x+=dx*k;y+=dy*k;}
-      x+=(Math.random()*2-1)*ty.roam;
-      y+=(Math.random()*2-1)*ty.roam*1.3;
-    }
-    movePlayer(p,x,y,0.7);
+    const q=blockPos(p,1);movePlayer(p,q.x,q.y,0.7);
   });
-  // オフザボールの飛び出し
-  const all=[...M.home.players,...M.away.players].filter(p=>p.el&&p.role!=="GK");
-  for(let k=0;k<2;k++){
-    const p=pickW(all,q=>typeOf(q.c).run||0.2);
-    if(!p)continue;
-    const dir=p.fside==="H"?1:-1;
-    movePlayer(p,curP(p).x+dir*ri(4,9),curP(p).y+ri(-7,7),0.55);
+  // オフザボールの飛び出し(攻撃側はゴール方向へ+汎用ラン1本)
+  offBallRun(attSide,0.55);
+  const p=pickW([...M.home.players,...M.away.players].filter(p=>p.el&&p.role!=="GK"),q=>typeOf(q.c).run||0.2);
+  if(p){const dir=p.fside==="H"?1:-1;movePlayer(p,curP(p).x+dir*ri(4,9),curP(p).y+ri(-7,7),0.55);}
+}
+// A: ボール駆動の陣形リアクション。連鎖チェーンの各局面でオフザボールのブロックを現在のボールへ追従させ、
+// 「ボールだけが進む」違和感を解消。ボール近傍=関与中の選手は明示アニメを尊重して触らない。
+function reactField(attSide,dur){
+  const M=MC;if(!M)return;
+  dur=dur||0.5;
+  const near=p=>Math.hypot(curP(p).x-M.bx,curP(p).y-M.by)<12;
+  [...M.home.players,...M.away.players].forEach(p=>{
+    if(!p.el)return;
+    if(p.role!=="GK"&&near(p))return; // 関与選手(ボール付近)は明示配置を尊重
+    const q=blockPos(p,0.6);movePlayer(p,q.x,q.y,dur);
+  });
+  offBallRun(attSide,dur); // C: 攻撃側ランナーがゴール方向へ走り込む
+}
+// B: 近い守備者n人をボール(x,y)付近へ収縮させる。抜かれた側は後続の明示move/reactFieldで置き去りに。
+function collapseDefenders(D,x,y,n,dur){
+  if(!D)return;
+  const defs=D.players.filter(p=>p.el&&p.role!=="GK")
+    .sort((a,b)=>Math.hypot(curP(a).x-x,curP(a).y-y)-Math.hypot(curP(b).x-x,curP(b).y-y));
+  for(let i=0;i<Math.min(n||1,defs.length);i++){
+    const p=defs[i], cx=curP(p).x+(x-curP(p).x)*0.5, cy=curP(p).y+(y-curP(p).y)*0.5;
+    movePlayer(p,cx+(Math.random()*4-2),cy+(Math.random()*4-2),dur||0.4);
   }
 }
 async function kickoffReset(){ // ゴール後:全員定位置→センターサークルへ
