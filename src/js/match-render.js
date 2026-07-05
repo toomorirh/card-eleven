@@ -285,6 +285,26 @@ async function crossCutin(p){
   o.appendChild(_afig(p.c,"",92));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
+// トレードマーク(必殺の型)カットイン: 選手が駆け抜け、タイプ系統色の決め技名が走る(通常アクション演出のレア変種)。
+async function markCutin(p,word){
+  const cat=typeFlavor(p.c).cat||"atk", col=CAT_COL[cat]||CAT_COL.atk;
+  const o=_actFrame("drb mark",p);
+  const w=_aword(word,"");w.style.color=col;w.style.textShadow="0 0 18px "+col+"e0,0 2px 5px #000";
+  o.appendChild(_afig(p.c,"",104));o.appendChild(w);o.appendChild(_ctag(p.c));
+  const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);setTimeout(()=>r.remove(),1100);
+  document.body.appendChild(o);await sleep(1050);o.remove();
+}
+// トレードマーク発動判定。局面atがその選手の型のmark.atに合致し、熱気が十分・低確率で炸裂。
+// 発動すれば markCutin を再生し true を返す(呼び出し側は通常のアクション演出をスキップできる)。
+async function trademark(p,at){
+  if(!p||!p.c)return false;
+  const m=typeFlavor(p.c).mark;
+  if(!m||m.at!==at)return false;
+  if(!MC||(MC.volt||0)<TUNING.mark.volt)return false;
+  if(Math.random()>=TUNING.mark.chance)return false;
+  await markCutin(p,m.w);
+  return true;
+}
 // 名将の采配シグネ発動カットイン: 監督の全身絵を左に表示→左へスワイプ退場→発動選手(exec)が右から登場。
 async function tacCutin(tac,mgr,exec){
   const o=_actFrame("tacx","H"); // 監督の采配は常に自チーム(味方=青)

@@ -31,7 +31,7 @@ async function egoRun(ctx,type){
     carrier.stat.duelW++;
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
-    await dribbleCutin(carrier,type); // 左→右へ駆け抜けるスピード演出(語句/色はタイプ別)
+    if(!await trademark(carrier,"ego"))await dribbleCutin(carrier,type); // 稀にトレードマーク、通常は駆け抜け演出
     collapseDefenders(D,gx-dir*12,ey,1,0.35); // B: カバーの守備者が寄せる→抜き去りで置き去りに
     await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3,null,A.side);
     await tryShot(carrier,A,D,min,false,null,null,null,"ego");
@@ -39,6 +39,7 @@ async function egoRun(ctx,type){
   }
   carrier.stat.duelL++;df.stat.duelW++;df.stat.tkl++;
   feed(`${who}${df.c.name}(守${df.c.def})が${type==="cutin"?"カットイン":"ドリブル"}を止めた!`);if(fx(df).duelD)await skillHit(df);
+  await trademark(df,"stop"); // 守備の型のトレードマーク(ブロック/刈り取り)
   return {lost:true,reason:"tackle"};
 }
 // リンクのレジストリ(拡張前提: 1エントリ追加で種別が増える)。各 run は演出+resolveLinkを行い、
@@ -77,7 +78,7 @@ const LINKS={
     if(won){
       r.stat.duelW++;
       feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
-      if(skillShow())await passCutin(carrier,r,"スルーパス"); // パス左流れ演出(熱気で頻度調整)
+      if(await trademark(carrier,"through")){}else if(skillShow())await passCutin(carrier,r,"スルーパス"); // 稀に司令塔のトレードマーク
       if(fx(r).duelSpd)await skillHit(r);
       collapseDefenders(D,gx-dir*10,ly,1,0.35); // B: 最終ラインのカバーが寄せる
       await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3,null,A.side);
@@ -93,7 +94,7 @@ const LINKS={
     const {A,D,min,tf,who,carrier}=ctx;
     carrier.stat.inv++;
     feed(`${who}🏃 <b>${carrier.c.name}</b>がクロスを上げる!`,"chance");
-    if(skillShow())await crossCutin(carrier); // クロスのスピード演出(熱気で頻度調整)
+    if(await trademark(carrier,"cross")){}else if(skillShow())await crossCutin(carrier); // 稀にサイドのトレードマーク
     await ballTo(curP(carrier).x,curP(carrier).y,0.25,null,A.side);
     const r=await aerialBox(A,D,min,carrier,tf,who);
     if(r.shot)return {shot:true};
@@ -259,6 +260,7 @@ async function aerialBox(A,D,min,deliverer,tf,who){
     t.stat.duelW++;
     feed(`${who}中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
     if(fx(t).duelPow)await skillHit(t);
+    await trademark(t,"aerial"); // ポスト系のトレードマーク(収めて起点)
     await tryShot(t,A,D,min,true,cx,cy,deliverer);
     return {shot:true};
   }
@@ -352,6 +354,7 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
   else msg=`⚽ ゴーーール!!<b>${scorer.c.name}</b>が決めた!(攻${scorer.c.off})`;
   feed(`${who}${msg}`,"goal");
   if(fx(scorer).shoot)await skillHit(scorer);
+  await trademark(scorer,"goal"); // ストライカー系のトレードマーク(決定力の化身)
   await wordCutin(scorer,A,sup?"SUPER GOAL!!":"GOAL!!!",true,sup?1700:1450,sup);
   if(preA<preD&&A.score===preD)feed(`${who}🔥 ${teamName(A)}が同点に追いついた!`,"chance");
   else if(preA===preD&&A.score>preD)feed(`${who}🔥 ${teamName(A)}が勝ち越し!`,"chance");
@@ -406,7 +409,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
     feed(`GK ${gk.c.name}(守${gk.c.def})がストップ!`);
     if(fxG.save)await skillHit(gk);
     await auraSkill(D,"teamDef",TUNING.aura.teamDef); // 守備陣を統率する teamDef の発動を明示
-    await wordCutin(gk,D,"SAVE!!",false,720);
+    if(!await trademark(gk,"save"))await wordCutin(gk,D,"SAVE!!",false,720); // 稀にGKのトレードマーク
     if(!_spActive&&Math.random()<TUNING.setpiece.cornerOnSave){await setCorner(A,D,min);return;} // 弾いてCK
     await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
   }
@@ -634,7 +637,7 @@ function renderStatRows(team,opp){
     const s=p.stat,isMom=p===mom.p,low=r<5.0;
     h+=`<tr class="${isMom?"mom":""}${low?" lowform":""}">
       <td><span class="pos ${p.role}">${p.subRole||p.role}</span></td>
-      <td>${isMom?"★":""}${p.c.name}</td>
+      <td>${isMom?"★":""}${p.c.name}<br><span style="font-size:9px;color:${CAT_COL[typeFlavor(p.c).cat||"atk"]}">${CAT_ICON[typeFlavor(p.c).cat||"atk"]} ${typeOf(p.c).n}</span></td>
       <td>${r.toFixed(1)}</td>
       <td>${s.inv||0}</td>
       <td>${s.goals}</td>

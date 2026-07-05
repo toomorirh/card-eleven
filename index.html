@@ -1244,6 +1244,8 @@ const TUNING={
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
   // 序盤=低い→キックオフ直後の唐突な演出を防ぐ。動くと上がり、停滞で冷める。時間で下限が上昇。
   volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10, tacGate:0.5, heatReset:0.4},
+  // トレードマーク(必殺の型)の発動: 熱気volt以上の局面で、その局面(mark.at)に合致した型が chance で炸裂。
+  mark:{chance:0.13, volt:0.4},
 };
 // プレースタイル: adv=前後オフセット wide=外への張り出し roam=徘徊量 chase=ボール追従
 // poss=支配率貢献 atk/tgt/pas/defSel=イベント選出倍率 run=オフザボールの飛び出し頻度 wideSel=サイド適性
@@ -1252,14 +1254,20 @@ const TYPES={
  FW:{striker:{n:"ストライカー",adv:7,wide:0,roam:1.5,chase:0.3,poss:0.85,atk:1.6,tgt:1.4,run:2,drive:1.2},
      post:{n:"ポストプレイヤー",adv:2,wide:0,roam:1.5,chase:0.5,poss:1.15,atk:1.0,tgt:1.8,run:1,drive:0.7},
      dribbler:{n:"ドリブラー",adv:4,wide:9,roam:4,chase:0.5,poss:0.95,atk:1.3,tgt:0.8,run:3,wideSel:1,drive:1.9},
-     shadow:{n:"シャドー",adv:-1,wide:0,roam:3,chase:0.55,poss:1.1,atk:1.3,tgt:1.0,run:3,drive:1.3}},
+     shadow:{n:"シャドー",adv:-1,wide:0,roam:3,chase:0.55,poss:1.1,atk:1.3,tgt:1.0,run:3,drive:1.3},
+     poacher:{n:"ゴールハンター",adv:8,wide:0,roam:1.0,chase:0.25,poss:0.80,atk:1.5,tgt:1.7,run:4,drive:0.5},
+     false9:{n:"偽9番",adv:-2,wide:0,roam:3.5,chase:0.5,poss:1.25,atk:1.1,tgt:0.9,pas:1.3,run:2.5,drive:0.9}},
  MF:{maker:{n:"ゲームメーカー",adv:0,wide:0,roam:1.5,chase:0.6,poss:1.3,atk:0.9,pas:1.6,run:1,drive:0.5},
      b2b:{n:"ボックストゥボックス",adv:2,wide:0,roam:5,chase:0.65,poss:1.15,atk:1.4,pas:1.0,run:4,drive:1.1},
      winger:{n:"ウインガー",adv:3,wide:10,roam:3.5,chase:0.4,poss:0.95,atk:1.1,run:3,wideSel:1,drive:1.6},
-     anchor:{n:"アンカー",adv:-5,wide:0,roam:1.2,chase:0.55,poss:1.15,pas:1.3,defSel:1.2,run:1,drive:0.5}},
+     anchor:{n:"アンカー",adv:-5,wide:0,roam:1.2,chase:0.55,poss:1.15,pas:1.3,defSel:1.2,run:1,drive:0.5},
+     regista:{n:"レジスタ",adv:-4,wide:0,roam:1.3,chase:0.5,poss:1.4,atk:0.85,pas:1.8,defSel:0.9,run:1,drive:0.4},
+     destroyer:{n:"デストロイヤー",adv:-3,wide:0,roam:2.2,chase:0.75,poss:1.0,atk:0.9,pas:0.9,defSel:1.5,run:2,drive:0.6}},
  DF:{stopper:{n:"ストッパー",adv:2,wide:0,roam:2.5,chase:0.7,poss:1,defSel:1.5,run:2,drive:0.7},
      cover:{n:"カバー",adv:-3,wide:0,roam:1.2,chase:0.45,poss:1,defSel:1.2,run:1,drive:0.5},
-     sb:{n:"攻撃的SB",adv:3,wide:8,roam:3.5,chase:0.5,poss:1.05,defSel:1.0,run:3,wideSel:1,drive:1.3}},
+     sb:{n:"攻撃的SB",adv:3,wide:8,roam:3.5,chase:0.5,poss:1.05,defSel:1.0,run:3,wideSel:1,drive:1.3},
+     libero:{n:"リベロ",adv:0,wide:0,roam:2.0,chase:0.5,poss:1.25,pas:1.4,defSel:1.1,run:2,drive:0.9},
+     wingback:{n:"ウイングバック",adv:4,wide:9,roam:4,chase:0.5,poss:1.0,defSel:0.9,run:4,wideSel:1,drive:1.4}},
  GK:{liner:{n:"シュートストッパー",adv:0,wide:0,roam:0.6,chase:0,poss:1,run:0,drive:0.2},
      sweeper:{n:"スイーパー",adv:5,wide:0,roam:1.5,chase:0,poss:1.4,run:1,drive:0.2},
      commander:{n:"コマンダー",adv:2,wide:0,roam:1,chase:0,poss:1.15,run:0,drive:0.2}}};
@@ -1270,21 +1278,29 @@ function typeOf(c){const g=TYPES[c.pos];return g[c.type]||g[Object.keys(g)[0]];}
 // drive/cutin=持ち込み突破 pass=パス成功 cross=クロス atkWin=マッチアップ攻撃勝ち defWin=守備勝ち save=セーブ
 const CAT_COL={atk:"#ffd24a",mid:"#54d6c8",def:"#7fc0ff"};
 const CAT_ICON={atk:"⚔",mid:"✦",def:"🛡"};
+// mark = トレードマーク(必殺の型): at=発動局面(ego/through/cross/aerial/save/stop/goal)、w=決め技名。
+// 熱気が高い局面で低頻度に、通常アクション演出のレア変種として炸裂(勝敗ロジックには無関係)。
 const TYPE_FLAVOR={
-  striker  :{cat:"atk", drive:"強引にこじ開ける!", atkWin:"ねじ込んだ!"},
-  post     :{cat:"atk", drive:"収めて反転突破!", atkWin:"収めて勝負!"},
-  dribbler :{cat:"atk", drive:"切り裂く突破!", cutin:"鮮やかなカットイン!", atkWin:"抜き去った!"},
-  shadow   :{cat:"atk", drive:"するりと突破!", cutin:"音もなく侵入!", atkWin:"隙を突いた!"},
-  maker    :{cat:"mid", pass:"司令塔のラストパス!", atkWin:"間を通した!"},
-  b2b      :{cat:"mid", drive:"力強く前進!", pass:"推進力のパス!", atkWin:"押し切った!"},
-  winger   :{cat:"atk", drive:"サイドを置き去り!", cutin:"内へ切れ込む!", cross:"鋭いクロス!", atkWin:"振り切った!"},
-  anchor   :{cat:"mid", pass:"正確な楔のパス!", defWin:"刈り取った!", atkWin:"楔を通した!"},
-  stopper  :{cat:"def", defWin:"ブロック!", atkWin:"力でこじ開けた!"},
-  cover    :{cat:"def", defWin:"カバーリング!"},
-  sb       :{cat:"atk", drive:"オーバーラップ突破!", cross:"駆け上がってクロス!", defWin:"対人で完封!"},
-  liner    :{cat:"def", save:"鉄壁のセーブ!"},
-  sweeper  :{cat:"def", save:"飛び出して防いだ!"},
-  commander:{cat:"def", save:"統率のセーブ!"},
+  striker  :{cat:"atk", drive:"強引にこじ開ける!", atkWin:"ねじ込んだ!", mark:{at:"goal", w:"⚽ 決定力の化身!"}},
+  post     :{cat:"atk", drive:"収めて反転突破!", atkWin:"収めて勝負!", mark:{at:"aerial", w:"🗿 収めて起点!"}},
+  dribbler :{cat:"atk", drive:"切り裂く突破!", cutin:"鮮やかなカットイン!", atkWin:"抜き去った!", mark:{at:"ego", w:"🪄 エラシコ!"}},
+  shadow   :{cat:"atk", drive:"するりと突破!", cutin:"音もなく侵入!", atkWin:"隙を突いた!", mark:{at:"ego", w:"🌑 影の侵入!"}},
+  poacher  :{cat:"atk", drive:"こぼれ球に反応!", atkWin:"ワンタッチで仕留めた!", mark:{at:"goal", w:"🦊 ゴールハンターの嗅覚!"}},
+  false9   :{cat:"mid", drive:"下りて捌く!", pass:"引いて落とす!", atkWin:"間で受けた!", mark:{at:"through", w:"👻 偽9番の落とし!"}},
+  maker    :{cat:"mid", pass:"司令塔のラストパス!", atkWin:"間を通した!", mark:{at:"through", w:"🎯 針の穴を通す!"}},
+  b2b      :{cat:"mid", drive:"力強く前進!", pass:"推進力のパス!", atkWin:"押し切った!", mark:{at:"ego", w:"🚂 暴走機関車!"}},
+  winger   :{cat:"atk", drive:"サイドを置き去り!", cutin:"内へ切れ込む!", cross:"鋭いクロス!", atkWin:"振り切った!", mark:{at:"cross", w:"⚡ サイドを蹂躙!"}},
+  anchor   :{cat:"mid", pass:"正確な楔のパス!", defWin:"刈り取った!", atkWin:"楔を通した!", mark:{at:"stop", w:"⚓ 中盤の錨!"}},
+  regista  :{cat:"mid", pass:"最終ラインから一閃!", atkWin:"配球で崩した!", mark:{at:"through", w:"🎼 一閃のレジスタ!"}},
+  destroyer:{cat:"def", drive:"奪って前へ!", defWin:"刈り取った!", atkWin:"潰して奪った!", mark:{at:"stop", w:"🦿 刈り取りの鬼!"}},
+  stopper  :{cat:"def", defWin:"ブロック!", atkWin:"力でこじ開けた!", mark:{at:"stop", w:"🧱 完全ブロック!"}},
+  cover    :{cat:"def", defWin:"カバーリング!", mark:{at:"stop", w:"🛡 最後の砦!"}},
+  sb       :{cat:"atk", drive:"オーバーラップ突破!", cross:"駆け上がってクロス!", defWin:"対人で完封!", mark:{at:"cross", w:"🏇 駆け上がりのクロス!"}},
+  libero   :{cat:"mid", drive:"持ち上がって前進!", pass:"最終ラインから配球!", defWin:"読んで刈った!", mark:{at:"through", w:"🧭 リベロの持ち上がり!"}},
+  wingback :{cat:"atk", drive:"大外を駆け上がる!", cross:"深い位置からクロス!", defWin:"サイドを封殺!", mark:{at:"cross", w:"🏇 大外を制圧!"}},
+  liner    :{cat:"def", save:"鉄壁のセーブ!", mark:{at:"save", w:"🧤 鉄壁の反応!"}},
+  sweeper  :{cat:"def", save:"飛び出して防いだ!", mark:{at:"save", w:"🚑 一番速い飛び出し!"}},
+  commander:{cat:"def", save:"統率のセーブ!", mark:{at:"save", w:"📣 統率のセーブ!"}},
 };
 function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 
@@ -1749,10 +1765,10 @@ const SIGNATURES=[
   {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler",
    stats:{off:17,def:15,pow:15,tec:20,spd:18,sta:15},
    skill:{name:"和製の天才", desc:"技術とスピードで違いを生むアタッカー。技・速の勝負を大幅強化", fx:{duelTec:1.4,duelSpd:1.3}}},
-  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"shadow",
+  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"false9",
    stats:{off:19,def:12,pow:15,tec:20,spd:16,sta:18},
    skill:{name:"オランダの至宝", desc:"絶妙なトラップと冷徹な決定力。テクニック勝負とシュートを大幅強化", fx:{duelTec:1.45,shoot:1.3}}},
-  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"b2b",
+  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"destroyer",
    stats:{off:14,def:17,pow:20,tec:15,spd:15,sta:19},
    skill:{name:"中盤の支配者", desc:"球際の強さで中盤を制圧。支配率と対人守備を大幅強化", fx:{mid:1.4,duelD:1.3}}},
   {id:"henry", name:"ティエリ・アンリ", flag:"🇫🇷", pos:"FW", sub:"CF", type:"striker",
@@ -1782,19 +1798,19 @@ const SIGNATURES=[
   {id:"arnold", name:"アレクサンダー＝アーノルド", flag:"🇬🇧", pos:"DF", sub:"RSB", type:"cover",
    stats:{off:16,def:15,pow:16,tec:20,spd:17,sta:16},
    skill:{name:"ピンポイントの右足", desc:"精密なロングパスとクロスで右から創出する司令塔型SB。チャンス創出とテクニックを強化", fx:{teamChance:1.4,duelTec:1.15}}},
-  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"anchor",
+  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"regista",
    stats:{off:14,def:18,pow:16,tec:20,spd:15,sta:17},
    skill:{name:"見えざる司令塔", desc:"球際を消し テンポを操る中盤の底。支配率を大幅強化しチーム守備を底上げ", fx:{mid:1.45,teamDef:1.1}}},
   {id:"yamal", name:"ラミン・ヤマル", flag:"🇪🇸", pos:"FW", sub:"RWG", type:"dribbler",
    stats:{off:17,def:14,pow:16,tec:20,spd:18,sta:15},
    skill:{name:"ラ・マシアの新星", desc:"内へ切れ込み 自ら決め切る新世代の天才。技・速の勝負とシュートを強化", fx:{duelTec:1.4,duelSpd:1.25,shoot:1.2}}},
-  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"stopper",
+  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"wingback",
    stats:{off:16,def:16,pow:14,tec:15,spd:20,sta:19},
    skill:{name:"疾走の右サイド", desc:"止まらぬオーバーラップで右を制圧する。スピード勝負と対人守備を大幅強化", fx:{duelSpd:1.35,duelD:1.2}}},
   {id:"matheus", name:"ローター・マテウス", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b",
    stats:{off:16,def:15,pow:20,tec:17,spd:14,sta:18},
    skill:{name:"ゲルマンの主将", desc:"中盤を支配し強烈なミドルも放つ主将。支配率とシュートを大幅強化", fx:{mid:1.4,shoot:1.25}}},
-  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"stopper",
+  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"wingback",
    stats:{off:14,def:16,pow:20,tec:15,spd:19,sta:16},
    skill:{name:"重戦車の左足", desc:"爆発的な上下動と強烈な左足。スピードとパワー勝負を大幅強化", fx:{duelSpd:1.35,duelPow:1.25}}},
   {id:"maradona", name:"ディエゴ・マラドーナ", flag:"🇦🇷", pos:"MF", sub:"OMF", type:"maker",
@@ -4365,7 +4381,7 @@ function cardEl(c,mini){
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp">${typeOf(c).n}</div>${sk}</div>`;
+  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n}</div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
   if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";
@@ -5204,16 +5220,17 @@ function _BW(){return {b:[],c:0,n:0,
   done(){if(this.n)this.b.push(this.c<<(8-this.n));return this.b;}};}
 function _BR(bytes){return {bytes,bit:0,
   read(bits){let v=0;for(let i=0;i<bits;i++){const byte=this.bytes[this.bit>>3]||0,bv=(byte>>(7-(this.bit&7)))&1;v=(v<<1)|bv;this.bit++;}return v;}};}
-const _SIGBITS=10; // v3(0xC3): sigインデックスのビット幅=最大1023体(将来300体まで対応)。v2(0xC2)は5bit。
-function _encCard(w,c,sigBits){
-  sigBits=sigBits||5;
+const _SIGBITS=10; // v3+(0xC3/0xC4): sigインデックスのビット幅=最大1023体(将来300体まで対応)。v2(0xC2)は5bit。
+const _TYPEBITS=3; // v4(0xC4): タイプ(プレースタイル)のビット幅=最大8種/ポジション。v3以前は2bit(最大4種)。
+function _encCard(w,c,sigBits,typeBits){
+  sigBits=sigBits||5; typeBits=typeBits||2;
   const pos=subGroup(c.sub);
   const sig=c.sig?Math.max(0,SIGNATURES.findIndex(s=>s.id===c.sig)+1):0;
   let skCh=0;
   if(!c.sig&&c.rar!=="n"&&c.skill){const a=c.rar==="l"?LSKILLS[pos]:SKILLS[pos][c.rar];const i=a.findIndex(s=>s[0]===c.skill.name);skCh=i>0?1:0;}
   w.push(Math.max(0,_SUBS.indexOf(c.sub)),4);
   w.push(Math.max(0,_RARS.indexOf(c.rar)),2);
-  w.push(Math.max(0,Object.keys(TYPES[pos]).indexOf(c.type)),2);
+  w.push(Math.max(0,Object.keys(TYPES[pos]).indexOf(c.type)),typeBits);
   w.push((c.look&&c.look.headIdx)||0,5);
   w.push((c.look&&c.look.bodyVar)||0,2);
   ["off","def","pow","tec","spd","sta"].forEach(k=>w.push(Math.min(31,Math.max(0,c[k]|0)),5));
@@ -5222,10 +5239,10 @@ function _encCard(w,c,sigBits){
   w.push(skCh,1);
   w.push(c.sig?0:Math.max(0,NAMES.indexOf(c.name)),6);
 }
-function _decCard(r,sigBits){
-  sigBits=sigBits||5;
+function _decCard(r,sigBits,typeBits){
+  sigBits=sigBits||5; typeBits=typeBits||2;
   const sub=_SUBS[r.read(4)]||"CMF", rar=_RARS[r.read(2)]||"n", pos=subGroup(sub);
-  const tIdx=r.read(2), head=r.read(5), bv=r.read(2);
+  const tIdx=r.read(typeBits), head=r.read(5), bv=r.read(2);
   const st=[r.read(5),r.read(5),r.read(5),r.read(5),r.read(5),r.read(5)];
   const flagIdx=r.read(4), sig=r.read(sigBits), skCh=r.read(1), nameIdx=r.read(6);
   if(sig>0&&SIGNATURES[sig-1]){const c=makeSignature(SIGNATURES[sig-1].id)||makeCard("FW","l");
@@ -5241,10 +5258,10 @@ function exportTeam(){
   w.push(Math.max(0,_FORMS.indexOf(S.form)),3);
   const favC=S.favId&&S.coll.find(k=>k.id===S.favId);
   w.push(favC?1:0,1);
-  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]),_SIGBITS);});
-  if(favC)_encCard(w,favC,_SIGBITS);
+  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]),_SIGBITS,_TYPEBITS);});
+  if(favC)_encCard(w,favC,_SIGBITS,_TYPEBITS);
   const bits=w.done();
-  const head=[0xC3,coach.length,...coach,team.length,...team]; // 0xC3=v3(sig 10bit)。0xC2=v2(sig 5bit)は読込互換
+  const head=[0xC4,coach.length,...coach,team.length,...team]; // 0xC4=v4(type 3bit)。0xC3/0xC2は読込互換
   return _b64u(Uint8Array.from(head.concat(bits)));
 }
 function challengeURL(){return location.origin+location.pathname+"#team="+exportTeam();}
@@ -5252,15 +5269,16 @@ function importTeam(raw){
   let code=(raw||"").trim();
   const m=code.match(/team=([A-Za-z0-9_-]+)/); if(m)code=m[1]; // URL貼り付けにも対応
   const bytes=_unb64u(code);
-  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3)throw new Error("bad");
-  const sigBits=ver===0xC3?10:5; // バージョンで sig ビット幅を切替(v2=5/v3=10)
+  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3&&ver!==0xC4)throw new Error("bad");
+  const sigBits=(ver===0xC3||ver===0xC4)?10:5; // sig ビット幅(v2=5/v3・v4=10)
+  const typeBits=ver===0xC4?3:2;               // type ビット幅(v4=3で最大8種/ポジション、以前=2)
   let p=1; const cl=bytes[p++], coach=_us(bytes.slice(p,p+cl)); p+=cl;
   const tl=bytes[p++], team=_us(bytes.slice(p,p+tl)); p+=tl;
   const r=_BR(bytes.slice(p));
   const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
-  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits);
+  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits,typeBits);
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
-  const fav=favFlag?_decCard(r,sigBits):null;
+  const fav=favFlag?_decCard(r,sigBits,typeBits):null;
   return {team:buildTeam(cards,"A",form), coach:(coach||"名無し監督").slice(0,20),
     teamName:(team||"相手チーム").slice(0,20), fav, form};
 }
@@ -6315,6 +6333,26 @@ async function crossCutin(p){
   o.appendChild(_afig(p.c,"",92));o.appendChild(w);o.appendChild(_ctag(p.c));
   document.body.appendChild(o);await sleep(950);o.remove();
 }
+// トレードマーク(必殺の型)カットイン: 選手が駆け抜け、タイプ系統色の決め技名が走る(通常アクション演出のレア変種)。
+async function markCutin(p,word){
+  const cat=typeFlavor(p.c).cat||"atk", col=CAT_COL[cat]||CAT_COL.atk;
+  const o=_actFrame("drb mark",p);
+  const w=_aword(word,"");w.style.color=col;w.style.textShadow="0 0 18px "+col+"e0,0 2px 5px #000";
+  o.appendChild(_afig(p.c,"",104));o.appendChild(w);o.appendChild(_ctag(p.c));
+  const r=document.createElement("div");r.className="goalrays";document.body.appendChild(r);setTimeout(()=>r.remove(),1100);
+  document.body.appendChild(o);await sleep(1050);o.remove();
+}
+// トレードマーク発動判定。局面atがその選手の型のmark.atに合致し、熱気が十分・低確率で炸裂。
+// 発動すれば markCutin を再生し true を返す(呼び出し側は通常のアクション演出をスキップできる)。
+async function trademark(p,at){
+  if(!p||!p.c)return false;
+  const m=typeFlavor(p.c).mark;
+  if(!m||m.at!==at)return false;
+  if(!MC||(MC.volt||0)<TUNING.mark.volt)return false;
+  if(Math.random()>=TUNING.mark.chance)return false;
+  await markCutin(p,m.w);
+  return true;
+}
 // 名将の采配シグネ発動カットイン: 監督の全身絵を左に表示→左へスワイプ退場→発動選手(exec)が右から登場。
 async function tacCutin(tac,mgr,exec){
   const o=_actFrame("tacx","H"); // 監督の采配は常に自チーム(味方=青)
@@ -6451,7 +6489,7 @@ async function egoRun(ctx,type){
     carrier.stat.duelW++;
     feed(`${who}⚡ <b>${carrier.c.name}</b>(攻${carrier.c.off})が${df.c.name}を抜き去って自ら勝負!`,"chance");
     if(fx(carrier).duelSpd||fx(carrier).duelTec)await skillHit(carrier);
-    await dribbleCutin(carrier,type); // 左→右へ駆け抜けるスピード演出(語句/色はタイプ別)
+    if(!await trademark(carrier,"ego"))await dribbleCutin(carrier,type); // 稀にトレードマーク、通常は駆け抜け演出
     collapseDefenders(D,gx-dir*12,ey,1,0.35); // B: カバーの守備者が寄せる→抜き去りで置き去りに
     await ballTo(gx-dir*9,ey+(50-ey)*0.3,0.3,null,A.side);
     await tryShot(carrier,A,D,min,false,null,null,null,"ego");
@@ -6459,6 +6497,7 @@ async function egoRun(ctx,type){
   }
   carrier.stat.duelL++;df.stat.duelW++;df.stat.tkl++;
   feed(`${who}${df.c.name}(守${df.c.def})が${type==="cutin"?"カットイン":"ドリブル"}を止めた!`);if(fx(df).duelD)await skillHit(df);
+  await trademark(df,"stop"); // 守備の型のトレードマーク(ブロック/刈り取り)
   return {lost:true,reason:"tackle"};
 }
 // リンクのレジストリ(拡張前提: 1エントリ追加で種別が増える)。各 run は演出+resolveLinkを行い、
@@ -6497,7 +6536,7 @@ const LINKS={
     if(won){
       r.stat.duelW++;
       feed(`${who}🚀 <b>${carrier.c.name}</b>の縦パス!<b>${r.c.name}</b>(速${r.c.spd})が抜け出した!`,"chance");
-      if(skillShow())await passCutin(carrier,r,"スルーパス"); // パス左流れ演出(熱気で頻度調整)
+      if(await trademark(carrier,"through")){}else if(skillShow())await passCutin(carrier,r,"スルーパス"); // 稀に司令塔のトレードマーク
       if(fx(r).duelSpd)await skillHit(r);
       collapseDefenders(D,gx-dir*10,ly,1,0.35); // B: 最終ラインのカバーが寄せる
       await ballTo(gx-dir*9,ly+(50-ly)*0.3,0.3,null,A.side);
@@ -6513,7 +6552,7 @@ const LINKS={
     const {A,D,min,tf,who,carrier}=ctx;
     carrier.stat.inv++;
     feed(`${who}🏃 <b>${carrier.c.name}</b>がクロスを上げる!`,"chance");
-    if(skillShow())await crossCutin(carrier); // クロスのスピード演出(熱気で頻度調整)
+    if(await trademark(carrier,"cross")){}else if(skillShow())await crossCutin(carrier); // 稀にサイドのトレードマーク
     await ballTo(curP(carrier).x,curP(carrier).y,0.25,null,A.side);
     const r=await aerialBox(A,D,min,carrier,tf,who);
     if(r.shot)return {shot:true};
@@ -6679,6 +6718,7 @@ async function aerialBox(A,D,min,deliverer,tf,who){
     t.stat.duelW++;
     feed(`${who}中央で<b>${t.c.name}</b>(力${t.c.pow})が競り勝つ!`,"chance");
     if(fx(t).duelPow)await skillHit(t);
+    await trademark(t,"aerial"); // ポスト系のトレードマーク(収めて起点)
     await tryShot(t,A,D,min,true,cx,cy,deliverer);
     return {shot:true};
   }
@@ -6772,6 +6812,7 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
   else msg=`⚽ ゴーーール!!<b>${scorer.c.name}</b>が決めた!(攻${scorer.c.off})`;
   feed(`${who}${msg}`,"goal");
   if(fx(scorer).shoot)await skillHit(scorer);
+  await trademark(scorer,"goal"); // ストライカー系のトレードマーク(決定力の化身)
   await wordCutin(scorer,A,sup?"SUPER GOAL!!":"GOAL!!!",true,sup?1700:1450,sup);
   if(preA<preD&&A.score===preD)feed(`${who}🔥 ${teamName(A)}が同点に追いついた!`,"chance");
   else if(preA===preD&&A.score>preD)feed(`${who}🔥 ${teamName(A)}が勝ち越し!`,"chance");
@@ -6826,7 +6867,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
     feed(`GK ${gk.c.name}(守${gk.c.def})がストップ!`);
     if(fxG.save)await skillHit(gk);
     await auraSkill(D,"teamDef",TUNING.aura.teamDef); // 守備陣を統率する teamDef の発動を明示
-    await wordCutin(gk,D,"SAVE!!",false,720);
+    if(!await trademark(gk,"save"))await wordCutin(gk,D,"SAVE!!",false,720); // 稀にGKのトレードマーク
     if(!_spActive&&Math.random()<TUNING.setpiece.cornerOnSave){await setCorner(A,D,min);return;} // 弾いてCK
     await ballTo(gx-dir*14,gy+ri(-12,12),0.5);     // 弾き出し
   }
@@ -7054,7 +7095,7 @@ function renderStatRows(team,opp){
     const s=p.stat,isMom=p===mom.p,low=r<5.0;
     h+=`<tr class="${isMom?"mom":""}${low?" lowform":""}">
       <td><span class="pos ${p.role}">${p.subRole||p.role}</span></td>
-      <td>${isMom?"★":""}${p.c.name}</td>
+      <td>${isMom?"★":""}${p.c.name}<br><span style="font-size:9px;color:${CAT_COL[typeFlavor(p.c).cat||"atk"]}">${CAT_ICON[typeFlavor(p.c).cat||"atk"]} ${typeOf(p.c).n}</span></td>
       <td>${r.toFixed(1)}</td>
       <td>${s.inv||0}</td>
       <td>${s.goals}</td>
