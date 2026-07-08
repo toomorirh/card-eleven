@@ -586,7 +586,8 @@ function startCareer(){
   const nm=((typeof S.coach==="string"&&S.coach.trim())||myName()||"オーナー").slice(0,16); // 監督名はオーナー名を踏襲
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
-    cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false};
+    cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
+    growth:{}, form:{}, cond:{}, season:0}; // 選手の成長/調子/加齢(キャリア限定・ローグライク)
   save(); gotoCareer();
 }
 function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合。上限内編成で相応の相手と対戦。
@@ -596,6 +597,8 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
   const team=careerTeam(cr.ovrCap);
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
+  cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
+  team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
@@ -607,6 +610,10 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
     :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
   _beginMatch(oppTeam(lv,{form,seed}), label, form, lv, -1, team);
+  const hot=team.players.filter(p=>cr.cond[p.c.id]==="peak").map(p=>p.c.name); // 調子ハイライト
+  const cold=team.players.filter(p=>cr.cond[p.c.id]==="poor").map(p=>p.c.name);
+  if(hot.length)feed(`⤴ 絶好調: ${hot.join("、")}`,"chance");
+  if(cold.length)feed(`⤵ 不調: ${cold.join("、")}`);
 }
 function startCup(id){ // ②カップ: エントリー週かつ条件を満たせばカップを開始(以後 startCareerMatch がカップ戦になる)
   const cr=S.career; if(!cr||cr.finished||cr.cup)return;
@@ -821,6 +828,7 @@ const MATCH_MODES={
   career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ/カップ1試合
     S._careerMatch=false;
     const cr=S.career, inCup=cr&&cr.cup;
+    if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
     const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
     const e=document.getElementById("matchEnd");
     let html=`<div class="banner">${head} ${sh}-${sa}</div>`, champCup=null;

@@ -262,7 +262,7 @@
 - **フェーズ**: 🌱若手(〜21)/🌿成長期(22-25)/⭐全盛期(26-29)/🎖ベテラン(30-33)/🔥老雄(34〜)。各に `growth/condVol/decline`(育成用=Phase2)も定義。
 - **付与**: 通常カード=`rollAge`(17〜34・ピーク24-26)。シグネ/エモは**固定年齢**(データ定義)=意図的な選択軸(例 ヤマル17🌱/メッシ37🎖/ブッフォン41🔥)。**エモは"瞬間"の年齢**(CR7エモ=19🌱 ↔ 現代シグネは30代)で同選手の差分。
 - **移行/QR**: `loadGame` が欠落カードへ `defaultAge` 付与(版非依存)。QR共有は **v5(0xC5)で age 5bit**(age-16)同梱。v4以前は非同梱→取り込みは `AGE_DEF`(27=全盛期)扱い。
-- **育成での加齢/成長/コンディション**(Phase2予定): 実効年齢は育成中シーズンごとに+1(`effAge` の `ageBonus`。カード本体は不変=ローグライク)。`growth`/`condVol`/`decline` を用いる。
+- **育成での加齢/成長/コンディション**(Phase2・実装済み): §7.10.1「選手のシーズン内成長」を参照。実効年齢は育成中シーズンごとに+1(`effAge` の `ageBonus`=`cr.season`。カード本体は不変=ローグライク)。
 
 ---
 
@@ -491,6 +491,11 @@
   - **boost獲得**: 6節消化で `careerRecordResult` が成績連動の boost を付与(`1+boostBase[div]×perf`、perf=0.4〜1.0=勝点比)。boostは順位に関わらず毎シーズン付与(=残留しても戦力は伸びる)。
   - **順位表・昇降格(WCCF風・実装済み)**: 自チーム+同DIVの6クラブ(1枠は宿敵)で**7チームの勝点表**を蓄積(`careerTableEnsure`/`careerSimRound`=他クラブの試合を lv差で簡易シミュ `simClubResult`)。シーズン終了時に**最終順位**(`careerStandings`)で判定: `promote[div]`以内なら昇格(DIV1は1位で大陸解禁)、DIV最下位(かつdiv<3)なら降格(`div++`)、それ以外は**残留(来季再挑戦)**。`renderCareer` に順位表(自チーム=金/🟩昇格圏/🟥降格圏)を表示。
   - **宿敵ダービー(実装済み)**: 恒常ライバル`nemesis`(レガリアFC)を `careerLeaguePool` が各DIV日程の `derbyNode` 枠に注入(昇格しても付いてくる・lvは一段上=`nemesisLv`)。宿敵戦は⚔ダービー(専用ラベル)。**勝利で士気ボーナス**(全能力`+derbyMul`を監督boostへ)、引分/敗北は雪辱メッセージ。
+  - **選手のシーズン内成長(Phase2・実装済み・キャリア限定/ローグライク/上限別枠)**: `S.career{growth,form,cond,season}`。
+    - **成長 `growth`**: 出場して高評価(`statRating≥growthThresh`)を取ると主ステ(役割ベース`growthStatsFor`)が微増。**フェーズの`growth`倍率**(若手ほど大)を乗算、`growthCap`でクランプ。`careerApplyGrowth`(onEndで反映)。`eff` は `p.c[k]+p.grow[k]`(**OVR上限には非加算=cap別枠**、`careerTeam` のトリムは素OVR基準)。引退で消える。
+    - **コンディション `cond`**: 試合開始時に各先発へ決定(`careerCondition`=前節評価＋フェーズ`condVol`×乱数、±約12〜15%)→`eff` の `p.cond` 倍率。絶好調⤴〜絶不調⤵。キックオフに絶好調/不調をfeed。
+    - **加齢 `season`**: シーズン終了ごとに+1(`careerRecordResult`)。`careerTeam` が `p.ageBonus=cr.season` を付与→`effAge` が上昇し、若手→全盛期→老雄へ世代交代。**老雄/ベテランの低調な酷使**(`phase.decline`>0 かつ 評価<5.0)で spd/sta が微衰退。
+    - **育成スカッド画面**: `careerSquadView` が現在の自動編成XIを 年齢/フェーズ・調子・成長(+N)・成長込みOVR で一覧表示(`renderCareer`)。
   - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
   - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。

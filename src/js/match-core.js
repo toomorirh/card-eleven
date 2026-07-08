@@ -109,7 +109,45 @@ function careerTeam(cap){
   }
   const cards=picks.map((p,i)=>({c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
     x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1}));
-  return buildTeam(cards,"H",S.form);
+  const team=buildTeam(cards,"H",S.form);
+  const cr=(typeof S!=="undefined")&&S.career;
+  if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
+  return team;
+}
+// ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
+// 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
+function growthStatsFor(p){
+  return p.role==="GK"?["def","tec"]:p.role==="DF"?["def","pow","spd"]:p.role==="MF"?["tec","sta","off"]:["off","spd","tec"];
+}
+// 調子(コンディション): 前節評価(好調継続)+フェーズの波×乱数。±約12〜15%。{mul,key,label,icon}。
+function careerCondition(cr,c,phase){
+  const f=(cr.form&&cr.form[c.id])||{}, lastR=(f.lastR!=null)?f.lastR:6.0, vol=(phase&&phase.condVol)||1;
+  let v=(lastR-6.0)*0.06+(Math.random()*2-1)*0.09*vol;
+  v=Math.max(-0.12,Math.min(0.15,v));
+  let key,label,icon;
+  if(v>=0.10){key="peak";label="絶好調";icon="⤴";}
+  else if(v>=0.04){key="good";label="好調";icon="↗";}
+  else if(v>-0.04){key="ok";label="普通";icon="→";}
+  else if(v>-0.09){key="bad";label="不調";icon="↘";}
+  else {key="poor";label="絶不調";icon="⤵";}
+  return {mul:1+v,key,label,icon};
+}
+// 試合後の成長処理(キャリア限定): 出場記録＋高評価で微成長(フェーズのgrowth倍率)、老雄の酷使で微衰退。
+function careerApplyGrowth(cr,homeTeam,awayTeam){
+  if(!cr)return; cr.growth=cr.growth||{}; cr.form=cr.form||{};
+  homeTeam.players.forEach(p=>{
+    const id=p.c.id, r=statRating(p,awayTeam), phase=agePhase(effAge(p));
+    const f=cr.form[id]||(cr.form[id]={apps:0,lastR:6}); f.apps++; f.lastR=r;
+    const g=cr.growth[id]||(cr.growth[id]={off:0,def:0,pow:0,tec:0,spd:0,sta:0});
+    if(r>=CAREER.growthThresh){ // 高評価→主ステが伸びる(若手ほど大きい)
+      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8), ks=growthStatsFor(p);
+      ks.forEach(k=>{ g[k]=Math.min(CAREER.growthCap,(g[k]||0)+amt/ks.length); });
+    }
+    if((phase.decline||0)>0 && r<5.0){ // 老雄/ベテランの低調な酷使→spd/staが微減
+      const dec=0.12*phase.decline;
+      ["spd","sta"].forEach(k=>{ g[k]=Math.max(-CAREER.growthFloor,(g[k]||0)-dec); });
+    }
+  });
 }
 // ===== リーグ順位表(WCCF風): 自チーム+同DIVの6クラブ(1枠は宿敵)で勝点を蓄積し、順位で昇降格 =====
 // クラブ同士の1試合をlv差で簡易シミュ(演出なし・純粋)。{ra,rb,ga,gb}。
@@ -156,6 +194,7 @@ function careerRecordResult(cr,sh,sa){
   cr.node++; cr.step++;
   const out={res,pts,seasonEnd:false,promoted:false,boost:null};
   if(cr.node>=CAREER.nodes){ // シーズン終了
+    cr.season=(cr.season||0)+1;                            // 加齢: 実効年齢+1(若手→全盛期→老雄へ・カード本体は不変)
     const perf=0.4+0.6*(cr.pts/(CAREER.nodes*3));          // 0.4(不振)〜1.0(完全優勝)
     if(cont){ // 大陸リーグ制覇 → その大陸の系統ステに特化したboost(高倍率)
       const mul=Math.round((1+cont.base*perf)*1000)/1000;
@@ -294,7 +333,8 @@ function mgrMul(p,k,T){
 function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
   const surge=(T&&T._surgeUntil&&min<T._surgeUntil)?(T._surgeMul||1):1; // 国際チームスキル(kind:team)発動中の一時バフ
-  return p.c[k]*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge;
+  const base=p.c[k]+(p.grow?(p.grow[k]||0):0); // 育成の成長値(キャリア限定・上限別枠。非キャリアはnull=不変)
+  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1); // p.cond=調子(キャリア)
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=密集ブロック)を1つ返す(発動抽選は呼び出し側)。

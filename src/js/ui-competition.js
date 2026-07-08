@@ -540,6 +540,25 @@ function careerStandingsTable(cr){
   h+=`</table><div class="lg" style="font-size:10px">🟩昇格圏(上位${promoteRank})${cr.div<3?" / 🟥降格圏(最下位)":""} ・ ⚔宿敵レガリア</div>`;
   wrap.innerHTML=h; return wrap;
 }
+// 育成スカッド: 現在の自動編成XIを年齢/フェーズ・調子・成長・OVR(成長込み)で一覧。育てた実感を見せる。
+function careerSquadView(cr){
+  if(!cr)return null;
+  let team; try{team=careerTeam(cr.ovrCap);}catch(e){return null;}
+  if(!team||!team.players.length)return null;
+  const CI={peak:"⤴",good:"↗",ok:"→",bad:"↘",poor:"⤵"};
+  const gsum=p=>{const g=p.grow||{};return(g.off||0)+(g.def||0)+(g.pow||0)+(g.tec||0)+(g.spd||0)+(g.sta||0);};
+  const ovrG=p=>p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta+gsum(p);
+  const wrap=document.createElement("div");
+  let h='<table class="ctable sq"><tr><th>枠</th><th>選手</th><th>年齢</th><th>調子</th><th>成長</th><th>OVR</th></tr>';
+  team.players.forEach(p=>{
+    const age=effAge(p), ph=agePhase(age), ck=cr.cond&&cr.cond[p.c.id], gs=gsum(p);
+    const gtxt=gs>=0.05?`<span style="color:#7dff9e">+${gs.toFixed(1)}</span>`:gs<=-0.05?`<span style="color:#ff8e8e">${gs.toFixed(1)}</span>`:"−";
+    h+=`<tr><td><span class="pos ${p.role}">${p.subRole||p.role}</span></td><td>${p.c.name}</td>`
+      +`<td>${age}${ph.icon}</td><td>${ck?CI[ck]:"−"}</td><td>${gtxt}</td><td><b>${Math.round(ovrG(p))}</b></td></tr>`;
+  });
+  h+='</table><div class="lg" style="font-size:10px">🌱若手/⭐全盛期/🎖ベテラン/🔥老雄 ・ 調子⤴〜⤵ ・ 成長=キャリア中の伸び(上限別枠・引退で消える)</div>';
+  wrap.innerHTML=h; return wrap;
+}
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
@@ -564,6 +583,8 @@ function renderCareer(){
       return idx<cr.cup.win?`✅${nm}`:idx===cr.cup.i?`<b style="color:var(--gold)">▶${nm}${boss}</b>`:`${nm}${boss}`;}).join(" → ");
     box.appendChild(mk("div","lg","ブラケット: "+line));
   }
+  const sq=careerSquadView(cr); // 育成スカッド(年齢/調子/成長)
+  if(sq){box.appendChild(mk("div","banner",`― 👥 育成スカッド ・ ${cr.season?`${cr.season}季経過`:"開幕"} ―`));box.appendChild(sq);}
   if(cr.stage!=="cont"&&!cr.contId){ // DIVリーグ中は順位表を表示
     const st=careerStandingsTable(cr);
     if(st){box.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));box.appendChild(st);}
