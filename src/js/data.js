@@ -657,6 +657,34 @@ function scaleTo(c,target){ // 既存6ステの合計をtargetへ比例スケー
   ks.forEach(k=>c[k]=Math.round(Math.min(20,Math.max(1,c[k]*f))));
 }
 
+// ===== 年齢(カードの実パラメータ) =====
+// 基礎ステとは独立。全モードで効く: 関与(inv)・スタミナ消費(drain)・勝負強さ(compose)。育成では成長速度/調子の波も左右。
+// フェーズ→各レバー倍率(全盛期=1.0が基準)。若手=走り回るが息切れ・勝負は荒い / ベテラン=省エネで出番少だが成功率高。
+const AGE_DEF=27; // 年齢欠落時は全盛期扱い(=各レバー1.0=無効)
+const AGE_PHASES=[
+  {key:"young",   label:"若手",   icon:"🌱", max:21, inv:1.15, drain:1.15, compose:0.94, growth:1.6,  condVol:1.5, decline:0},
+  {key:"rising",  label:"成長期", icon:"🌿", max:25, inv:1.08, drain:1.06, compose:0.98, growth:1.3,  condVol:1.2, decline:0},
+  {key:"prime",   label:"全盛期", icon:"⭐", max:29, inv:1.00, drain:1.00, compose:1.00, growth:0.8,  condVol:1.0, decline:0},
+  {key:"vet",     label:"ベテラン",icon:"🎖", max:33, inv:0.90, drain:0.92, compose:1.06, growth:0.4,  condVol:0.85,decline:0.4},
+  {key:"twilight",label:"老雄",   icon:"🔥", max:99, inv:0.82, drain:0.85, compose:1.10, growth:0.15, condVol:0.8, decline:1.0},
+];
+function agePhase(age){age=(age==null)?AGE_DEF:age;for(const ph of AGE_PHASES){if(age<=ph.max)return ph;}return AGE_PHASES[AGE_PHASES.length-1];}
+function ageOf(c){return (c&&c.age!=null)?c.age:AGE_DEF;}
+// 選手オブジェクト(p)またはカード(c)から実効年齢を得る。ageBonus=育成中のシーズン加齢(カード本体は不変)。
+function effAge(p){const c=(p&&p.c)?p.c:p; return ageOf(c)+((p&&p.ageBonus)||0);}
+function ageInv(p){return agePhase(effAge(p)).inv;}         // 関与(選出)倍率
+function ageDrain(p){return agePhase(effAge(p)).drain;}     // スタミナ消費倍率
+function ageCompose(p){return agePhase(effAge(p)).compose;} // アクション成功倍率
+// 通常カードの年齢: 17〜34あたり・ピーク24-26のなだらかな分布。
+function rollAge(){return Math.max(16,Math.min(37,Math.round((ri(17,34)+ri(20,30)+ri(22,28))/3)));}
+// 任意カードの既定年齢(移行/QR取り込み用): シグネ/エモは固定・通常はランダム。
+function defaultAge(c){
+  if(!c)return AGE_DEF;
+  if(c.emo&&typeof emotionalById==="function"){const e=emotionalById(c.sig);if(e&&e.age!=null)return e.age;}
+  if(c.sig&&typeof signatureById==="function"){const s=signatureById(c.sig);if(s&&s.age!=null)return s.age;}
+  return rollAge();
+}
+
 let uid=1;
 function rollSkill(pos,rar){
   if(rar==="n")return null;
@@ -672,7 +700,7 @@ function makeCard(forcePos,forceRar,forceBase,forceSub){
   let rar=forceRar;
   if(!rar){const x=Math.random()*100;rar=x<5?"sr":x<30?"r":"n";}
   const sv=genStats(rar);
-  const c={id:uid++,name:rnd(NAMES),flag:rnd(FLAGS),look:makeLook(pos,rar),pos,sub,rar,type:rollType(pos),
+  const c={id:uid++,name:rnd(NAMES),flag:rnd(FLAGS),look:makeLook(pos,rar),pos,sub,rar,type:rollType(pos),age:rollAge(),
     off:sv[0],def:sv[1],pow:sv[2],tec:sv[3],spd:sv[4],sta:sv[5],skill:rollSkill(pos,rar)};
   if(pos==="GK"){c.def=cl(c.def+3);c.off=cl(c.off-3);}
   if(pos==="DF"){c.def=cl(c.def+2);c.pow=cl(c.pow+1);c.off=cl(c.off-2);}
@@ -686,97 +714,97 @@ function makeCard(forcePos,forceRar,forceBase,forceSub){
 // モチーフ画像(src/assets/signatures/<id>.png → build.pyがbase64化)。追加はこの配列に1要素足すだけ。
 // 不変条件: 6ステ合計=100 / いずれか1つ以上が20 / subGroup(sub)===pos。
 const SIGNATURES=[
-  {id:"messi", name:"リオネル・メッシ", flag:"🇦🇷", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"messi", name:"リオネル・メッシ", flag:"🇦🇷", pos:"FW", sub:"RWG", type:"dribbler", age:37,
    stats:{off:20,def:15,pow:13,tec:20,spd:18,sta:14}, // 合計100
    skill:{name:"ラ・プルガ", desc:"ドリブルで切り裂き決め切る稀代の天才。技・速の勝負とシュートを大幅強化", fx:{duelTec:1.5,duelSpd:1.3,shoot:1.4}}},
-  {id:"ronaldo", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"ST", type:"striker",
+  {id:"ronaldo", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"ST", type:"striker", age:39,
    stats:{off:20,def:14,pow:18,tec:14,spd:18,sta:16},
    skill:{name:"絶対的エース", desc:"あらゆる勝負を制す王。シュートと速・力の勝負を大幅強化", fx:{shoot:1.45,duelSpd:1.3,duelPow:1.3}}},
-  {id:"haaland", name:"アーリング・ハーランド", flag:"🇳🇴", pos:"FW", sub:"CF", type:"striker",
+  {id:"haaland", name:"アーリング・ハーランド", flag:"🇳🇴", pos:"FW", sub:"CF", type:"striker", age:24,
    stats:{off:20,def:12,pow:20,tec:14,spd:18,sta:16},
    skill:{name:"北欧の重戦車", desc:"圧倒的な決定力とパワー。シュートとパワー勝負を大幅強化", fx:{shoot:1.45,duelPow:1.4}}},
-  {id:"mbappe", name:"キリアン・エムバペ", flag:"🇫🇷", pos:"FW", sub:"LWG", type:"dribbler",
+  {id:"mbappe", name:"キリアン・エムバペ", flag:"🇫🇷", pos:"FW", sub:"LWG", type:"dribbler", age:26,
    stats:{off:18,def:16,pow:13,tec:17,spd:20,sta:16},
    skill:{name:"超音速", desc:"驚異的なスピードで置き去りに。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.5,shoot:1.3}}},
-  {id:"kane", name:"ハリー・ケイン", flag:"🇬🇧", pos:"FW", sub:"CF", type:"post",
+  {id:"kane", name:"ハリー・ケイン", flag:"🇬🇧", pos:"FW", sub:"CF", type:"post", age:31,
    stats:{off:20,def:16,pow:17,tec:17,spd:14,sta:16},
    skill:{name:"万能ストライカー", desc:"決定力と起点を両立。シュート・パワー勝負を強化しチャンスを創出", fx:{shoot:1.4,duelPow:1.3,teamChance:1.15}}},
-  {id:"kaka", name:"カカ", flag:"🇧🇷", pos:"MF", sub:"OMF", type:"maker",
+  {id:"kaka", name:"カカ", flag:"🇧🇷", pos:"MF", sub:"OMF", type:"maker", age:29,
    stats:{off:17,def:15,pow:15,tec:20,spd:17,sta:16},
    skill:{name:"黄金のトップ下", desc:"創出力とテクニックで違いを生む。チャンス創出とテクニック勝負を大幅強化", fx:{teamChance:1.3,duelTec:1.4}}},
-  {id:"modric", name:"ルカ・モドリッチ", flag:"🇭🇷", pos:"MF", sub:"CMF", type:"maker",
+  {id:"modric", name:"ルカ・モドリッチ", flag:"🇭🇷", pos:"MF", sub:"CMF", type:"maker", age:39,
    stats:{off:15,def:16,pow:15,tec:20,spd:16,sta:18},
    skill:{name:"中盤の指揮者", desc:"支配率とテクニックを掌握。支配率とテクニック勝負を大幅強化", fx:{mid:1.5,duelTec:1.35}}},
-  {id:"neymar", name:"ネイマール", flag:"🇧🇷", pos:"FW", sub:"LWG", type:"dribbler",
+  {id:"neymar", name:"ネイマール", flag:"🇧🇷", pos:"FW", sub:"LWG", type:"dribbler", age:32,
    stats:{off:17,def:16,pow:14,tec:20,spd:18,sta:15},
    skill:{name:"マジック・ドリブル", desc:"華麗なフェイントで複数を抜き去る。技・速の勝負を大幅強化", fx:{duelTec:1.45,duelSpd:1.3}}},
-  {id:"vandijk", name:"ファン・ダイク", flag:"🇳🇱", pos:"DF", sub:"CB", type:"stopper",
+  {id:"vandijk", name:"ファン・ダイク", flag:"🇳🇱", pos:"DF", sub:"CB", type:"stopper", age:33,
    stats:{off:14,def:20,pow:18,tec:16,spd:16,sta:16},
    skill:{name:"不落の壁", desc:"対人守備が極めて強固。守備マッチアップを大幅強化", fx:{duelD:1.55,teamDef:1.12}}},
-  {id:"maldini", name:"パオロ・マルディーニ", flag:"🇮🇹", pos:"DF", sub:"CB", type:"cover",
+  {id:"maldini", name:"パオロ・マルディーニ", flag:"🇮🇹", pos:"DF", sub:"CB", type:"cover", age:30,
    stats:{off:14,def:20,pow:16,tec:17,spd:16,sta:17},
    skill:{name:"イル・カピターノ", desc:"統率と読みで最終ラインを支配。チーム守備と対人守備を強化", fx:{teamDef:1.3,duelD:1.3}}},
-  {id:"neuer", name:"ノイアー", flag:"🇩🇪", pos:"GK", sub:"GK", type:"sweeper",
+  {id:"neuer", name:"ノイアー", flag:"🇩🇪", pos:"GK", sub:"GK", type:"sweeper", age:38,
    stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
    skill:{name:"世界の門番", desc:"驚異的なセービングと統率。セーブとチーム守備を強化", fx:{save:1.6,teamDef:1.12}}},
-  {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler", age:23,
    stats:{off:17,def:15,pow:15,tec:20,spd:18,sta:15},
    skill:{name:"和製の天才", desc:"技術とスピードで違いを生むアタッカー。技・速の勝負を大幅強化", fx:{duelTec:1.4,duelSpd:1.3}}},
-  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"false9",
+  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"false9", age:28,
    stats:{off:19,def:12,pow:15,tec:20,spd:16,sta:18},
    skill:{name:"オランダの至宝", desc:"絶妙なトラップと冷徹な決定力。テクニック勝負とシュートを大幅強化", fx:{duelTec:1.45,shoot:1.3}}},
-  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"destroyer",
+  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"destroyer", age:27,
    stats:{off:14,def:17,pow:20,tec:15,spd:15,sta:19},
    skill:{name:"中盤の支配者", desc:"球際の強さで中盤を制圧。支配率と対人守備を大幅強化", fx:{mid:1.4,duelD:1.3}}},
-  {id:"henry", name:"ティエリ・アンリ", flag:"🇫🇷", pos:"FW", sub:"CF", type:"striker",
+  {id:"henry", name:"ティエリ・アンリ", flag:"🇫🇷", pos:"FW", sub:"CF", type:"striker", age:27,
    stats:{off:19,def:13,pow:15,tec:17,spd:20,sta:16},
    skill:{name:"ヴァンガ", desc:"圧倒的なスピードと精度の高い決定力。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.4,shoot:1.35}}},
-  {id:"buffon", name:"ジャンルイジ・ブッフォン", flag:"🇮🇹", pos:"GK", sub:"GK", type:"liner",
+  {id:"buffon", name:"ジャンルイジ・ブッフォン", flag:"🇮🇹", pos:"GK", sub:"GK", type:"liner", age:41,
    stats:{off:15,def:20,pow:16,tec:16,spd:16,sta:17},
    skill:{name:"伝説の守護神", desc:"年齢を感じさせぬ反応。セーブを大幅強化し終盤に真価を発揮", fx:{save:1.6,clutch:1.15}}},
-  {id:"cucurella", name:"マルク・ククレジャ", flag:"🇪🇸", pos:"DF", sub:"LSB", type:"stopper",
+  {id:"cucurella", name:"マルク・ククレジャ", flag:"🇪🇸", pos:"DF", sub:"LSB", type:"stopper", age:26,
    stats:{off:15,def:17,pow:14,tec:16,spd:20,sta:18},
    skill:{name:"闘犬の左", desc:"上下動を止めぬ執拗なプレッサー。スピードと対人守備を大幅強化", fx:{duelD:1.3,duelSpd:1.3}}},
-  {id:"araujo", name:"ロナルド・アラウホ", flag:"🇺🇾", pos:"DF", sub:"CB", type:"stopper",
+  {id:"araujo", name:"ロナルド・アラウホ", flag:"🇺🇾", pos:"DF", sub:"CB", type:"stopper", age:25,
    stats:{off:14,def:20,pow:19,tec:14,spd:17,sta:16},
    skill:{name:"ウルグアイの番犬", desc:"スピードとパワーで対面を封殺する。対人守備とパワー勝負を大幅強化", fx:{duelD:1.45,duelPow:1.2}}},
-  {id:"dejong", name:"フレンキー・デ・ヨング", flag:"🇳🇱", pos:"MF", sub:"CMF", type:"b2b",
+  {id:"dejong", name:"フレンキー・デ・ヨング", flag:"🇳🇱", pos:"MF", sub:"CMF", type:"b2b", age:27,
    stats:{off:14,def:15,pow:16,tec:20,spd:17,sta:18},
    skill:{name:"プレス回避の舞", desc:"狭い局面を技と速さで脱出し前進する。支配率とテク・スピード勝負を強化", fx:{mid:1.3,duelTec:1.3,duelSpd:1.2}}},
-  {id:"beckham", name:"デビッド・ベッカム", flag:"🇬🇧", pos:"MF", sub:"RMF", type:"winger",
+  {id:"beckham", name:"デビッド・ベッカム", flag:"🇬🇧", pos:"MF", sub:"RMF", type:"winger", age:28,
    stats:{off:16,def:16,pow:16,tec:20,spd:15,sta:17},
    skill:{name:"黄金の右足", desc:"精密なクロスとセットプレーで違いを生む。チャンス創出とシュートを大幅強化", fx:{teamChance:1.35,shoot:1.2}}},
-  {id:"terry", name:"ジョン・テリー", flag:"🇬🇧", pos:"DF", sub:"CB", type:"cover",
+  {id:"terry", name:"ジョン・テリー", flag:"🇬🇧", pos:"DF", sub:"CB", type:"cover", age:29,
    stats:{off:15,def:20,pow:18,tec:16,spd:14,sta:17},
    skill:{name:"最終ラインの指揮官", desc:"統率と読みで最終ラインを束ねる。チーム守備を大幅強化し対人も堅い", fx:{teamDef:1.4,duelD:1.15}}},
-  {id:"nedved", name:"パベル・ネドベド", flag:"🇨🇿", pos:"MF", sub:"LMF", type:"b2b",
+  {id:"nedved", name:"パベル・ネドベド", flag:"🇨🇿", pos:"MF", sub:"LMF", type:"b2b", age:29,
    stats:{off:16,def:12,pow:20,tec:15,spd:18,sta:19},
    skill:{name:"チェコの稲妻", desc:"無尽蔵のスタミナと烈火のミドル。シュートとスピード勝負を大幅強化", fx:{shoot:1.35,duelSpd:1.25}}},
-  {id:"arnold", name:"アレクサンダー＝アーノルド", flag:"🇬🇧", pos:"DF", sub:"RSB", type:"cover",
+  {id:"arnold", name:"アレクサンダー＝アーノルド", flag:"🇬🇧", pos:"DF", sub:"RSB", type:"cover", age:26,
    stats:{off:16,def:15,pow:16,tec:20,spd:17,sta:16},
    skill:{name:"ピンポイントの右足", desc:"精密なロングパスとクロスで右から創出する司令塔型SB。チャンス創出とテクニックを強化", fx:{teamChance:1.4,duelTec:1.15}}},
-  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"regista",
+  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"regista", age:35,
    stats:{off:14,def:18,pow:16,tec:20,spd:15,sta:17},
    skill:{name:"見えざる司令塔", desc:"球際を消し テンポを操る中盤の底。支配率を大幅強化しチーム守備を底上げ", fx:{mid:1.45,teamDef:1.1}}},
-  {id:"yamal", name:"ラミン・ヤマル", flag:"🇪🇸", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"yamal", name:"ラミン・ヤマル", flag:"🇪🇸", pos:"FW", sub:"RWG", type:"dribbler", age:17,
    stats:{off:17,def:14,pow:16,tec:20,spd:18,sta:15},
    skill:{name:"ラ・マシアの新星", desc:"内へ切れ込み 自ら決め切る新世代の天才。技・速の勝負とシュートを強化", fx:{duelTec:1.4,duelSpd:1.25,shoot:1.2}}},
-  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"wingback",
+  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"wingback", age:30,
    stats:{off:16,def:16,pow:14,tec:15,spd:20,sta:19},
    skill:{name:"疾走の右サイド", desc:"止まらぬオーバーラップで右を制圧する。スピード勝負と対人守備を大幅強化", fx:{duelSpd:1.35,duelD:1.2}}},
-  {id:"matheus", name:"ローター・マテウス", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b",
+  {id:"matheus", name:"ローター・マテウス", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b", age:29,
    stats:{off:16,def:15,pow:20,tec:17,spd:14,sta:18},
    skill:{name:"ゲルマンの主将", desc:"中盤を支配し強烈なミドルも放つ主将。支配率とシュートを大幅強化", fx:{mid:1.4,shoot:1.25}}},
-  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"wingback",
+  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"wingback", age:28,
    stats:{off:14,def:16,pow:20,tec:15,spd:19,sta:16},
    skill:{name:"重戦車の左足", desc:"爆発的な上下動と強烈な左足。スピードとパワー勝負を大幅強化", fx:{duelSpd:1.35,duelPow:1.25}}},
-  {id:"maradona", name:"ディエゴ・マラドーナ", flag:"🇦🇷", pos:"MF", sub:"OMF", type:"maker",
+  {id:"maradona", name:"ディエゴ・マラドーナ", flag:"🇦🇷", pos:"MF", sub:"OMF", type:"maker", age:26,
    stats:{off:18,def:15,pow:16,tec:20,spd:16,sta:15},
    skill:{name:"神の子", desc:"神懸かりのドリブルと創造性で違いを生む至宝。技術勝負とチャンス創出を大幅強化", fx:{duelTec:1.45,teamChance:1.35}}},
-  {id:"lahm", name:"フィリップ・ラーム", flag:"🇩🇪", pos:"DF", sub:"RSB", type:"cover",
+  {id:"lahm", name:"フィリップ・ラーム", flag:"🇩🇪", pos:"DF", sub:"RSB", type:"cover", age:28,
    stats:{off:15,def:20,pow:15,tec:18,spd:15,sta:17},
    skill:{name:"万能の名手", desc:"知性で守りも組み立ても担う万能SB。対人守備と支配率を強化", fx:{duelD:1.3,mid:1.2}}},
-  {id:"higuita", name:"レネ・イギータ", flag:"🇨🇴", pos:"GK", sub:"GK", type:"sweeper",
+  {id:"higuita", name:"レネ・イギータ", flag:"🇨🇴", pos:"GK", sub:"GK", type:"sweeper", age:31,
    stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
    skill:{name:"エル・ロコ", desc:"飛び出しと奇抜な反応で守る型破りの守護神。セーブとチーム守備を強化", fx:{save:1.55,teamDef:1.1}}},
 ];
@@ -784,7 +812,7 @@ function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){
   const s=signatureById(id);if(!s)return null;
   const st=s.stats;
-  return {id:uid++, sig:s.id, name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"l", type:s.type,
+  return {id:uid++, sig:s.id, name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"l", type:s.type, age:s.age,
     look:makeLook(s.pos,"l"), // 画像が無い端末向けのフォールバック用
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
@@ -797,7 +825,7 @@ function makeSignature(id){
 //   fx.clutch/losing … 終盤・ビハインドで爆発(=エモーションの昂り)。situ()で自動適用。
 // moment … カットイン/券面に出す“瞬間”の題字。subGroup(sub)===pos / 合計100 を維持。
 const EMOTIONALS=[
-  {id:"cr7_utd", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"cr7_utd", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler", age:19,
    moment:"OLD TRAFFORD 2004", momentSub:"無回転フリーキック",
    stats:{off:18,def:14,pow:13,tec:19,spd:20,sta:16}, // 合計100 / spd20(若き日の爆発的スピード)
    skill:{name:"7番の継承者",
@@ -809,7 +837,7 @@ function makeEmotional(id){
   const s=emotionalById(id);if(!s)return null;
   const st=s.stats;
   return {id:uid++, sig:s.id, emo:true, moment:s.moment, momentSub:s.momentSub,
-    name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"emo", type:s.type,
+    name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"emo", type:s.type, age:s.age,
     look:makeLook(s.pos,"l"),
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};

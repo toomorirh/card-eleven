@@ -83,6 +83,8 @@ async function loadGame(){                                       // つづきか
   // 起用中監督が名将にもカスタムにも無ければ解任(旧データ整合)
   if(S.mgrActive&&!managerById(S.mgrActive))S.mgrActive="";
   if(S.v!==9){migrate();await save();}
+  let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
+  if(_aged)await save();
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。

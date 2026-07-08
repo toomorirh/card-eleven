@@ -89,7 +89,7 @@ function offBallRun(attSide,dur){
   const M=MC;if(!M||!attSide)return;
   const T=attSide==="H"?M.home:M.away, dir=attSide==="H"?1:-1;
   const near=p=>Math.hypot(curP(p).x-M.bx,curP(p).y-M.by)<12;
-  const r=pickW(T.players.filter(p=>p.el&&p.role!=="GK"&&!near(p)),q=>typeOf(q.c).run||0.2);
+  const r=pickW(T.players.filter(p=>p.el&&p.role!=="GK"&&!near(p)),q=>(typeOf(q.c).run||0.2)*ageInv(q));
   if(!r)return;
   const tx=curP(r).x+dir*ri(5,11);
   const ty=curP(r).y+(M.by-curP(r).y)*0.35+ri(-4,4); // ゴール方向へ+ボールの縦へ寄せる

@@ -111,6 +111,7 @@ canvas.sprite{image-rendering:auto}
 .card .ovr{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DotGothic16';font-size:8px;color:#8fa3b8;letter-spacing:1px}
 .card .ovr b{font-size:13px;color:var(--gold);line-height:1;text-shadow:0 0 6px rgba(232,194,90,.5)}
 .card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+.card .tp .age{color:#cdd6e6;opacity:.85}
 .card .sk{font-size:8px;font-weight:900;margin-top:1px;padding:1px 6px;border-radius:6px;background:#2a3d56;color:#cfdcea;max-width:98%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .card.r .sk{background:#43586e;color:#e8eef5}
 .card.sr .sk{background:linear-gradient(90deg,#7a5f17,#b08c2e);color:#fff7dd}
@@ -1734,6 +1735,34 @@ function scaleTo(c,target){ // 既存6ステの合計をtargetへ比例スケー
   ks.forEach(k=>c[k]=Math.round(Math.min(20,Math.max(1,c[k]*f))));
 }
 
+// ===== 年齢(カードの実パラメータ) =====
+// 基礎ステとは独立。全モードで効く: 関与(inv)・スタミナ消費(drain)・勝負強さ(compose)。育成では成長速度/調子の波も左右。
+// フェーズ→各レバー倍率(全盛期=1.0が基準)。若手=走り回るが息切れ・勝負は荒い / ベテラン=省エネで出番少だが成功率高。
+const AGE_DEF=27; // 年齢欠落時は全盛期扱い(=各レバー1.0=無効)
+const AGE_PHASES=[
+  {key:"young",   label:"若手",   icon:"🌱", max:21, inv:1.15, drain:1.15, compose:0.94, growth:1.6,  condVol:1.5, decline:0},
+  {key:"rising",  label:"成長期", icon:"🌿", max:25, inv:1.08, drain:1.06, compose:0.98, growth:1.3,  condVol:1.2, decline:0},
+  {key:"prime",   label:"全盛期", icon:"⭐", max:29, inv:1.00, drain:1.00, compose:1.00, growth:0.8,  condVol:1.0, decline:0},
+  {key:"vet",     label:"ベテラン",icon:"🎖", max:33, inv:0.90, drain:0.92, compose:1.06, growth:0.4,  condVol:0.85,decline:0.4},
+  {key:"twilight",label:"老雄",   icon:"🔥", max:99, inv:0.82, drain:0.85, compose:1.10, growth:0.15, condVol:0.8, decline:1.0},
+];
+function agePhase(age){age=(age==null)?AGE_DEF:age;for(const ph of AGE_PHASES){if(age<=ph.max)return ph;}return AGE_PHASES[AGE_PHASES.length-1];}
+function ageOf(c){return (c&&c.age!=null)?c.age:AGE_DEF;}
+// 選手オブジェクト(p)またはカード(c)から実効年齢を得る。ageBonus=育成中のシーズン加齢(カード本体は不変)。
+function effAge(p){const c=(p&&p.c)?p.c:p; return ageOf(c)+((p&&p.ageBonus)||0);}
+function ageInv(p){return agePhase(effAge(p)).inv;}         // 関与(選出)倍率
+function ageDrain(p){return agePhase(effAge(p)).drain;}     // スタミナ消費倍率
+function ageCompose(p){return agePhase(effAge(p)).compose;} // アクション成功倍率
+// 通常カードの年齢: 17〜34あたり・ピーク24-26のなだらかな分布。
+function rollAge(){return Math.max(16,Math.min(37,Math.round((ri(17,34)+ri(20,30)+ri(22,28))/3)));}
+// 任意カードの既定年齢(移行/QR取り込み用): シグネ/エモは固定・通常はランダム。
+function defaultAge(c){
+  if(!c)return AGE_DEF;
+  if(c.emo&&typeof emotionalById==="function"){const e=emotionalById(c.sig);if(e&&e.age!=null)return e.age;}
+  if(c.sig&&typeof signatureById==="function"){const s=signatureById(c.sig);if(s&&s.age!=null)return s.age;}
+  return rollAge();
+}
+
 let uid=1;
 function rollSkill(pos,rar){
   if(rar==="n")return null;
@@ -1749,7 +1778,7 @@ function makeCard(forcePos,forceRar,forceBase,forceSub){
   let rar=forceRar;
   if(!rar){const x=Math.random()*100;rar=x<5?"sr":x<30?"r":"n";}
   const sv=genStats(rar);
-  const c={id:uid++,name:rnd(NAMES),flag:rnd(FLAGS),look:makeLook(pos,rar),pos,sub,rar,type:rollType(pos),
+  const c={id:uid++,name:rnd(NAMES),flag:rnd(FLAGS),look:makeLook(pos,rar),pos,sub,rar,type:rollType(pos),age:rollAge(),
     off:sv[0],def:sv[1],pow:sv[2],tec:sv[3],spd:sv[4],sta:sv[5],skill:rollSkill(pos,rar)};
   if(pos==="GK"){c.def=cl(c.def+3);c.off=cl(c.off-3);}
   if(pos==="DF"){c.def=cl(c.def+2);c.pow=cl(c.pow+1);c.off=cl(c.off-2);}
@@ -1763,97 +1792,97 @@ function makeCard(forcePos,forceRar,forceBase,forceSub){
 // モチーフ画像(src/assets/signatures/<id>.png → build.pyがbase64化)。追加はこの配列に1要素足すだけ。
 // 不変条件: 6ステ合計=100 / いずれか1つ以上が20 / subGroup(sub)===pos。
 const SIGNATURES=[
-  {id:"messi", name:"リオネル・メッシ", flag:"🇦🇷", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"messi", name:"リオネル・メッシ", flag:"🇦🇷", pos:"FW", sub:"RWG", type:"dribbler", age:37,
    stats:{off:20,def:15,pow:13,tec:20,spd:18,sta:14}, // 合計100
    skill:{name:"ラ・プルガ", desc:"ドリブルで切り裂き決め切る稀代の天才。技・速の勝負とシュートを大幅強化", fx:{duelTec:1.5,duelSpd:1.3,shoot:1.4}}},
-  {id:"ronaldo", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"ST", type:"striker",
+  {id:"ronaldo", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"ST", type:"striker", age:39,
    stats:{off:20,def:14,pow:18,tec:14,spd:18,sta:16},
    skill:{name:"絶対的エース", desc:"あらゆる勝負を制す王。シュートと速・力の勝負を大幅強化", fx:{shoot:1.45,duelSpd:1.3,duelPow:1.3}}},
-  {id:"haaland", name:"アーリング・ハーランド", flag:"🇳🇴", pos:"FW", sub:"CF", type:"striker",
+  {id:"haaland", name:"アーリング・ハーランド", flag:"🇳🇴", pos:"FW", sub:"CF", type:"striker", age:24,
    stats:{off:20,def:12,pow:20,tec:14,spd:18,sta:16},
    skill:{name:"北欧の重戦車", desc:"圧倒的な決定力とパワー。シュートとパワー勝負を大幅強化", fx:{shoot:1.45,duelPow:1.4}}},
-  {id:"mbappe", name:"キリアン・エムバペ", flag:"🇫🇷", pos:"FW", sub:"LWG", type:"dribbler",
+  {id:"mbappe", name:"キリアン・エムバペ", flag:"🇫🇷", pos:"FW", sub:"LWG", type:"dribbler", age:26,
    stats:{off:18,def:16,pow:13,tec:17,spd:20,sta:16},
    skill:{name:"超音速", desc:"驚異的なスピードで置き去りに。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.5,shoot:1.3}}},
-  {id:"kane", name:"ハリー・ケイン", flag:"🇬🇧", pos:"FW", sub:"CF", type:"post",
+  {id:"kane", name:"ハリー・ケイン", flag:"🇬🇧", pos:"FW", sub:"CF", type:"post", age:31,
    stats:{off:20,def:16,pow:17,tec:17,spd:14,sta:16},
    skill:{name:"万能ストライカー", desc:"決定力と起点を両立。シュート・パワー勝負を強化しチャンスを創出", fx:{shoot:1.4,duelPow:1.3,teamChance:1.15}}},
-  {id:"kaka", name:"カカ", flag:"🇧🇷", pos:"MF", sub:"OMF", type:"maker",
+  {id:"kaka", name:"カカ", flag:"🇧🇷", pos:"MF", sub:"OMF", type:"maker", age:29,
    stats:{off:17,def:15,pow:15,tec:20,spd:17,sta:16},
    skill:{name:"黄金のトップ下", desc:"創出力とテクニックで違いを生む。チャンス創出とテクニック勝負を大幅強化", fx:{teamChance:1.3,duelTec:1.4}}},
-  {id:"modric", name:"ルカ・モドリッチ", flag:"🇭🇷", pos:"MF", sub:"CMF", type:"maker",
+  {id:"modric", name:"ルカ・モドリッチ", flag:"🇭🇷", pos:"MF", sub:"CMF", type:"maker", age:39,
    stats:{off:15,def:16,pow:15,tec:20,spd:16,sta:18},
    skill:{name:"中盤の指揮者", desc:"支配率とテクニックを掌握。支配率とテクニック勝負を大幅強化", fx:{mid:1.5,duelTec:1.35}}},
-  {id:"neymar", name:"ネイマール", flag:"🇧🇷", pos:"FW", sub:"LWG", type:"dribbler",
+  {id:"neymar", name:"ネイマール", flag:"🇧🇷", pos:"FW", sub:"LWG", type:"dribbler", age:32,
    stats:{off:17,def:16,pow:14,tec:20,spd:18,sta:15},
    skill:{name:"マジック・ドリブル", desc:"華麗なフェイントで複数を抜き去る。技・速の勝負を大幅強化", fx:{duelTec:1.45,duelSpd:1.3}}},
-  {id:"vandijk", name:"ファン・ダイク", flag:"🇳🇱", pos:"DF", sub:"CB", type:"stopper",
+  {id:"vandijk", name:"ファン・ダイク", flag:"🇳🇱", pos:"DF", sub:"CB", type:"stopper", age:33,
    stats:{off:14,def:20,pow:18,tec:16,spd:16,sta:16},
    skill:{name:"不落の壁", desc:"対人守備が極めて強固。守備マッチアップを大幅強化", fx:{duelD:1.55,teamDef:1.12}}},
-  {id:"maldini", name:"パオロ・マルディーニ", flag:"🇮🇹", pos:"DF", sub:"CB", type:"cover",
+  {id:"maldini", name:"パオロ・マルディーニ", flag:"🇮🇹", pos:"DF", sub:"CB", type:"cover", age:30,
    stats:{off:14,def:20,pow:16,tec:17,spd:16,sta:17},
    skill:{name:"イル・カピターノ", desc:"統率と読みで最終ラインを支配。チーム守備と対人守備を強化", fx:{teamDef:1.3,duelD:1.3}}},
-  {id:"neuer", name:"ノイアー", flag:"🇩🇪", pos:"GK", sub:"GK", type:"sweeper",
+  {id:"neuer", name:"ノイアー", flag:"🇩🇪", pos:"GK", sub:"GK", type:"sweeper", age:38,
    stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
    skill:{name:"世界の門番", desc:"驚異的なセービングと統率。セーブとチーム守備を強化", fx:{save:1.6,teamDef:1.12}}},
-  {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler", age:23,
    stats:{off:17,def:15,pow:15,tec:20,spd:18,sta:15},
    skill:{name:"和製の天才", desc:"技術とスピードで違いを生むアタッカー。技・速の勝負を大幅強化", fx:{duelTec:1.4,duelSpd:1.3}}},
-  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"false9",
+  {id:"bergkamp", name:"デニス・ベルカンプ", flag:"🇳🇱", pos:"FW", sub:"ST", type:"false9", age:28,
    stats:{off:19,def:12,pow:15,tec:20,spd:16,sta:18},
    skill:{name:"オランダの至宝", desc:"絶妙なトラップと冷徹な決定力。テクニック勝負とシュートを大幅強化", fx:{duelTec:1.45,shoot:1.3}}},
-  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"destroyer",
+  {id:"vieira", name:"パトリック・ヴィエラ", flag:"🇫🇷", pos:"MF", sub:"CMF", type:"destroyer", age:27,
    stats:{off:14,def:17,pow:20,tec:15,spd:15,sta:19},
    skill:{name:"中盤の支配者", desc:"球際の強さで中盤を制圧。支配率と対人守備を大幅強化", fx:{mid:1.4,duelD:1.3}}},
-  {id:"henry", name:"ティエリ・アンリ", flag:"🇫🇷", pos:"FW", sub:"CF", type:"striker",
+  {id:"henry", name:"ティエリ・アンリ", flag:"🇫🇷", pos:"FW", sub:"CF", type:"striker", age:27,
    stats:{off:19,def:13,pow:15,tec:17,spd:20,sta:16},
    skill:{name:"ヴァンガ", desc:"圧倒的なスピードと精度の高い決定力。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.4,shoot:1.35}}},
-  {id:"buffon", name:"ジャンルイジ・ブッフォン", flag:"🇮🇹", pos:"GK", sub:"GK", type:"liner",
+  {id:"buffon", name:"ジャンルイジ・ブッフォン", flag:"🇮🇹", pos:"GK", sub:"GK", type:"liner", age:41,
    stats:{off:15,def:20,pow:16,tec:16,spd:16,sta:17},
    skill:{name:"伝説の守護神", desc:"年齢を感じさせぬ反応。セーブを大幅強化し終盤に真価を発揮", fx:{save:1.6,clutch:1.15}}},
-  {id:"cucurella", name:"マルク・ククレジャ", flag:"🇪🇸", pos:"DF", sub:"LSB", type:"stopper",
+  {id:"cucurella", name:"マルク・ククレジャ", flag:"🇪🇸", pos:"DF", sub:"LSB", type:"stopper", age:26,
    stats:{off:15,def:17,pow:14,tec:16,spd:20,sta:18},
    skill:{name:"闘犬の左", desc:"上下動を止めぬ執拗なプレッサー。スピードと対人守備を大幅強化", fx:{duelD:1.3,duelSpd:1.3}}},
-  {id:"araujo", name:"ロナルド・アラウホ", flag:"🇺🇾", pos:"DF", sub:"CB", type:"stopper",
+  {id:"araujo", name:"ロナルド・アラウホ", flag:"🇺🇾", pos:"DF", sub:"CB", type:"stopper", age:25,
    stats:{off:14,def:20,pow:19,tec:14,spd:17,sta:16},
    skill:{name:"ウルグアイの番犬", desc:"スピードとパワーで対面を封殺する。対人守備とパワー勝負を大幅強化", fx:{duelD:1.45,duelPow:1.2}}},
-  {id:"dejong", name:"フレンキー・デ・ヨング", flag:"🇳🇱", pos:"MF", sub:"CMF", type:"b2b",
+  {id:"dejong", name:"フレンキー・デ・ヨング", flag:"🇳🇱", pos:"MF", sub:"CMF", type:"b2b", age:27,
    stats:{off:14,def:15,pow:16,tec:20,spd:17,sta:18},
    skill:{name:"プレス回避の舞", desc:"狭い局面を技と速さで脱出し前進する。支配率とテク・スピード勝負を強化", fx:{mid:1.3,duelTec:1.3,duelSpd:1.2}}},
-  {id:"beckham", name:"デビッド・ベッカム", flag:"🇬🇧", pos:"MF", sub:"RMF", type:"winger",
+  {id:"beckham", name:"デビッド・ベッカム", flag:"🇬🇧", pos:"MF", sub:"RMF", type:"winger", age:28,
    stats:{off:16,def:16,pow:16,tec:20,spd:15,sta:17},
    skill:{name:"黄金の右足", desc:"精密なクロスとセットプレーで違いを生む。チャンス創出とシュートを大幅強化", fx:{teamChance:1.35,shoot:1.2}}},
-  {id:"terry", name:"ジョン・テリー", flag:"🇬🇧", pos:"DF", sub:"CB", type:"cover",
+  {id:"terry", name:"ジョン・テリー", flag:"🇬🇧", pos:"DF", sub:"CB", type:"cover", age:29,
    stats:{off:15,def:20,pow:18,tec:16,spd:14,sta:17},
    skill:{name:"最終ラインの指揮官", desc:"統率と読みで最終ラインを束ねる。チーム守備を大幅強化し対人も堅い", fx:{teamDef:1.4,duelD:1.15}}},
-  {id:"nedved", name:"パベル・ネドベド", flag:"🇨🇿", pos:"MF", sub:"LMF", type:"b2b",
+  {id:"nedved", name:"パベル・ネドベド", flag:"🇨🇿", pos:"MF", sub:"LMF", type:"b2b", age:29,
    stats:{off:16,def:12,pow:20,tec:15,spd:18,sta:19},
    skill:{name:"チェコの稲妻", desc:"無尽蔵のスタミナと烈火のミドル。シュートとスピード勝負を大幅強化", fx:{shoot:1.35,duelSpd:1.25}}},
-  {id:"arnold", name:"アレクサンダー＝アーノルド", flag:"🇬🇧", pos:"DF", sub:"RSB", type:"cover",
+  {id:"arnold", name:"アレクサンダー＝アーノルド", flag:"🇬🇧", pos:"DF", sub:"RSB", type:"cover", age:26,
    stats:{off:16,def:15,pow:16,tec:20,spd:17,sta:16},
    skill:{name:"ピンポイントの右足", desc:"精密なロングパスとクロスで右から創出する司令塔型SB。チャンス創出とテクニックを強化", fx:{teamChance:1.4,duelTec:1.15}}},
-  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"regista",
+  {id:"busquets", name:"セルヒオ・ブスケツ", flag:"🇪🇸", pos:"MF", sub:"DMF", type:"regista", age:35,
    stats:{off:14,def:18,pow:16,tec:20,spd:15,sta:17},
    skill:{name:"見えざる司令塔", desc:"球際を消し テンポを操る中盤の底。支配率を大幅強化しチーム守備を底上げ", fx:{mid:1.45,teamDef:1.1}}},
-  {id:"yamal", name:"ラミン・ヤマル", flag:"🇪🇸", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"yamal", name:"ラミン・ヤマル", flag:"🇪🇸", pos:"FW", sub:"RWG", type:"dribbler", age:17,
    stats:{off:17,def:14,pow:16,tec:20,spd:18,sta:15},
    skill:{name:"ラ・マシアの新星", desc:"内へ切れ込み 自ら決め切る新世代の天才。技・速の勝負とシュートを強化", fx:{duelTec:1.4,duelSpd:1.25,shoot:1.2}}},
-  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"wingback",
+  {id:"cafu", name:"カフー", flag:"🇧🇷", pos:"DF", sub:"RSB", type:"wingback", age:30,
    stats:{off:16,def:16,pow:14,tec:15,spd:20,sta:19},
    skill:{name:"疾走の右サイド", desc:"止まらぬオーバーラップで右を制圧する。スピード勝負と対人守備を大幅強化", fx:{duelSpd:1.35,duelD:1.2}}},
-  {id:"matheus", name:"ローター・マテウス", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b",
+  {id:"matheus", name:"ローター・マテウス", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b", age:29,
    stats:{off:16,def:15,pow:20,tec:17,spd:14,sta:18},
    skill:{name:"ゲルマンの主将", desc:"中盤を支配し強烈なミドルも放つ主将。支配率とシュートを大幅強化", fx:{mid:1.4,shoot:1.25}}},
-  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"wingback",
+  {id:"rcarlos", name:"ロベルト・カルロス", flag:"🇧🇷", pos:"DF", sub:"LSB", type:"wingback", age:28,
    stats:{off:14,def:16,pow:20,tec:15,spd:19,sta:16},
    skill:{name:"重戦車の左足", desc:"爆発的な上下動と強烈な左足。スピードとパワー勝負を大幅強化", fx:{duelSpd:1.35,duelPow:1.25}}},
-  {id:"maradona", name:"ディエゴ・マラドーナ", flag:"🇦🇷", pos:"MF", sub:"OMF", type:"maker",
+  {id:"maradona", name:"ディエゴ・マラドーナ", flag:"🇦🇷", pos:"MF", sub:"OMF", type:"maker", age:26,
    stats:{off:18,def:15,pow:16,tec:20,spd:16,sta:15},
    skill:{name:"神の子", desc:"神懸かりのドリブルと創造性で違いを生む至宝。技術勝負とチャンス創出を大幅強化", fx:{duelTec:1.45,teamChance:1.35}}},
-  {id:"lahm", name:"フィリップ・ラーム", flag:"🇩🇪", pos:"DF", sub:"RSB", type:"cover",
+  {id:"lahm", name:"フィリップ・ラーム", flag:"🇩🇪", pos:"DF", sub:"RSB", type:"cover", age:28,
    stats:{off:15,def:20,pow:15,tec:18,spd:15,sta:17},
    skill:{name:"万能の名手", desc:"知性で守りも組み立ても担う万能SB。対人守備と支配率を強化", fx:{duelD:1.3,mid:1.2}}},
-  {id:"higuita", name:"レネ・イギータ", flag:"🇨🇴", pos:"GK", sub:"GK", type:"sweeper",
+  {id:"higuita", name:"レネ・イギータ", flag:"🇨🇴", pos:"GK", sub:"GK", type:"sweeper", age:31,
    stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
    skill:{name:"エル・ロコ", desc:"飛び出しと奇抜な反応で守る型破りの守護神。セーブとチーム守備を強化", fx:{save:1.55,teamDef:1.1}}},
 ];
@@ -1861,7 +1890,7 @@ function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){
   const s=signatureById(id);if(!s)return null;
   const st=s.stats;
-  return {id:uid++, sig:s.id, name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"l", type:s.type,
+  return {id:uid++, sig:s.id, name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"l", type:s.type, age:s.age,
     look:makeLook(s.pos,"l"), // 画像が無い端末向けのフォールバック用
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
@@ -1874,7 +1903,7 @@ function makeSignature(id){
 //   fx.clutch/losing … 終盤・ビハインドで爆発(=エモーションの昂り)。situ()で自動適用。
 // moment … カットイン/券面に出す“瞬間”の題字。subGroup(sub)===pos / 合計100 を維持。
 const EMOTIONALS=[
-  {id:"cr7_utd", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler",
+  {id:"cr7_utd", name:"クリスティアーノ・ロナウド", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler", age:19,
    moment:"OLD TRAFFORD 2004", momentSub:"無回転フリーキック",
    stats:{off:18,def:14,pow:13,tec:19,spd:20,sta:16}, // 合計100 / spd20(若き日の爆発的スピード)
    skill:{name:"7番の継承者",
@@ -1886,7 +1915,7 @@ function makeEmotional(id){
   const s=emotionalById(id);if(!s)return null;
   const st=s.stats;
   return {id:uid++, sig:s.id, emo:true, moment:s.moment, momentSub:s.momentSub,
-    name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"emo", type:s.type,
+    name:s.name, flag:s.flag, pos:s.pos, sub:s.sub, rar:"emo", type:s.type, age:s.age,
     look:makeLook(s.pos,"l"),
     off:st.off,def:st.def,pow:st.pow,tec:st.tec,spd:st.spd,sta:st.sta,
     skill:{name:s.skill.name,desc:s.skill.desc,fx:{...s.skill.fx}}};
@@ -4293,6 +4322,8 @@ async function loadGame(){                                       // つづきか
   // 起用中監督が名将にもカスタムにも無ければ解任(旧データ整合)
   if(S.mgrActive&&!managerById(S.mgrActive))S.mgrActive="";
   if(S.v!==9){migrate();await save();}
+  let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
+  if(_aged)await save();
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。
@@ -4415,7 +4446,7 @@ function cardEl(c,mini){
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n}</div>${sk}</div>`;
+  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n} <span class="age">${ageOf(c)}歳${agePhase(ageOf(c)).icon}</span></div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
   if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";
@@ -5254,9 +5285,10 @@ function _BW(){return {b:[],c:0,n:0,
   done(){if(this.n)this.b.push(this.c<<(8-this.n));return this.b;}};}
 function _BR(bytes){return {bytes,bit:0,
   read(bits){let v=0;for(let i=0;i<bits;i++){const byte=this.bytes[this.bit>>3]||0,bv=(byte>>(7-(this.bit&7)))&1;v=(v<<1)|bv;this.bit++;}return v;}};}
-const _SIGBITS=10; // v3+(0xC3/0xC4): sigインデックスのビット幅=最大1023体(将来300体まで対応)。v2(0xC2)は5bit。
-const _TYPEBITS=3; // v4(0xC4): タイプ(プレースタイル)のビット幅=最大8種/ポジション。v3以前は2bit(最大4種)。
-function _encCard(w,c,sigBits,typeBits){
+const _SIGBITS=10; // v3+(0xC3/0xC4/0xC5): sigインデックスのビット幅=最大1023体。v2(0xC2)は5bit。
+const _TYPEBITS=3; // v4+(0xC4/0xC5): タイプ(プレースタイル)のビット幅=最大8種/ポジション。v3以前は2bit。
+const _AGEBITS=5;  // v5(0xC5): 年齢(age-16を格納=16〜47)。v4以前は非同梱→取り込みは全盛期(AGE_DEF)扱い。
+function _encCard(w,c,sigBits,typeBits,ageBits){
   sigBits=sigBits||5; typeBits=typeBits||2;
   const pos=subGroup(c.sub);
   const sig=c.sig?Math.max(0,SIGNATURES.findIndex(s=>s.id===c.sig)+1):0;
@@ -5272,18 +5304,20 @@ function _encCard(w,c,sigBits,typeBits){
   w.push(sig,sigBits);
   w.push(skCh,1);
   w.push(c.sig?0:Math.max(0,NAMES.indexOf(c.name)),6);
+  if(ageBits)w.push(Math.max(0,Math.min((1<<ageBits)-1,(c.age!=null?c.age:AGE_DEF)-16)),ageBits); // 年齢(age-16)
 }
-function _decCard(r,sigBits,typeBits){
+function _decCard(r,sigBits,typeBits,ageBits){
   sigBits=sigBits||5; typeBits=typeBits||2;
   const sub=_SUBS[r.read(4)]||"CMF", rar=_RARS[r.read(2)]||"n", pos=subGroup(sub);
   const tIdx=r.read(typeBits), head=r.read(5), bv=r.read(2);
   const st=[r.read(5),r.read(5),r.read(5),r.read(5),r.read(5),r.read(5)];
   const flagIdx=r.read(4), sig=r.read(sigBits), skCh=r.read(1), nameIdx=r.read(6);
+  const age=ageBits?(r.read(ageBits)+16):null; // sig分岐の前に必ず読む(ビット整合)。sigはmakeSignatureが年齢を持つ
   if(sig>0&&SIGNATURES[sig-1]){const c=makeSignature(SIGNATURES[sig-1].id)||makeCard("FW","l");
     ["off","def","pow","tec","spd","sta"].forEach((k,i)=>c[k]=st[i]); return c;}
   const tk=Object.keys(TYPES[pos]); const type=tk[tIdx]||tk[0];
   let sk=null; if(rar!=="n"){const a=rar==="l"?LSKILLS[pos]:SKILLS[pos][rar];const e=a[skCh]||a[0];sk={name:e[0],desc:e[1],fx:e[2]};}
-  return {id:uid++,name:NAMES[nameIdx]||"?",flag:FLAGS[flagIdx]||"🏳️",pos,sub,rar,type,
+  return {id:uid++,name:NAMES[nameIdx]||"?",flag:FLAGS[flagIdx]||"🏳️",pos,sub,rar,type,age:(age!=null?age:AGE_DEF),
     look:{headIdx:head,bodyVar:bv}, off:st[0],def:st[1],pow:st[2],tec:st[3],spd:st[4],sta:st[5], skill:sk};
 }
 function exportTeam(){
@@ -5292,10 +5326,10 @@ function exportTeam(){
   w.push(Math.max(0,_FORMS.indexOf(S.form)),3);
   const favC=S.favId&&S.coll.find(k=>k.id===S.favId);
   w.push(favC?1:0,1);
-  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]),_SIGBITS,_TYPEBITS);});
-  if(favC)_encCard(w,favC,_SIGBITS,_TYPEBITS);
+  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]),_SIGBITS,_TYPEBITS,_AGEBITS);});
+  if(favC)_encCard(w,favC,_SIGBITS,_TYPEBITS,_AGEBITS);
   const bits=w.done();
-  const head=[0xC4,coach.length,...coach,team.length,...team]; // 0xC4=v4(type 3bit)。0xC3/0xC2は読込互換
+  const head=[0xC5,coach.length,...coach,team.length,...team]; // 0xC5=v5(age 5bit)。0xC4/0xC3/0xC2は読込互換
   return _b64u(Uint8Array.from(head.concat(bits)));
 }
 function challengeURL(){return location.origin+location.pathname+"#team="+exportTeam();}
@@ -5303,16 +5337,17 @@ function importTeam(raw){
   let code=(raw||"").trim();
   const m=code.match(/team=([A-Za-z0-9_-]+)/); if(m)code=m[1]; // URL貼り付けにも対応
   const bytes=_unb64u(code);
-  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3&&ver!==0xC4)throw new Error("bad");
-  const sigBits=(ver===0xC3||ver===0xC4)?10:5; // sig ビット幅(v2=5/v3・v4=10)
-  const typeBits=ver===0xC4?3:2;               // type ビット幅(v4=3で最大8種/ポジション、以前=2)
+  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3&&ver!==0xC4&&ver!==0xC5)throw new Error("bad");
+  const sigBits=(ver===0xC3||ver===0xC4||ver===0xC5)?10:5; // sig ビット幅(v2=5/v3以降=10)
+  const typeBits=(ver===0xC4||ver===0xC5)?3:2;             // type ビット幅(v4以降=3で最大8種/ポジション)
+  const ageBits=ver===0xC5?5:0;                            // age ビット幅(v5=5。以前は非同梱→AGE_DEF)
   let p=1; const cl=bytes[p++], coach=_us(bytes.slice(p,p+cl)); p+=cl;
   const tl=bytes[p++], team=_us(bytes.slice(p,p+tl)); p+=tl;
   const r=_BR(bytes.slice(p));
   const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
-  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits,typeBits);
+  const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits,typeBits,ageBits);
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
-  const fav=favFlag?_decCard(r,sigBits,typeBits):null;
+  const fav=favFlag?_decCard(r,sigBits,typeBits,ageBits):null;
   return {team:buildTeam(cards,"A",form), coach:(coach||"名無し監督").slice(0,20),
     teamName:(team||"相手チーム").slice(0,20), fav, form};
 }
@@ -5669,7 +5704,7 @@ function fatigue(p,min){
   const dload=(p.stat&&p.stat.dload)||0;                   // 守備負荷(被攻撃/被シュートをラインで分担)
   const played=Math.min(Math.max(min-(p.enter||0),0),90);
   const staMul=1-(c.sta-1)/19*F.staReduce;                 // sta1→1.0 / sta20→1-staReduce
-  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul);
+  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul*ageDrain(p)); // 年齢: 若手ほど消費が早い
 }
 // 守備ライン全体の消耗で守備力が落ちる(疲れたDFラインは終盤に綻び被弾しやすい)。
 // 個々のeffの疲労とは別に、ライン平均消耗ぶんだけ守備スコアを薄く減じる。rng非消費=判定順は不変。
@@ -5986,12 +6021,12 @@ function pickW(list,wfn){
   return list[list.length-1];
 }
 const isWide=p=>p.role!=="GK"&&(p.x<=30||p.x>=70);
-function pickAttacker(T){return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="FW"?3:p.role==="MF"?1.5:0.3)*(typeOf(p.c).atk||1));}
+function pickAttacker(T){return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="FW"?3:p.role==="MF"?1.5:0.3)*(typeOf(p.c).atk||1)*ageInv(p));}
 function pickDefender(T){return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="DF"?3:p.role==="MF"?1:0.2)*(typeOf(p.c).defSel||1));}
-function pickWide(T){const ws=T.players.filter(p=>isWide(p)||(p.role!=="GK"&&typeOf(p.c).wideSel));return ws.length?pickW(ws,p=>(p.c.spd+p.c.tec)*(typeOf(p.c).wideSel?1.25:1)):pickAttacker(T);}
+function pickWide(T){const ws=T.players.filter(p=>isWide(p)||(p.role!=="GK"&&typeOf(p.c).wideSel));return ws.length?pickW(ws,p=>(p.c.spd+p.c.tec)*(typeOf(p.c).wideSel?1.25:1)*ageInv(p)):pickAttacker(T);}
 function pickWideDef(T){const ws=T.players.filter(p=>p.role==="DF"&&(p.x<=35||p.x>=65));return ws.length?rnd(ws):pickDefender(T);}
-function pickTarget(T){return pickW(T.players.filter(p=>p.role==="FW"||p.role==="MF"),p=>(p.role==="FW"?3:0.4)*(typeOf(p.c).tgt||1));}
-function pickPasser(T){return pickW(T.players.filter(p=>p.role!=="FW"),p=>(p.role==="MF"?2:1)*p.c.tec*(typeOf(p.c).pas||1));}
+function pickTarget(T){return pickW(T.players.filter(p=>p.role==="FW"||p.role==="MF"),p=>(p.role==="FW"?3:0.4)*(typeOf(p.c).tgt||1)*ageInv(p));}
+function pickPasser(T){return pickW(T.players.filter(p=>p.role!=="FW"),p=>(p.role==="MF"?2:1)*p.c.tec*(typeOf(p.c).pas||1)*ageInv(p));}
 function pickPress(T){return pickW(T.players.filter(p=>p.role==="MF"||p.role==="DF"),p=>p.c.spd+p.c.def);}
 function pickGK(T){return T.players.find(p=>p.role==="GK")||T.players[0];}
 const rr=()=>TUNING.rng.min+Math.random()*TUNING.rng.span;
@@ -6024,7 +6059,7 @@ function rollTurnover(T,D,min){
 function pickWinner(D,opp,min){
   return pickW(D.players.filter(p=>p.role!=="GK"),p=>{
     const ty=typeOf(p.c);
-    return (eff(p,"def",min,D,opp)*0.5+eff(p,"spd",min,D,opp)*0.5)*(ty.defSel||0.8)*(p.role==="FW"?1.1:1);
+    return (eff(p,"def",min,D,opp)*0.5+eff(p,"spd",min,D,opp)*0.5)*(ty.defSel||0.8)*(p.role==="FW"?1.1:1)*ageInv(p);
   });
 }
 // 深い位置の選手(feedチャンネルの担い手): DF全員 + 低い位置取りのMF(アンカー等)
@@ -6040,13 +6075,13 @@ function chanAvg(T,filter,statfn){
 const CHANNELS={
   build:  { base:3.2, buildup:0.34, maxLink:4,
     weight:(T,opp,min)=>chanAvg(T,p=>p.role==="MF", p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss),
-    pickOrigin:(T,opp,min)=>pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="MF"?2.2:p.role==="DF"?0.5:1.2)*eff(p,"tec",min,T,opp)*typeOf(p.c).poss) },
+    pickOrigin:(T,opp,min)=>pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="MF"?2.2:p.role==="DF"?0.5:1.2)*eff(p,"tec",min,T,opp)*typeOf(p.c).poss*ageInv(p)) },
   overlap:{ base:1.3, buildup:0.36, maxLink:3,
     weight:(T,opp,min)=>chanAvg(T,p=>isWide(p)&&p.role!=="GK", p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))/2*(typeOf(p.c).wideSel?1.2:1)),
-    pickOrigin:(T,opp,min)=>{const ws=T.players.filter(p=>isWide(p)&&p.role!=="GK");return ws.length?pickW(ws,p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))*(typeOf(p.c).wideSel?1.3:1)):pickAttacker(T);} },
+    pickOrigin:(T,opp,min)=>{const ws=T.players.filter(p=>isWide(p)&&p.role!=="GK");return ws.length?pickW(ws,p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))*(typeOf(p.c).wideSel?1.3:1)*ageInv(p)):pickAttacker(T);} },
   feed:   { base:1.1, buildup:0.31, maxLink:2,
     weight:(T,opp,min)=>chanAvg(T,isDeep, p=>eff(p,"tec",min,T,opp)),
-    pickOrigin:(T,opp,min)=>{const ds=T.players.filter(isDeep);return ds.length?pickW(ds,p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss):pickPasser(T);} },
+    pickOrigin:(T,opp,min)=>{const ds=T.players.filter(isDeep);return ds.length?pickW(ds,p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss*ageInv(p)):pickPasser(T);} },
   win:    { buildup:0.60, maxLink:2 }, // 奪取(カウンター)専用。起点は pickWinner、weight無し=pickChannelの抽選外。
 };
 function chanMaxLink(channel){return (CHANNELS[channel]||{}).maxLink??3;}
@@ -6134,8 +6169,8 @@ function pickShooter(A){
 // 中央1対1の勝敗。攻撃側スコア > 守備側スコア×TH.duel で突破。rr()消費順は aSc→dSc(乱数列を保持)。
 function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){
   const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
-  const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*rr();
-  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*lineDefMul(D,min)*tfD*rr();
+  const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*ageCompose(atk)*rr(); // 年齢: ベテランほど勝負強い
+  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*lineDefMul(D,min)*tfD*ageCompose(df)*rr();
   return aSc>dSc*TH.duel;
 }
 // シュート vs GK。得点なら true。rr()消費順は sSc→gSc。
@@ -6143,8 +6178,8 @@ function resolveShot(atk,gk,header,A,D,min){
   const sBase=header
     ?eff(atk,"off",min,A,D)*0.45+eff(atk,"pow",min,A,D)*0.55
     :eff(atk,"off",min,A,D)*0.7+eff(atk,"pow",min,A,D)*0.3;
-  const sSc=sBase*(fx(atk).shoot||1)*rr();
-  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*lineDefMul(D,min)*rr();
+  const sSc=sBase*(fx(atk).shoot||1)*ageCompose(atk)*rr(); // 年齢: ベテランほど決め切る
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*lineDefMul(D,min)*ageCompose(gk)*rr();
   return sSc>gSc*TH.gk;
 }
 
@@ -6239,7 +6274,7 @@ function offBallRun(attSide,dur){
   const M=MC;if(!M||!attSide)return;
   const T=attSide==="H"?M.home:M.away, dir=attSide==="H"?1:-1;
   const near=p=>Math.hypot(curP(p).x-M.bx,curP(p).y-M.by)<12;
-  const r=pickW(T.players.filter(p=>p.el&&p.role!=="GK"&&!near(p)),q=>typeOf(q.c).run||0.2);
+  const r=pickW(T.players.filter(p=>p.el&&p.role!=="GK"&&!near(p)),q=>(typeOf(q.c).run||0.2)*ageInv(q));
   if(!r)return;
   const tx=curP(r).x+dir*ri(5,11);
   const ty=curP(r).y+(M.by-curP(r).y)*0.35+ri(-4,4); // ゴール方向へ+ボールの縦へ寄せる

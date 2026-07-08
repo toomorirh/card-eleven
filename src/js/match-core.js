@@ -15,7 +15,7 @@ function fatigue(p,min){
   const dload=(p.stat&&p.stat.dload)||0;                   // 守備負荷(被攻撃/被シュートをラインで分担)
   const played=Math.min(Math.max(min-(p.enter||0),0),90);
   const staMul=1-(c.sta-1)/19*F.staReduce;                 // sta1→1.0 / sta20→1-staReduce
-  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul);
+  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul*ageDrain(p)); // 年齢: 若手ほど消費が早い
 }
 // 守備ライン全体の消耗で守備力が落ちる(疲れたDFラインは終盤に綻び被弾しやすい)。
 // 個々のeffの疲労とは別に、ライン平均消耗ぶんだけ守備スコアを薄く減じる。rng非消費=判定順は不変。
@@ -332,12 +332,12 @@ function pickW(list,wfn){
   return list[list.length-1];
 }
 const isWide=p=>p.role!=="GK"&&(p.x<=30||p.x>=70);
-function pickAttacker(T){return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="FW"?3:p.role==="MF"?1.5:0.3)*(typeOf(p.c).atk||1));}
+function pickAttacker(T){return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="FW"?3:p.role==="MF"?1.5:0.3)*(typeOf(p.c).atk||1)*ageInv(p));}
 function pickDefender(T){return pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="DF"?3:p.role==="MF"?1:0.2)*(typeOf(p.c).defSel||1));}
-function pickWide(T){const ws=T.players.filter(p=>isWide(p)||(p.role!=="GK"&&typeOf(p.c).wideSel));return ws.length?pickW(ws,p=>(p.c.spd+p.c.tec)*(typeOf(p.c).wideSel?1.25:1)):pickAttacker(T);}
+function pickWide(T){const ws=T.players.filter(p=>isWide(p)||(p.role!=="GK"&&typeOf(p.c).wideSel));return ws.length?pickW(ws,p=>(p.c.spd+p.c.tec)*(typeOf(p.c).wideSel?1.25:1)*ageInv(p)):pickAttacker(T);}
 function pickWideDef(T){const ws=T.players.filter(p=>p.role==="DF"&&(p.x<=35||p.x>=65));return ws.length?rnd(ws):pickDefender(T);}
-function pickTarget(T){return pickW(T.players.filter(p=>p.role==="FW"||p.role==="MF"),p=>(p.role==="FW"?3:0.4)*(typeOf(p.c).tgt||1));}
-function pickPasser(T){return pickW(T.players.filter(p=>p.role!=="FW"),p=>(p.role==="MF"?2:1)*p.c.tec*(typeOf(p.c).pas||1));}
+function pickTarget(T){return pickW(T.players.filter(p=>p.role==="FW"||p.role==="MF"),p=>(p.role==="FW"?3:0.4)*(typeOf(p.c).tgt||1)*ageInv(p));}
+function pickPasser(T){return pickW(T.players.filter(p=>p.role!=="FW"),p=>(p.role==="MF"?2:1)*p.c.tec*(typeOf(p.c).pas||1)*ageInv(p));}
 function pickPress(T){return pickW(T.players.filter(p=>p.role==="MF"||p.role==="DF"),p=>p.c.spd+p.c.def);}
 function pickGK(T){return T.players.find(p=>p.role==="GK")||T.players[0];}
 const rr=()=>TUNING.rng.min+Math.random()*TUNING.rng.span;
@@ -370,7 +370,7 @@ function rollTurnover(T,D,min){
 function pickWinner(D,opp,min){
   return pickW(D.players.filter(p=>p.role!=="GK"),p=>{
     const ty=typeOf(p.c);
-    return (eff(p,"def",min,D,opp)*0.5+eff(p,"spd",min,D,opp)*0.5)*(ty.defSel||0.8)*(p.role==="FW"?1.1:1);
+    return (eff(p,"def",min,D,opp)*0.5+eff(p,"spd",min,D,opp)*0.5)*(ty.defSel||0.8)*(p.role==="FW"?1.1:1)*ageInv(p);
   });
 }
 // 深い位置の選手(feedチャンネルの担い手): DF全員 + 低い位置取りのMF(アンカー等)
@@ -386,13 +386,13 @@ function chanAvg(T,filter,statfn){
 const CHANNELS={
   build:  { base:3.2, buildup:0.34, maxLink:4,
     weight:(T,opp,min)=>chanAvg(T,p=>p.role==="MF", p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss),
-    pickOrigin:(T,opp,min)=>pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="MF"?2.2:p.role==="DF"?0.5:1.2)*eff(p,"tec",min,T,opp)*typeOf(p.c).poss) },
+    pickOrigin:(T,opp,min)=>pickW(T.players.filter(p=>p.role!=="GK"),p=>(p.role==="MF"?2.2:p.role==="DF"?0.5:1.2)*eff(p,"tec",min,T,opp)*typeOf(p.c).poss*ageInv(p)) },
   overlap:{ base:1.3, buildup:0.36, maxLink:3,
     weight:(T,opp,min)=>chanAvg(T,p=>isWide(p)&&p.role!=="GK", p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))/2*(typeOf(p.c).wideSel?1.2:1)),
-    pickOrigin:(T,opp,min)=>{const ws=T.players.filter(p=>isWide(p)&&p.role!=="GK");return ws.length?pickW(ws,p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))*(typeOf(p.c).wideSel?1.3:1)):pickAttacker(T);} },
+    pickOrigin:(T,opp,min)=>{const ws=T.players.filter(p=>isWide(p)&&p.role!=="GK");return ws.length?pickW(ws,p=>(eff(p,"spd",min,T,opp)+eff(p,"tec",min,T,opp))*(typeOf(p.c).wideSel?1.3:1)*ageInv(p)):pickAttacker(T);} },
   feed:   { base:1.1, buildup:0.31, maxLink:2,
     weight:(T,opp,min)=>chanAvg(T,isDeep, p=>eff(p,"tec",min,T,opp)),
-    pickOrigin:(T,opp,min)=>{const ds=T.players.filter(isDeep);return ds.length?pickW(ds,p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss):pickPasser(T);} },
+    pickOrigin:(T,opp,min)=>{const ds=T.players.filter(isDeep);return ds.length?pickW(ds,p=>eff(p,"tec",min,T,opp)*typeOf(p.c).poss*ageInv(p)):pickPasser(T);} },
   win:    { buildup:0.60, maxLink:2 }, // 奪取(カウンター)専用。起点は pickWinner、weight無し=pickChannelの抽選外。
 };
 function chanMaxLink(channel){return (CHANNELS[channel]||{}).maxLink??3;}
@@ -480,8 +480,8 @@ function pickShooter(A){
 // 中央1対1の勝敗。攻撃側スコア > 守備側スコア×TH.duel で突破。rr()消費順は aSc→dSc(乱数列を保持)。
 function resolveDuel(atk,df,type,A,D,min,tfA,tfD,bonus){
   const duelKey="duel"+type[0].toUpperCase()+type.slice(1);
-  const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*rr();
-  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*lineDefMul(D,min)*tfD*rr();
+  const aSc=eff(atk,type,min,A,D)*(fx(atk)[duelKey]||1)*A.teamChance*tfA*bonus*ageCompose(atk)*rr(); // 年齢: ベテランほど勝負強い
+  const dSc=(eff(df,"def",min,D,A)*0.62+eff(df,type,min,D,A)*0.38)*(fx(df).duelD||1)*D.teamDef*lineDefMul(D,min)*tfD*ageCompose(df)*rr();
   return aSc>dSc*TH.duel;
 }
 // シュート vs GK。得点なら true。rr()消費順は sSc→gSc。
@@ -489,7 +489,7 @@ function resolveShot(atk,gk,header,A,D,min){
   const sBase=header
     ?eff(atk,"off",min,A,D)*0.45+eff(atk,"pow",min,A,D)*0.55
     :eff(atk,"off",min,A,D)*0.7+eff(atk,"pow",min,A,D)*0.3;
-  const sSc=sBase*(fx(atk).shoot||1)*rr();
-  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*lineDefMul(D,min)*rr();
+  const sSc=sBase*(fx(atk).shoot||1)*ageCompose(atk)*rr(); // 年齢: ベテランほど決め切る
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*D.teamDef*lineDefMul(D,min)*ageCompose(gk)*rr();
   return sSc>gSc*TH.gk;
 }

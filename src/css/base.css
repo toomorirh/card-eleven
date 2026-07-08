@@ -103,6 +103,7 @@ canvas.sprite{image-rendering:auto}
 .card .ovr{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DotGothic16';font-size:8px;color:#8fa3b8;letter-spacing:1px}
 .card .ovr b{font-size:13px;color:var(--gold);line-height:1;text-shadow:0 0 6px rgba(232,194,90,.5)}
 .card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+.card .tp .age{color:#cdd6e6;opacity:.85}
 .card .sk{font-size:8px;font-weight:900;margin-top:1px;padding:1px 6px;border-radius:6px;background:#2a3d56;color:#cfdcea;max-width:98%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .card.r .sk{background:#43586e;color:#e8eef5}
 .card.sr .sk{background:linear-gradient(90deg,#7a5f17,#b08c2e);color:#fff7dd}
