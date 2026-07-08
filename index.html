@@ -786,6 +786,13 @@ h1{text-shadow:3px 3px 0 #06301c}
 .ctable tr.meRow td{background:#2a2406;color:var(--gold);font-weight:900}
 .ctable tr.promo td:first-child{box-shadow:inset 3px 0 0 #4caf6a}
 .ctable tr.releg td:first-child{box-shadow:inset 3px 0 0 #d3564a}
+/* 手動XI編成盤(育成) */
+.career-edit{position:fixed;inset:0;z-index:200;background:rgba(6,12,22,.96);overflow:auto;padding:12px}
+.career-edit .ce-in{max-width:520px;margin:0 auto}
+.career-edit .ce-slot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 9px;border:1px solid #22304a;
+  border-radius:8px;margin:4px 0;background:#111c2e;cursor:pointer}
+.career-edit .ce-slot:active{background:#16233a}
+.career-edit .ce-slot .ce-meta{margin-left:auto;font-size:10px;color:#cdd6e6;font-family:'DotGothic16';white-space:nowrap}
 .fieldwrap{position:relative;width:100%}
 /* 試合後スタッツ: 全画面スクロール(11人を窮屈な枠内でなく画面全体で見られる)。
    下部の結果シート(#matchEnd, z140)に被らないよう padding-bottom で余白を確保。 */
@@ -5577,6 +5584,67 @@ function careerSquadView(cr){
   h+='</table><div class="lg" style="font-size:10px">🌱若手/⭐全盛期/🎖ベテラン/🔥老雄 ・ 調子⤴〜⤵ ・ 成長=キャリア中の伸び(上限別枠・引退で消える)</div>';
   wrap.innerHTML=h; return wrap;
 }
+// ===== 手動XI編成盤(B3): 育成の先発を手動選択。調子/成長/年齢を見てローテ。空き枠は自動補完・素OVR上限厳守。 =====
+const _CE_CI={peak:"⤴",good:"↗",ok:"→",bad:"↘",poor:"⤵"};
+function openCareerEditor(){
+  const cr=S.career; if(!cr)return;
+  const ov=document.createElement("div");ov.className="career-edit";
+  ov.innerHTML='<div class="ce-in"><div class="ce-head"></div><div class="ce-body"></div></div>';
+  ov.onclick=e=>{if(e.target===ov){ov.remove();renderCareer();}};
+  document.body.appendChild(ov);
+  careerEditSlots(cr,ov);
+}
+function _ceHead(cr,ov){
+  const base=careerBaseTotal(cr), over=base>cr.ovrCap, head=ov.querySelector(".ce-head");
+  head.innerHTML=`<div class="banner" style="margin:0 0 4px">✏ 育成編成 (${S.form})</div>`
+    +`<div class="lg">編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 上限 ${cr.ovrCap}${over?" ⚠上限超過(試合不可)":""}</div>`;
+  const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:6px";
+  const auto=document.createElement("button");auto.className="btn ghost";auto.textContent="⚙ 全て自動に戻す";
+  auto.onclick=async()=>{cr.squad={};await save();careerEditSlots(cr,ov);};
+  const done=document.createElement("button");done.className="btn";done.textContent="完了";
+  done.onclick=()=>{ov.remove();renderCareer();};
+  row.appendChild(auto);row.appendChild(done);head.appendChild(row);
+}
+function careerEditSlots(cr,ov){
+  _ceHead(cr,ov);
+  const body=ov.querySelector(".ce-body");body.innerHTML="";
+  const {picks}=careerPicks(cr);
+  picks.forEach((p,i)=>{
+    const row=document.createElement("div");row.className="ce-slot";row.onclick=()=>careerEditPick(cr,i,ov);
+    const sub=FORMS[S.form][i][0];
+    if(!p.c){row.innerHTML=`<span class="pos ${subGroup(sub)}">${sub}</span> <span class="lg">(空き) — タップで選択</span>`;body.appendChild(row);return;}
+    const c=p.c, age=ageOf(c)+(cr.season||0), ph=agePhase(age), ck=cr.cond&&cr.cond[c.id];
+    const g=cr.growth&&cr.growth[c.id], gs=g?(g.off+g.def+g.pow+g.tec+g.spd+g.sta):0;
+    const gtxt=gs>=0.05?`<span style="color:#7dff9e">+${gs.toFixed(1)}</span>`:gs<=-0.05?`<span style="color:#ff8e8e">${gs.toFixed(1)}</span>`:"";
+    const pen=posFit(c.sub,sub)<1?' <span style="color:#ffb15a">⚠適性外</span>':'';
+    row.innerHTML=`<span class="pos ${subGroup(sub)}">${sub}</span> <b>${c.name}</b>${p.manual?"":' <span class="lg" style="font-size:9px">(自動)</span>'}`
+      +`<span class="ce-meta">${age}${ph.icon} ${ck?_CE_CI[ck]:""} ${gtxt} OVR${cardOvr(c)}${pen}</span>`;
+    body.appendChild(row);
+  });
+}
+function careerEditPick(cr,slot,ov){
+  const body=ov.querySelector(".ce-body");body.innerHTML="";
+  const sub=FORMS[S.form][slot][0];
+  const bar=document.createElement("div");bar.style.cssText="display:flex;gap:6px;align-items:center;margin-bottom:6px";
+  const back=document.createElement("button");back.className="btn ghost";back.textContent="← 戻る";back.onclick=()=>careerEditSlots(cr,ov);
+  bar.appendChild(back);
+  const t=document.createElement("div");t.className="lg";t.innerHTML=`<b>${sub}</b> 枠に置く選手(タップで配置)`;bar.appendChild(t);
+  body.appendChild(bar);
+  const clr=document.createElement("button");clr.className="btn ghost";clr.style.marginBottom="6px";clr.textContent="この枠を自動に戻す";
+  clr.onclick=async()=>{if(cr.squad)delete cr.squad[slot];await save();careerEditSlots(cr,ov);};
+  body.appendChild(clr);
+  const usedElse=Object.entries(cr.squad||{}).filter(([k])=>+k!==slot).map(([,v])=>v);
+  const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px";
+  S.coll.filter(c=>!usedElse.includes(c.id))
+    .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||cardOvr(b)-cardOvr(a))
+    .forEach(c=>{
+      const e=cardEl(c);
+      if((cr.squad||{})[slot]===c.id)e.classList.add("sel");
+      e.onclick=async()=>{cr.squad=cr.squad||{};cr.squad[slot]=c.id;await save();careerEditSlots(cr,ov);};
+      grid.appendChild(e);
+    });
+  body.appendChild(grid);
+}
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
@@ -5602,7 +5670,13 @@ function renderCareer(){
     box.appendChild(mk("div","lg","ブラケット: "+line));
   }
   const sq=careerSquadView(cr); // 育成スカッド(年齢/調子/成長)
-  if(sq){box.appendChild(mk("div","banner",`― 👥 育成スカッド ・ ${cr.season?`${cr.season}季経過`:"開幕"} ―`));box.appendChild(sq);}
+  if(sq){
+    box.appendChild(mk("div","banner",`― 👥 育成スカッド ・ ${cr.season?`${cr.season}季経過`:"開幕"} ―`));box.appendChild(sq);
+    const manualN=Object.keys((cr.squad)||{}).length;
+    const eb=mk("button","btn ghost");eb.style.marginTop="4px";
+    eb.textContent=manualN?`✏ 手動で編成(${manualN}枠指定中)`:"✏ 手動で編成する(調子/成長を見てローテ)";
+    eb.onclick=openCareerEditor;box.appendChild(eb);
+  }
   if(cr.stage!=="cont"&&!cr.contId){ // DIVリーグ中は順位表を表示
     const st=careerStandingsTable(cr);
     if(st){box.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));box.appendChild(st);}
@@ -5797,22 +5871,34 @@ function myTeam(){
   return buildTeam(cards,"H",S.form);
 }
 // 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
-function careerTeam(cap){
-  const ovr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-  const form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
-  const used=new Set(), picks=[];
-  form.forEach((sl)=>{ // 各枠に未使用の最良(適性→OVR)を割当
-    let best=null,bs=-1;
-    for(const c of S.coll){ if(used.has(c.id))continue;
-      const sc=posFit(c.sub,sl[0])*1000+ovr(c); if(sc>bs){bs=sc;best=c;} }
-    if(best){used.add(best.id);picks.push({c:best,sub:sl[0]});}
+const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+// 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
+function careerPicks(cr){
+  const form=FORMS[S.form]||FORMS["4-4-2"], used=new Set(), picks=[];
+  const manual=(cr&&cr.squad)||{};
+  form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可)
+    let c=null; const mid=manual[i];
+    if(mid!=null){ c=S.coll.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
+    if(c)used.add(c.id);
+    picks.push({c, sub:sl[0], manual:!!c});
   });
-  // 超過分のトリム: 削減効率が最大の枠を、同枠のより弱い候補へ差し替え(これ以上弱くできなければ打ち切り)
-  const tot=()=>picks.reduce((s,p)=>s+ovr(p.c),0);
+  picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完
+    let best=null,bs=-1;
+    for(const c of S.coll){ if(used.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    if(best){p.c=best;used.add(best.id);}
+  });
+  return {picks,used};
+}
+function careerTeam(cap){
+  const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
+  const cr=(typeof S!=="undefined")&&S.career;
+  const {picks,used}=careerPicks(cr);
+  // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
+  const tot=()=>picks.reduce((s,p)=>s+(p.c?ovr(p.c):0),0);
   let guard=0;
   while(tot()>cap && guard++<300){
     let pick=null,alt=null,bestSave=0;
-    for(const p of picks){
+    for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
       for(const c of S.coll){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
         const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
@@ -5821,13 +5907,14 @@ function careerTeam(cap){
     if(!pick)break;
     used.delete(pick.c.id);used.add(alt.id);pick.c=alt;
   }
-  const cards=picks.map((p,i)=>({c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
-    x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1}));
+  const cards=picks.filter(p=>p.c).map(p=>{const i=picks.indexOf(p);return {c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
+    x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const team=buildTeam(cards,"H",S.form);
-  const cr=(typeof S!=="undefined")&&S.career;
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
+// 現在の育成編成の素OVR合計(上限判定用・成長は非加算)。
+function careerBaseTotal(cr){return careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);}
 // ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
 // 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
 function growthStatsFor(p){
@@ -7247,7 +7334,7 @@ function startCareer(){
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0}; // 選手の成長/調子/加齢(キャリア限定・ローグライク)
+    growth:{}, form:{}, cond:{}, season:0, squad:{}}; // 成長/調子/加齢＋手動編成(空=自動)
   save(); gotoCareer();
 }
 function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合。上限内編成で相応の相手と対戦。
@@ -7257,6 +7344,8 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
   const team=careerTeam(cr.ovrCap);
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
+  const baseTot=careerBaseTotal(cr); // 手動編成が上限超過ならブロック(選んだ主力の素OVR合計)
+  if(baseTot>cr.ovrCap){S._careerMatch=false;toast(`編成OVR ${baseTot} が上限 ${cr.ovrCap} を超過。編成を見直そう`);renderCareer();return;}
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)

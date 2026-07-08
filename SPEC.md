@@ -495,7 +495,8 @@
     - **成長 `growth`**: 出場して高評価(`statRating≥growthThresh`)を取ると主ステ(役割ベース`growthStatsFor`)が微増。**フェーズの`growth`倍率**(若手ほど大)を乗算、`growthCap`でクランプ。`careerApplyGrowth`(onEndで反映)。`eff` は `p.c[k]+p.grow[k]`(**OVR上限には非加算=cap別枠**、`careerTeam` のトリムは素OVR基準)。引退で消える。
     - **コンディション `cond`**: 試合開始時に各先発へ決定(`careerCondition`=前節評価＋フェーズ`condVol`×乱数、±約12〜15%)→`eff` の `p.cond` 倍率。絶好調⤴〜絶不調⤵。キックオフに絶好調/不調をfeed。
     - **加齢 `season`**: シーズン終了ごとに+1(`careerRecordResult`)。`careerTeam` が `p.ageBonus=cr.season` を付与→`effAge` が上昇し、若手→全盛期→老雄へ世代交代。**老雄/ベテランの低調な酷使**(`phase.decline`>0 かつ 評価<5.0)で spd/sta が微衰退。
-    - **育成スカッド画面**: `careerSquadView` が現在の自動編成XIを 年齢/フェーズ・調子・成長(+N)・成長込みOVR で一覧表示(`renderCareer`)。
+    - **育成スカッド画面**: `careerSquadView` が現在の編成XIを 年齢/フェーズ・調子・成長(+N)・成長込みOVR で一覧表示(`renderCareer`)。
+  - **手動XI編成盤(B3・実装済み)**: `cr.squad{slot:cardId}` に**先発を手動指定**(空=自動)。`careerPicks` が「手動枠を尊重→空き枠を貪欲補完」、`careerTeam` の上限トリムは**自動枠のみ**下げる(選んだ主力は残す)。`openCareerEditor` の編成盤: 枠一覧(年齢/調子/成長/OVR/⚠適性外)→タップで選手ピッカー、`careerBaseTotal`(素OVR=成長非加算)で**上限厳守**を可視化(超過は赤・`startCareerMatch` がブロック)。「⚙全て自動」で `cr.squad` クリア。→ 調子/成長/加齢を見て**休養・起用・世代交代を選ぶ**ローテ戦略が成立。
   - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
   - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。

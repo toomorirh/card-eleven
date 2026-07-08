@@ -587,7 +587,7 @@ function startCareer(){
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0}; // 選手の成長/調子/加齢(キャリア限定・ローグライク)
+    growth:{}, form:{}, cond:{}, season:0, squad:{}}; // 成長/調子/加齢＋手動編成(空=自動)
   save(); gotoCareer();
 }
 function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合。上限内編成で相応の相手と対戦。
@@ -597,6 +597,8 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
   const team=careerTeam(cr.ovrCap);
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
+  const baseTot=careerBaseTotal(cr); // 手動編成が上限超過ならブロック(選んだ主力の素OVR合計)
+  if(baseTot>cr.ovrCap){S._careerMatch=false;toast(`編成OVR ${baseTot} が上限 ${cr.ovrCap} を超過。編成を見直そう`);renderCareer();return;}
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)

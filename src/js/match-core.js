@@ -83,22 +83,34 @@ function myTeam(){
   return buildTeam(cards,"H",S.form);
 }
 // 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
-function careerTeam(cap){
-  const ovr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-  const form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
-  const used=new Set(), picks=[];
-  form.forEach((sl)=>{ // 各枠に未使用の最良(適性→OVR)を割当
-    let best=null,bs=-1;
-    for(const c of S.coll){ if(used.has(c.id))continue;
-      const sc=posFit(c.sub,sl[0])*1000+ovr(c); if(sc>bs){bs=sc;best=c;} }
-    if(best){used.add(best.id);picks.push({c:best,sub:sl[0]});}
+const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+// 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
+function careerPicks(cr){
+  const form=FORMS[S.form]||FORMS["4-4-2"], used=new Set(), picks=[];
+  const manual=(cr&&cr.squad)||{};
+  form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可)
+    let c=null; const mid=manual[i];
+    if(mid!=null){ c=S.coll.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
+    if(c)used.add(c.id);
+    picks.push({c, sub:sl[0], manual:!!c});
   });
-  // 超過分のトリム: 削減効率が最大の枠を、同枠のより弱い候補へ差し替え(これ以上弱くできなければ打ち切り)
-  const tot=()=>picks.reduce((s,p)=>s+ovr(p.c),0);
+  picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完
+    let best=null,bs=-1;
+    for(const c of S.coll){ if(used.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    if(best){p.c=best;used.add(best.id);}
+  });
+  return {picks,used};
+}
+function careerTeam(cap){
+  const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
+  const cr=(typeof S!=="undefined")&&S.career;
+  const {picks,used}=careerPicks(cr);
+  // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
+  const tot=()=>picks.reduce((s,p)=>s+(p.c?ovr(p.c):0),0);
   let guard=0;
   while(tot()>cap && guard++<300){
     let pick=null,alt=null,bestSave=0;
-    for(const p of picks){
+    for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
       for(const c of S.coll){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
         const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
@@ -107,13 +119,14 @@ function careerTeam(cap){
     if(!pick)break;
     used.delete(pick.c.id);used.add(alt.id);pick.c=alt;
   }
-  const cards=picks.map((p,i)=>({c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
-    x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1}));
+  const cards=picks.filter(p=>p.c).map(p=>{const i=picks.indexOf(p);return {c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
+    x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const team=buildTeam(cards,"H",S.form);
-  const cr=(typeof S!=="undefined")&&S.career;
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
+// 現在の育成編成の素OVR合計(上限判定用・成長は非加算)。
+function careerBaseTotal(cr){return careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);}
 // ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
 // 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
 function growthStatsFor(p){
