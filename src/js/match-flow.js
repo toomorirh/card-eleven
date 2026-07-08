@@ -600,9 +600,11 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
+  cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
   const label=cr.cup?`${cr.cup.emoji} ${cr.cup.name} 第${cr.cup.i+1}/${cr.cup.need}戦: ${cr.oppName}`
     :cont?`${cont.emoji} ${cont.name}リーグ 第${cr.node+1}節: ${cr.oppName}`
+    :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
   _beginMatch(oppTeam(lv,{form,seed}), label, form, lv, -1, team);
 }
@@ -828,15 +830,24 @@ const MATCH_MODES={
       else if(o.advance)html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;
       else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
     }else{
+      const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};
+      if(wasDerby){ // ダービーの結果(勝利=士気ボーナス、それ以外=雪辱)
+        if(sh>sa){cr.boosts.push({pos:"all",stat:"all",mul:CAREER.derbyMul});
+          html+=`<div class="banner" style="color:#ffd24a">⚔ ダービー制覇! 士気が高まった(監督バフ 全能力+${Math.round((CAREER.derbyMul-1)*1000)/10}%)</div>`;}
+        else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⚔ 宿敵レガリアに屈した…次こそ雪辱を</div>`;
+      }
       if(o.seasonEnd){
         const pct=Math.round((o.boost.mul-1)*1000)/10;
         if(o.contName){ // 大陸リーグ制覇→系統ステboost
           const st=MGR_STAT_JP[o.contStat]||o.contStat;
           html+=`<div class="banner" style="color:#ffd24a">🌐 ${o.contName}リーグ制覇! → 監督バフ「${st} +${pct}%」獲得!</div>`;
-        }else{ // DIV制覇
-          html+=`<div class="banner" style="color:#7dff9e">🏆 DIV${o.seasonDiv}制覇! 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」獲得!</div>`;
+        }else{ // DIVシーズン終了(順位で昇降格)
+          const rankTxt=o.champion?"🏆 優勝":`${o.rank}位`;
+          html+=`<div class="banner" style="color:#7dff9e">📅 DIV${o.seasonDiv} シーズン終了 ${rankTxt}(全${o.size}チーム) 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」</div>`;
           if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
+          else if(o.relegated)html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⬇ DIV${cr.div}へ降格…立て直そう</div>`;
+          else if(o.stayed)html+=`<div class="banner" style="font-size:14px">→ DIV${cr.div}に残留(来季 上位${CAREER.promote[cr.div]||1}位以内で昇格)</div>`;
           if(o.toCont)html+=`<div class="banner" style="color:#ffd24a;font-size:14px">🌐 大陸リーグ解禁! 各大陸を制覇して系統特化バフを狙え</div>`;
         }
       }

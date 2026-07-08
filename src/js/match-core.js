@@ -111,10 +111,45 @@ function careerTeam(cap){
     x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1}));
   return buildTeam(cards,"H",S.form);
 }
+// ===== リーグ順位表(WCCF風): 自チーム+同DIVの6クラブ(1枠は宿敵)で勝点を蓄積し、順位で昇降格 =====
+// クラブ同士の1試合をlv差で簡易シミュ(演出なし・純粋)。{ra,rb,ga,gb}。
+function simClubResult(lvA,lvB){
+  const diff=lvA-lvB, pW=Math.max(0.12,Math.min(0.82,0.4+diff*0.07)), pD=0.24, x=Math.random();
+  if(x<pW){const ga=ri(1,3);return {ra:"W",rb:"L",ga,gb:ri(0,Math.max(0,ga-1))};}
+  if(x<pW+pD){const g=ri(0,2);return {ra:"D",rb:"D",ga:g,gb:g};}
+  const gb=ri(1,3);return {ra:"L",rb:"W",gb,ga:ri(0,Math.max(0,gb-1))};
+}
+// 現在のDIVシーズン用に順位表を用意(div変更/未作成なら再構築)。大陸リーグ中は対象外。
+function careerTableEnsure(cr){
+  if(cr.contId)return null;
+  if(cr.table&&cr.tableDiv===cr.div)return cr.table;
+  const T={__me:{pts:0,gd:0,pl:0,w:0,d:0,l:0,name:(typeof myName==="function"?myName():"自チーム"),lv:0}};
+  careerLeaguePool(cr).forEach(id=>{const b=OPP_CLUBS[id]||{};
+    T[id]={pts:0,gd:0,pl:0,w:0,d:0,l:0,name:b.name||id,lv:id==="nemesis"?nemesisLv(cr):(b.lv||5),rival:id==="nemesis"};});
+  cr.table=T; cr.tableDiv=cr.div; return T;
+}
+// 1節ぶんの順位表更新: 自分の結果を反映+対戦相手にミラー反映+残りクラブをペアでシミュ。
+function careerSimRound(cr,oppId,res,sh,sa){
+  const T=careerTableEnsure(cr); if(!T)return;
+  const apply=(k,r,gf,ga)=>{const e=T[k];if(!e)return;e.pl++;e.gd+=(gf-ga);if(r==="W"){e.w++;e.pts+=3;}else if(r==="D"){e.d++;e.pts+=1;}else e.l++;};
+  apply("__me",res,sh,sa);
+  if(oppId&&T[oppId])apply(oppId,res==="W"?"L":res==="D"?"D":"W",sa,sh);
+  const others=Object.keys(T).filter(k=>k!=="__me"&&k!==oppId);
+  for(let i=others.length-1;i>0;i--){const j=ri(0,i);[others[i],others[j]]=[others[j],others[i]];}
+  for(let i=0;i+1<others.length;i+=2){const a=others[i],b=others[i+1],r=simClubResult(T[a].lv,T[b].lv);
+    apply(a,r.ra,r.ga,r.gb);apply(b,r.rb,r.gb,r.ga);}
+}
+// 順位表を勝点→得失点→自分優先でソートした配列を返す。
+function careerStandings(cr){
+  const T=careerTableEnsure(cr); if(!T)return [];
+  return Object.keys(T).map(k=>Object.assign({id:k,me:k==="__me"},T[k]))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||(a.me?-1:b.me?1:0));
+}
 // キャリアの戦績処理(純粋・DOM非依存)。cr を更新し {res,pts,promoted,boost,seasonEnd,msg} を返す。
 function careerRecordResult(cr,sh,sa){
   const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0, divBefore=cr.div;
   const cont=cr.contId?continentById(cr.contId):null; // 大陸リーグ中か
+  if(!cont)careerSimRound(cr,(careerOpponent(cr)||{}).id,res,sh,sa); // DIVリーグ: 順位表を更新(他クラブもシミュ)
   cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
   const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,nd:(cr.node||0)+1,opp:cr.oppName||"",
     div:cont?undefined:divBefore, cont:cont?cont.name:undefined}; // スケジュール表示用の記録
@@ -129,13 +164,20 @@ function careerRecordResult(cr,sh,sa){
       out.seasonEnd=true; out.boost=boost; out.contName=cont.name; out.contStat=cont.stat; out.seasonPts=cr.pts;
       cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
       cr.contId=null;                                     // 次の大陸を選べる
-    }else{ // DIV制覇 → 全能力boost + 昇格 / DIV1制覇で大陸リーグ解禁
+    }else{ // DIVシーズン終了 → 全能力boost + 順位で昇格/残留/降格(WCCF風)
       const mul=Math.round((1+(CAREER.boostBase[cr.div]||0.01)*perf)*1000)/1000;
       const boost={pos:"all",stat:"all",mul};
       cr.boosts.push(boost);
+      const table=careerStandings(cr), rank=Math.max(1,table.findIndex(r=>r.me)+1), size=table.length;
+      const promoteRank=CAREER.promote[cr.div]||1;
       out.seasonEnd=true; out.boost=boost; out.seasonPts=cr.pts; out.seasonDiv=cr.div;
-      cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
-      if(cr.div>1){cr.div--;out.promoted=true;} else {cr.stage="cont";out.toCont=true;} // DIV1制覇→大陸リーグへ
+      out.rank=rank; out.size=size; out.champion=(rank===1);
+      cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10; cr.history[hi].rank=rank;
+      if(rank<=promoteRank){
+        if(cr.div>1){cr.div--;out.promoted=true;} else {cr.stage="cont";out.toCont=true;} // DIV1優勝→大陸リーグへ
+      }else if(cr.div<3&&rank>=size){ cr.div++; out.relegated=true; } // 最下位→降格
+      else out.stayed=true;                                          // 昇格圏外→残留(来季再挑戦)
+      cr.tableDiv=null; // 次シーズンで順位表を作り直す
     }
     cr.node=0;cr.pts=0;cr.gf=0;cr.ga=0;
   }

@@ -300,6 +300,9 @@ const CAREER={
   extendWeeks:24, extendMax:2,     // 契約延長: 好成績で+24週・最大2回(48→最大96週)
   divLv:{3:3, 2:5, 1:7},          // 各DIVの相手lv(DIV3=格下〜DIV1=強豪)
   boostBase:{3:0.010, 2:0.020, 1:0.030}, // DIV制覇の基準バフ%(成績で×0.4〜1.0)
+  promote:{3:2, 2:2, 1:1},        // シーズン最終順位がこの順位以内で昇格(DIV1は1位=大陸解禁)。7チームリーグ。
+  derbyNode:3,                     // 各DIVシーズンで宿敵(ネメシス)と当たる節(0基点)=ダービー
+  derbyMul:1.006,                  // ダービー勝利の士気ボーナス(全能力+0.6%を監督へ)
 };
 // カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
 const CAREER_TACS={
@@ -364,6 +367,8 @@ const OPP_CLUBS={
   af_ch:{name:"サバンナ・ライオンズ", lv:10, form:"3-5-2",   seed:3023, boss:true},
   na_ch:{name:"リバティ・スターズ",   lv:10, form:"4-4-2",   seed:3024, boss:true},
   oc_ch:{name:"サザンクロス",         lv:10, form:"5-4-1",   seed:3025, boss:true},
+  // 宿敵(ネメシス): 各DIVの日程に注入され昇格しても付いてくる恒常ライバル。lvは div に応じて動的(careerOpponent)。
+  nemesis:{name:"レガリアFC",         lv:5,  form:"4-3-3",   seed:3099, boss:true, rival:true},
 };
 // 大陸リーグ(DIV1制覇後に解禁・6節シーズン制)。制覇でその大陸の系統ステに特化したboostを獲得(高倍率)。
 // clubs=6節の相手(共通強豪5+大陸王者)。stat=伸びる系統 / base=boost基準(×perf 0.4〜1.0)。
@@ -382,6 +387,14 @@ const CAREER_LEAGUE={
   2:["rosa","grif","azur","caled","estrella","pantera"],
   1:["estrella","pantera","nordstern","imperio","volca","grandex"],
 };
+// 実際の日程プール: derbyNode の枠を宿敵(nemesis)に差し替え、どのDIVでも必ず一度ダービーが起きる(昇格しても付いてくる)。
+function careerLeaguePool(cr){
+  const pool=[...(CAREER_LEAGUE[cr.div]||CAREER_LEAGUE[3])];
+  pool[CAREER.derbyNode]="nemesis";
+  return pool;
+}
+// 宿敵の現在のlv(DIVに応じて一段強い)。
+function nemesisLv(cr){return (CAREER.divLv[cr.div]||5)+2;}
 // カップは固定ブラケット(いつも当たる相手)。末尾=決勝の看板ボス。
 const CUP_BRACKETS={
   domestic:     ["norte","rosa","caled"],
@@ -394,8 +407,10 @@ function careerOpponent(cr){
   let id;
   if(cr.cup){ id=(CUP_BRACKETS[cr.cup.id]||[])[cr.cup.i]; }
   else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
-  else { const pool=CAREER_LEAGUE[cr.div]||CAREER_LEAGUE[3]; id=pool[(cr.node||0)%pool.length]; }
-  return id?Object.assign({id},OPP_CLUBS[id]):null;
+  else { const pool=careerLeaguePool(cr); id=pool[(cr.node||0)%pool.length]; }
+  if(!id)return null;
+  if(id==="nemesis")return Object.assign({id:"nemesis"},OPP_CLUBS.nemesis,{lv:nemesisLv(cr),derby:true}); // 宿敵はlv動的+ダービー印
+  return Object.assign({id},OPP_CLUBS[id]);
 }
 // その週(0基点stepの週=step+1)がカップのエントリー週か(periodの倍数)。
 function cupEntryWeek(cup,step){return ((step+1)%cup.period)===0;}

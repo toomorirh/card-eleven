@@ -507,7 +507,7 @@ function careerScheduleList(cr){
         const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i));
         const cupOpp=cupsHere.length?` ・ ${cupsHere.map(c=>c.emoji).join("")}カップ参加機会`:"";
         const league=cont?`${cont.emoji}${cont.name}リーグ 第${cr.node+1}/${CAREER.nodes}節`:needCont?"大陸リーグ(選択待ち)":`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節`;
-        const oppTxt=(opp&&!needCont)?` ・ 次戦: ${opp.name}${opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
+        const oppTxt=(opp&&!needCont)?` ・ 次戦: ${opp.name}${opp.derby?" ⚔宿敵":opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
         wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`${league}${oppTxt}${cupOpp}`,""));
         const panel=document.createElement("div");panel.className="cur-actions";
         if(needCont)panel.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
@@ -524,6 +524,17 @@ function careerScheduleList(cr){
     }
   }
   return wrap;
+}
+// リーグ順位表(WCCF風): 自チーム(🎓)+同DIV6クラブ(⚔=宿敵)。緑=昇格圏/赤=降格圏。
+function careerStandingsTable(cr){
+  const rows=(typeof careerStandings==="function")?careerStandings(cr):[]; if(!rows.length)return null;
+  const promoteRank=CAREER.promote[cr.div]||1, size=rows.length, wrap=document.createElement("div");
+  let h='<table class="ctable"><tr><th>#</th><th>クラブ</th><th>試</th><th>勝点</th><th>差</th></tr>';
+  rows.forEach((r,i)=>{const rank=i+1, zone=rank<=promoteRank?"promo":(cr.div<3&&rank>=size)?"releg":"";
+    const nm=r.me?`🎓 ${r.name}`:r.rival?`⚔ ${r.name}`:r.name;
+    h+=`<tr class="${r.me?"meRow ":""}${zone}"><td>${rank}</td><td>${nm}</td><td>${r.pl}</td><td><b>${r.pts}</b></td><td>${r.gd>0?"+"+r.gd:r.gd}</td></tr>`;});
+  h+=`</table><div class="lg" style="font-size:10px">🟩昇格圏(上位${promoteRank})${cr.div<3?" / 🟥降格圏(最下位)":""} ・ ⚔宿敵レガリア</div>`;
+  wrap.innerHTML=h; return wrap;
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
@@ -548,6 +559,10 @@ function renderCareer(){
     const line=br.map((id,idx)=>{const nm=(OPP_CLUBS[id]||{}).name||id;const boss=(OPP_CLUBS[id]||{}).boss?"👑":"";
       return idx<cr.cup.win?`✅${nm}`:idx===cr.cup.i?`<b style="color:var(--gold)">▶${nm}${boss}</b>`:`${nm}${boss}`;}).join(" → ");
     box.appendChild(mk("div","lg","ブラケット: "+line));
+  }
+  if(cr.stage!=="cont"&&!cr.contId){ // DIVリーグ中は順位表を表示
+    const st=careerStandingsTable(cr);
+    if(st){box.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));box.appendChild(st);}
   }
   box.appendChild(mk("div","banner",`― 📅 スケジュール(全${cr.stepsMax||CAREER.steps}週) ― `+helpIcon("careerFlow")));
   // 現在週へスクロールして見やすく

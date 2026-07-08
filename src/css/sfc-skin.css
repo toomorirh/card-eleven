@@ -132,6 +132,15 @@ h1{text-shadow:3px 3px 0 #06301c}
 .statTbl tr.mom td{background:#3a2c06;color:var(--gold)}
 .statTbl tr.mom td:first-child{background:#3a2c06}
 .statTbl tr.lowform td{color:#ff8a7a}
+/* 監督キャリアのリーグ順位表(WCCF風)。自チーム=金枠、昇格圏=緑、降格圏=赤。 */
+.ctable{width:100%;border-collapse:collapse;font-family:'DotGothic16';font-size:11px;margin:4px 0;
+  border:2px solid #2a3d56}
+.ctable th{background:#1c2944;color:#ffe14d;padding:3px 2px;font-size:10px}
+.ctable td{padding:3px 3px;text-align:center;border-top:1px solid #22304a}
+.ctable td:nth-child(2){text-align:left}
+.ctable tr.meRow td{background:#2a2406;color:var(--gold);font-weight:900}
+.ctable tr.promo td:first-child{box-shadow:inset 3px 0 0 #4caf6a}
+.ctable tr.releg td:first-child{box-shadow:inset 3px 0 0 #d3564a}
 .fieldwrap{position:relative;width:100%}
 /* 試合後スタッツ: 全画面スクロール(11人を窮屈な枠内でなく画面全体で見られる)。
    下部の結果シート(#matchEnd, z140)に被らないよう padding-bottom で余白を確保。 */

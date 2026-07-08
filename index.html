@@ -776,6 +776,15 @@ h1{text-shadow:3px 3px 0 #06301c}
 .statTbl tr.mom td{background:#3a2c06;color:var(--gold)}
 .statTbl tr.mom td:first-child{background:#3a2c06}
 .statTbl tr.lowform td{color:#ff8a7a}
+/* 監督キャリアのリーグ順位表(WCCF風)。自チーム=金枠、昇格圏=緑、降格圏=赤。 */
+.ctable{width:100%;border-collapse:collapse;font-family:'DotGothic16';font-size:11px;margin:4px 0;
+  border:2px solid #2a3d56}
+.ctable th{background:#1c2944;color:#ffe14d;padding:3px 2px;font-size:10px}
+.ctable td{padding:3px 3px;text-align:center;border-top:1px solid #22304a}
+.ctable td:nth-child(2){text-align:left}
+.ctable tr.meRow td{background:#2a2406;color:var(--gold);font-weight:900}
+.ctable tr.promo td:first-child{box-shadow:inset 3px 0 0 #4caf6a}
+.ctable tr.releg td:first-child{box-shadow:inset 3px 0 0 #d3564a}
 .fieldwrap{position:relative;width:100%}
 /* 試合後スタッツ: 全画面スクロール(11人を窮屈な枠内でなく画面全体で見られる)。
    下部の結果シート(#matchEnd, z140)に被らないよう padding-bottom で余白を確保。 */
@@ -1368,6 +1377,9 @@ const CAREER={
   extendWeeks:24, extendMax:2,     // 契約延長: 好成績で+24週・最大2回(48→最大96週)
   divLv:{3:3, 2:5, 1:7},          // 各DIVの相手lv(DIV3=格下〜DIV1=強豪)
   boostBase:{3:0.010, 2:0.020, 1:0.030}, // DIV制覇の基準バフ%(成績で×0.4〜1.0)
+  promote:{3:2, 2:2, 1:1},        // シーズン最終順位がこの順位以内で昇格(DIV1は1位=大陸解禁)。7チームリーグ。
+  derbyNode:3,                     // 各DIVシーズンで宿敵(ネメシス)と当たる節(0基点)=ダービー
+  derbyMul:1.006,                  // ダービー勝利の士気ボーナス(全能力+0.6%を監督へ)
 };
 // カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
 const CAREER_TACS={
@@ -1432,6 +1444,8 @@ const OPP_CLUBS={
   af_ch:{name:"サバンナ・ライオンズ", lv:10, form:"3-5-2",   seed:3023, boss:true},
   na_ch:{name:"リバティ・スターズ",   lv:10, form:"4-4-2",   seed:3024, boss:true},
   oc_ch:{name:"サザンクロス",         lv:10, form:"5-4-1",   seed:3025, boss:true},
+  // 宿敵(ネメシス): 各DIVの日程に注入され昇格しても付いてくる恒常ライバル。lvは div に応じて動的(careerOpponent)。
+  nemesis:{name:"レガリアFC",         lv:5,  form:"4-3-3",   seed:3099, boss:true, rival:true},
 };
 // 大陸リーグ(DIV1制覇後に解禁・6節シーズン制)。制覇でその大陸の系統ステに特化したboostを獲得(高倍率)。
 // clubs=6節の相手(共通強豪5+大陸王者)。stat=伸びる系統 / base=boost基準(×perf 0.4〜1.0)。
@@ -1450,6 +1464,14 @@ const CAREER_LEAGUE={
   2:["rosa","grif","azur","caled","estrella","pantera"],
   1:["estrella","pantera","nordstern","imperio","volca","grandex"],
 };
+// 実際の日程プール: derbyNode の枠を宿敵(nemesis)に差し替え、どのDIVでも必ず一度ダービーが起きる(昇格しても付いてくる)。
+function careerLeaguePool(cr){
+  const pool=[...(CAREER_LEAGUE[cr.div]||CAREER_LEAGUE[3])];
+  pool[CAREER.derbyNode]="nemesis";
+  return pool;
+}
+// 宿敵の現在のlv(DIVに応じて一段強い)。
+function nemesisLv(cr){return (CAREER.divLv[cr.div]||5)+2;}
 // カップは固定ブラケット(いつも当たる相手)。末尾=決勝の看板ボス。
 const CUP_BRACKETS={
   domestic:     ["norte","rosa","caled"],
@@ -1462,8 +1484,10 @@ function careerOpponent(cr){
   let id;
   if(cr.cup){ id=(CUP_BRACKETS[cr.cup.id]||[])[cr.cup.i]; }
   else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
-  else { const pool=CAREER_LEAGUE[cr.div]||CAREER_LEAGUE[3]; id=pool[(cr.node||0)%pool.length]; }
-  return id?Object.assign({id},OPP_CLUBS[id]):null;
+  else { const pool=careerLeaguePool(cr); id=pool[(cr.node||0)%pool.length]; }
+  if(!id)return null;
+  if(id==="nemesis")return Object.assign({id:"nemesis"},OPP_CLUBS.nemesis,{lv:nemesisLv(cr),derby:true}); // 宿敵はlv動的+ダービー印
+  return Object.assign({id},OPP_CLUBS[id]);
 }
 // その週(0基点stepの週=step+1)がカップのエントリー週か(periodの倍数)。
 function cupEntryWeek(cup,step){return ((step+1)%cup.period)===0;}
@@ -5466,7 +5490,7 @@ function careerScheduleList(cr){
         const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i));
         const cupOpp=cupsHere.length?` ・ ${cupsHere.map(c=>c.emoji).join("")}カップ参加機会`:"";
         const league=cont?`${cont.emoji}${cont.name}リーグ 第${cr.node+1}/${CAREER.nodes}節`:needCont?"大陸リーグ(選択待ち)":`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節`;
-        const oppTxt=(opp&&!needCont)?` ・ 次戦: ${opp.name}${opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
+        const oppTxt=(opp&&!needCont)?` ・ 次戦: ${opp.name}${opp.derby?" ⚔宿敵":opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
         wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`${league}${oppTxt}${cupOpp}`,""));
         const panel=document.createElement("div");panel.className="cur-actions";
         if(needCont)panel.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
@@ -5483,6 +5507,17 @@ function careerScheduleList(cr){
     }
   }
   return wrap;
+}
+// リーグ順位表(WCCF風): 自チーム(🎓)+同DIV6クラブ(⚔=宿敵)。緑=昇格圏/赤=降格圏。
+function careerStandingsTable(cr){
+  const rows=(typeof careerStandings==="function")?careerStandings(cr):[]; if(!rows.length)return null;
+  const promoteRank=CAREER.promote[cr.div]||1, size=rows.length, wrap=document.createElement("div");
+  let h='<table class="ctable"><tr><th>#</th><th>クラブ</th><th>試</th><th>勝点</th><th>差</th></tr>';
+  rows.forEach((r,i)=>{const rank=i+1, zone=rank<=promoteRank?"promo":(cr.div<3&&rank>=size)?"releg":"";
+    const nm=r.me?`🎓 ${r.name}`:r.rival?`⚔ ${r.name}`:r.name;
+    h+=`<tr class="${r.me?"meRow ":""}${zone}"><td>${rank}</td><td>${nm}</td><td>${r.pl}</td><td><b>${r.pts}</b></td><td>${r.gd>0?"+"+r.gd:r.gd}</td></tr>`;});
+  h+=`</table><div class="lg" style="font-size:10px">🟩昇格圏(上位${promoteRank})${cr.div<3?" / 🟥降格圏(最下位)":""} ・ ⚔宿敵レガリア</div>`;
+  wrap.innerHTML=h; return wrap;
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
@@ -5507,6 +5542,10 @@ function renderCareer(){
     const line=br.map((id,idx)=>{const nm=(OPP_CLUBS[id]||{}).name||id;const boss=(OPP_CLUBS[id]||{}).boss?"👑":"";
       return idx<cr.cup.win?`✅${nm}`:idx===cr.cup.i?`<b style="color:var(--gold)">▶${nm}${boss}</b>`:`${nm}${boss}`;}).join(" → ");
     box.appendChild(mk("div","lg","ブラケット: "+line));
+  }
+  if(cr.stage!=="cont"&&!cr.contId){ // DIVリーグ中は順位表を表示
+    const st=careerStandingsTable(cr);
+    if(st){box.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));box.appendChild(st);}
   }
   box.appendChild(mk("div","banner",`― 📅 スケジュール(全${cr.stepsMax||CAREER.steps}週) ― `+helpIcon("careerFlow")));
   // 現在週へスクロールして見やすく
@@ -5726,10 +5765,45 @@ function careerTeam(cap){
     x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1}));
   return buildTeam(cards,"H",S.form);
 }
+// ===== リーグ順位表(WCCF風): 自チーム+同DIVの6クラブ(1枠は宿敵)で勝点を蓄積し、順位で昇降格 =====
+// クラブ同士の1試合をlv差で簡易シミュ(演出なし・純粋)。{ra,rb,ga,gb}。
+function simClubResult(lvA,lvB){
+  const diff=lvA-lvB, pW=Math.max(0.12,Math.min(0.82,0.4+diff*0.07)), pD=0.24, x=Math.random();
+  if(x<pW){const ga=ri(1,3);return {ra:"W",rb:"L",ga,gb:ri(0,Math.max(0,ga-1))};}
+  if(x<pW+pD){const g=ri(0,2);return {ra:"D",rb:"D",ga:g,gb:g};}
+  const gb=ri(1,3);return {ra:"L",rb:"W",gb,ga:ri(0,Math.max(0,gb-1))};
+}
+// 現在のDIVシーズン用に順位表を用意(div変更/未作成なら再構築)。大陸リーグ中は対象外。
+function careerTableEnsure(cr){
+  if(cr.contId)return null;
+  if(cr.table&&cr.tableDiv===cr.div)return cr.table;
+  const T={__me:{pts:0,gd:0,pl:0,w:0,d:0,l:0,name:(typeof myName==="function"?myName():"自チーム"),lv:0}};
+  careerLeaguePool(cr).forEach(id=>{const b=OPP_CLUBS[id]||{};
+    T[id]={pts:0,gd:0,pl:0,w:0,d:0,l:0,name:b.name||id,lv:id==="nemesis"?nemesisLv(cr):(b.lv||5),rival:id==="nemesis"};});
+  cr.table=T; cr.tableDiv=cr.div; return T;
+}
+// 1節ぶんの順位表更新: 自分の結果を反映+対戦相手にミラー反映+残りクラブをペアでシミュ。
+function careerSimRound(cr,oppId,res,sh,sa){
+  const T=careerTableEnsure(cr); if(!T)return;
+  const apply=(k,r,gf,ga)=>{const e=T[k];if(!e)return;e.pl++;e.gd+=(gf-ga);if(r==="W"){e.w++;e.pts+=3;}else if(r==="D"){e.d++;e.pts+=1;}else e.l++;};
+  apply("__me",res,sh,sa);
+  if(oppId&&T[oppId])apply(oppId,res==="W"?"L":res==="D"?"D":"W",sa,sh);
+  const others=Object.keys(T).filter(k=>k!=="__me"&&k!==oppId);
+  for(let i=others.length-1;i>0;i--){const j=ri(0,i);[others[i],others[j]]=[others[j],others[i]];}
+  for(let i=0;i+1<others.length;i+=2){const a=others[i],b=others[i+1],r=simClubResult(T[a].lv,T[b].lv);
+    apply(a,r.ra,r.ga,r.gb);apply(b,r.rb,r.gb,r.ga);}
+}
+// 順位表を勝点→得失点→自分優先でソートした配列を返す。
+function careerStandings(cr){
+  const T=careerTableEnsure(cr); if(!T)return [];
+  return Object.keys(T).map(k=>Object.assign({id:k,me:k==="__me"},T[k]))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||(a.me?-1:b.me?1:0));
+}
 // キャリアの戦績処理(純粋・DOM非依存)。cr を更新し {res,pts,promoted,boost,seasonEnd,msg} を返す。
 function careerRecordResult(cr,sh,sa){
   const res=sh>sa?"W":sh===sa?"D":"L", pts=sh>sa?3:sh===sa?1:0, divBefore=cr.div;
   const cont=cr.contId?continentById(cr.contId):null; // 大陸リーグ中か
+  if(!cont)careerSimRound(cr,(careerOpponent(cr)||{}).id,res,sh,sa); // DIVリーグ: 順位表を更新(他クラブもシミュ)
   cr.pts=(cr.pts||0)+pts; cr.gf=(cr.gf||0)+sh; cr.ga=(cr.ga||0)+sa;
   const hi=cr.step; (cr.history=cr.history||[])[hi]={act:"L",res,sc:sh+"-"+sa,nd:(cr.node||0)+1,opp:cr.oppName||"",
     div:cont?undefined:divBefore, cont:cont?cont.name:undefined}; // スケジュール表示用の記録
@@ -5744,13 +5818,20 @@ function careerRecordResult(cr,sh,sa){
       out.seasonEnd=true; out.boost=boost; out.contName=cont.name; out.contStat=cont.stat; out.seasonPts=cr.pts;
       cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
       cr.contId=null;                                     // 次の大陸を選べる
-    }else{ // DIV制覇 → 全能力boost + 昇格 / DIV1制覇で大陸リーグ解禁
+    }else{ // DIVシーズン終了 → 全能力boost + 順位で昇格/残留/降格(WCCF風)
       const mul=Math.round((1+(CAREER.boostBase[cr.div]||0.01)*perf)*1000)/1000;
       const boost={pos:"all",stat:"all",mul};
       cr.boosts.push(boost);
+      const table=careerStandings(cr), rank=Math.max(1,table.findIndex(r=>r.me)+1), size=table.length;
+      const promoteRank=CAREER.promote[cr.div]||1;
       out.seasonEnd=true; out.boost=boost; out.seasonPts=cr.pts; out.seasonDiv=cr.div;
-      cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
-      if(cr.div>1){cr.div--;out.promoted=true;} else {cr.stage="cont";out.toCont=true;} // DIV1制覇→大陸リーグへ
+      out.rank=rank; out.size=size; out.champion=(rank===1);
+      cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10; cr.history[hi].rank=rank;
+      if(rank<=promoteRank){
+        if(cr.div>1){cr.div--;out.promoted=true;} else {cr.stage="cont";out.toCont=true;} // DIV1優勝→大陸リーグへ
+      }else if(cr.div<3&&rank>=size){ cr.div++; out.relegated=true; } // 最下位→降格
+      else out.stayed=true;                                          // 昇格圏外→残留(来季再挑戦)
+      cr.tableDiv=null; // 次シーズンで順位表を作り直す
     }
     cr.node=0;cr.pts=0;cr.gf=0;cr.ga=0;
   }
@@ -7079,9 +7160,11 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
+  cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
   const label=cr.cup?`${cr.cup.emoji} ${cr.cup.name} 第${cr.cup.i+1}/${cr.cup.need}戦: ${cr.oppName}`
     :cont?`${cont.emoji} ${cont.name}リーグ 第${cr.node+1}節: ${cr.oppName}`
+    :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
   _beginMatch(oppTeam(lv,{form,seed}), label, form, lv, -1, team);
 }
@@ -7307,15 +7390,24 @@ const MATCH_MODES={
       else if(o.advance)html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;
       else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
     }else{
+      const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};
+      if(wasDerby){ // ダービーの結果(勝利=士気ボーナス、それ以外=雪辱)
+        if(sh>sa){cr.boosts.push({pos:"all",stat:"all",mul:CAREER.derbyMul});
+          html+=`<div class="banner" style="color:#ffd24a">⚔ ダービー制覇! 士気が高まった(監督バフ 全能力+${Math.round((CAREER.derbyMul-1)*1000)/10}%)</div>`;}
+        else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⚔ 宿敵レガリアに屈した…次こそ雪辱を</div>`;
+      }
       if(o.seasonEnd){
         const pct=Math.round((o.boost.mul-1)*1000)/10;
         if(o.contName){ // 大陸リーグ制覇→系統ステboost
           const st=MGR_STAT_JP[o.contStat]||o.contStat;
           html+=`<div class="banner" style="color:#ffd24a">🌐 ${o.contName}リーグ制覇! → 監督バフ「${st} +${pct}%」獲得!</div>`;
-        }else{ // DIV制覇
-          html+=`<div class="banner" style="color:#7dff9e">🏆 DIV${o.seasonDiv}制覇! 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」獲得!</div>`;
+        }else{ // DIVシーズン終了(順位で昇降格)
+          const rankTxt=o.champion?"🏆 優勝":`${o.rank}位`;
+          html+=`<div class="banner" style="color:#7dff9e">📅 DIV${o.seasonDiv} シーズン終了 ${rankTxt}(全${o.size}チーム) 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」</div>`;
           if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
+          else if(o.relegated)html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⬇ DIV${cr.div}へ降格…立て直そう</div>`;
+          else if(o.stayed)html+=`<div class="banner" style="font-size:14px">→ DIV${cr.div}に残留(来季 上位${CAREER.promote[cr.div]||1}位以内で昇格)</div>`;
           if(o.toCont)html+=`<div class="banner" style="color:#ffd24a;font-size:14px">🌐 大陸リーグ解禁! 各大陸を制覇して系統特化バフを狙え</div>`;
         }
       }

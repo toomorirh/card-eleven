@@ -480,7 +480,9 @@
 - **キャリアループ(フェーズ2・実装済み)**: `CAREER`設定。任期 `steps`=48・1ステップ=1試合。`S.career{name,step,div,node,pts,gf,ga,ovrCap,boosts[],tacs[]}`。
   - **編成**: 手持ち(`S.coll`)から **OVR合計が `ovrCap` 以内の最強XI** を自動構築(`careerTeam`=貪欲+トリム)。練習で `ovrCap` を `practiceCap` ずつ緩和(`capMax` 上限)。
   - **①リーグ**: DIV3→2→1(各 `nodes`=6節)。`startCareerMatch` が div相応lv(`divLv`)の相手と1試合(`MATCH_MODES.career`)。試合中は**育成中の監督(その時点の boosts/tacs)を自チームに適用**(`homeManager`)。
-  - **boost獲得**: 6節消化で `careerRecordResult` が成績連動の boost を付与(`1+boostBase[div]×perf`、perf=0.4〜1.0=勝点比)→ DIV1まで自動昇格。
+  - **boost獲得**: 6節消化で `careerRecordResult` が成績連動の boost を付与(`1+boostBase[div]×perf`、perf=0.4〜1.0=勝点比)。boostは順位に関わらず毎シーズン付与(=残留しても戦力は伸びる)。
+  - **順位表・昇降格(WCCF風・実装済み)**: 自チーム+同DIVの6クラブ(1枠は宿敵)で**7チームの勝点表**を蓄積(`careerTableEnsure`/`careerSimRound`=他クラブの試合を lv差で簡易シミュ `simClubResult`)。シーズン終了時に**最終順位**(`careerStandings`)で判定: `promote[div]`以内なら昇格(DIV1は1位で大陸解禁)、DIV最下位(かつdiv<3)なら降格(`div++`)、それ以外は**残留(来季再挑戦)**。`renderCareer` に順位表(自チーム=金/🟩昇格圏/🟥降格圏)を表示。
+  - **宿敵ダービー(実装済み)**: 恒常ライバル`nemesis`(レガリアFC)を `careerLeaguePool` が各DIV日程の `derbyNode` 枠に注入(昇格しても付いてくる・lvは一段上=`nemesisLv`)。宿敵戦は⚔ダービー(専用ラベル)。**勝利で士気ボーナス**(全能力`+derbyMul`を監督boostへ)、引分/敗北は雪辱メッセージ。
   - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
   - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
