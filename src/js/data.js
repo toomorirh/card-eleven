@@ -307,7 +307,21 @@ const CAREER={
   growthCap:6,                     // 1ステあたりの成長上限(+)。伸びしろの天井
   growthFloor:4,                   // 衰退の下限(-)。老雄の酷使で下がる幅の上限
   growthThresh:7.0,                // この評価以上で成長(MOM級ほど大きい)
+  loanCost:40,                     // 助っ人(固有選手)招へいのプレステージ費用(シーズン限定)
 };
+// ===== クラブの格(名声/プレステージ)→ 施設で段階解放(キャリア限定・ローグライク) =====
+// prestige=勝利/タイトル/昇格で貯まる。施設をLv上げして編成上限/成長速度/コンディションを強化。
+const FACILITIES=[
+  {id:"stadium",name:"スタジアム",icon:"🏟",max:5,base:20,step:15,descL:l=>`編成OVR上限 +${l*40}`},
+  {id:"academy",name:"アカデミー",icon:"🎓",max:5,base:25,step:15,descL:l=>`選手の成長速度 +${l*15}%`},
+  {id:"medical",name:"メディカル",icon:"🏥",max:5,base:20,step:12,descL:l=>`コンディション底上げ Lv${l}`},
+];
+function facById(id){return FACILITIES.find(f=>f.id===id);}
+function facLv(cr,id){return (cr&&cr.fac&&cr.fac[id])||0;}
+function facCost(f,lv){return f.base+lv*f.step;}                 // 現Lv→次Lvの費用
+function careerCap(cr){return (cr?cr.ovrCap:0)+facLv(cr,"stadium")*40;} // スタジアムぶんを含む実効OVR上限
+function facGrowthMul(cr){return 1+facLv(cr,"academy")*0.15;}    // アカデミー: 成長速度
+function facCondShift(cr){return facLv(cr,"medical")*0.02;}      // メディカル: コンディション底上げ
 // カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
 const CAREER_TACS={
   basic:[

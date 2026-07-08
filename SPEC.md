@@ -497,6 +497,10 @@
     - **加齢 `season`**: シーズン終了ごとに+1(`careerRecordResult`)。`careerTeam` が `p.ageBonus=cr.season` を付与→`effAge` が上昇し、若手→全盛期→老雄へ世代交代。**老雄/ベテランの低調な酷使**(`phase.decline`>0 かつ 評価<5.0)で spd/sta が微衰退。
     - **育成スカッド画面**: `careerSquadView` が現在の編成XIを 年齢/フェーズ・調子・成長(+N)・成長込みOVR で一覧表示(`renderCareer`)。
   - **手動XI編成盤(B3・実装済み)**: `cr.squad{slot:cardId}` に**先発を手動指定**(空=自動)。`careerPicks` が「手動枠を尊重→空き枠を貪欲補完」、`careerTeam` の上限トリムは**自動枠のみ**下げる(選んだ主力は残す)。`openCareerEditor` の編成盤: 枠一覧(年齢/調子/成長/OVR/⚠適性外)→タップで選手ピッカー、`careerBaseTotal`(素OVR=成長非加算)で**上限厳守**を可視化(超過は赤・`startCareerMatch` がブロック)。「⚙全て自動」で `cr.squad` クリア。→ 調子/成長/加齢を見て**休養・起用・世代交代を選ぶ**ローテ戦略が成立。
+  - **クラブの格・名声/施設(D・実装済み・キャリア限定/ローグライク)**: `cr.prestige`(名声)＋`cr.fac`(施設Lv)＋`cr.loan`(助っ人)。
+    - **名声 `prestige`**: onEndで獲得(勝2/分1＋ダービー勝+3/カップ優勝+15/昇格+10/大陸解禁+20/DIV優勝+8/上位+5)。施設・助っ人の通貨。
+    - **施設 `FACILITIES`**(名声で段階解放・`facCost`): 🏟スタジアム→**実効OVR上限 `careerCap`**(+40/Lv、`startCareerMatch`/編成盤/スカッドが参照)、🎓アカデミー→**成長速度 `facGrowthMul`**(+15%/Lv、`careerApplyGrowth`)、🏥メディカル→**コンディション底上げ `facCondShift`**(+0.02/Lv、`careerCondition`)。`careerFacilities` パネル(`renderCareer`)でアップグレード。
+    - **助っ人招へい `loan`**: 名声`loanCost`を払い固有選手を1人**シーズン限定**で編成プールへ(`careerLoanOffer`→`makeSignature`)。`careerPool`(=`S.coll`+loan)が careerPicks/careerTeam/編成ピッカーに供給。シーズン終了(`careerRecordResult`)で契約満了=`cr.loan=null`。
   - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
   - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。

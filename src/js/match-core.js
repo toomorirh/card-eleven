@@ -84,26 +84,28 @@ function myTeam(){
 }
 // 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
 const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+// 育成で選べる選手プール = 手持ち + 招へい中の助っ人(固有選手・シーズン限定)。
+function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
 // 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
 function careerPicks(cr){
-  const form=FORMS[S.form]||FORMS["4-4-2"], used=new Set(), picks=[];
+  const form=FORMS[S.form]||FORMS["4-4-2"], used=new Set(), picks=[], pool=careerPool(cr);
   const manual=(cr&&cr.squad)||{};
   form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可)
     let c=null; const mid=manual[i];
-    if(mid!=null){ c=S.coll.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
+    if(mid!=null){ c=pool.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
     if(c)used.add(c.id);
     picks.push({c, sub:sl[0], manual:!!c});
   });
   picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完
     let best=null,bs=-1;
-    for(const c of S.coll){ if(used.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    for(const c of pool){ if(used.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
     if(best){p.c=best;used.add(best.id);}
   });
   return {picks,used};
 }
 function careerTeam(cap){
   const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
-  const cr=(typeof S!=="undefined")&&S.career;
+  const cr=(typeof S!=="undefined")&&S.career, pool=careerPool(cr);
   const {picks,used}=careerPicks(cr);
   // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
   const tot=()=>picks.reduce((s,p)=>s+(p.c?ovr(p.c):0),0);
@@ -112,7 +114,7 @@ function careerTeam(cap){
     let pick=null,alt=null,bestSave=0;
     for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
-      for(const c of S.coll){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
+      for(const c of pool){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
         const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
       if(a){const save=ovr(p.c)-ovr(a); if(save>bestSave){bestSave=save;pick=p;alt=a;}}
     }
@@ -135,8 +137,8 @@ function growthStatsFor(p){
 // 調子(コンディション): 前節評価(好調継続)+フェーズの波×乱数。±約12〜15%。{mul,key,label,icon}。
 function careerCondition(cr,c,phase){
   const f=(cr.form&&cr.form[c.id])||{}, lastR=(f.lastR!=null)?f.lastR:6.0, vol=(phase&&phase.condVol)||1;
-  let v=(lastR-6.0)*0.06+(Math.random()*2-1)*0.09*vol;
-  v=Math.max(-0.12,Math.min(0.15,v));
+  let v=(lastR-6.0)*0.06+(Math.random()*2-1)*0.09*vol+facCondShift(cr); // メディカル施設で底上げ
+  v=Math.max(-0.12,Math.min(0.18,v));
   let key,label,icon;
   if(v>=0.10){key="peak";label="絶好調";icon="⤴";}
   else if(v>=0.04){key="good";label="好調";icon="↗";}
@@ -152,8 +154,8 @@ function careerApplyGrowth(cr,homeTeam,awayTeam){
     const id=p.c.id, r=statRating(p,awayTeam), phase=agePhase(effAge(p));
     const f=cr.form[id]||(cr.form[id]={apps:0,lastR:6}); f.apps++; f.lastR=r;
     const g=cr.growth[id]||(cr.growth[id]={off:0,def:0,pow:0,tec:0,spd:0,sta:0});
-    if(r>=CAREER.growthThresh){ // 高評価→主ステが伸びる(若手ほど大きい)
-      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8), ks=growthStatsFor(p);
+    if(r>=CAREER.growthThresh){ // 高評価→主ステが伸びる(若手ほど大きい・アカデミーで加速)
+      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8)*facGrowthMul(cr), ks=growthStatsFor(p);
       ks.forEach(k=>{ g[k]=Math.min(CAREER.growthCap,(g[k]||0)+amt/ks.length); });
     }
     if((phase.decline||0)>0 && r<5.0){ // 老雄/ベテランの低調な酷使→spd/staが微減
@@ -208,6 +210,7 @@ function careerRecordResult(cr,sh,sa){
   const out={res,pts,seasonEnd:false,promoted:false,boost:null};
   if(cr.node>=CAREER.nodes){ // シーズン終了
     cr.season=(cr.season||0)+1;                            // 加齢: 実効年齢+1(若手→全盛期→老雄へ・カード本体は不変)
+    cr.loan=null;                                          // 助っ人はシーズン限りで契約満了(期限付き)
     const perf=0.4+0.6*(cr.pts/(CAREER.nodes*3));          // 0.4(不振)〜1.0(完全優勝)
     if(cont){ // 大陸リーグ制覇 → その大陸の系統ステに特化したboost(高倍率)
       const mul=Math.round((1+cont.base*perf)*1000)/1000;

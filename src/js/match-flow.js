@@ -587,7 +587,8 @@ function startCareer(){
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0, squad:{}}; // 成長/調子/加齢＋手動編成(空=自動)
+    growth:{}, form:{}, cond:{}, season:0, squad:{}, // 成長/調子/加齢＋手動編成(空=自動)
+    prestige:0, fac:{stadium:0,academy:0,medical:0}, loan:null}; // クラブの格(名声→施設解放)＋助っ人
   save(); gotoCareer();
 }
 function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合。上限内編成で相応の相手と対戦。
@@ -595,10 +596,11 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   if(cr.stage==="cont"&&!cr.contId&&!cr.cup){careerContPicker();return;} // 大陸未選択なら選択へ
   if(finalizeCareerIfDone())return;
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
-  const team=careerTeam(cr.ovrCap);
+  const cap=careerCap(cr); // スタジアム施設ぶんを含む実効上限
+  const team=careerTeam(cap);
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
   const baseTot=careerBaseTotal(cr); // 手動編成が上限超過ならブロック(選んだ主力の素OVR合計)
-  if(baseTot>cr.ovrCap){S._careerMatch=false;toast(`編成OVR ${baseTot} が上限 ${cr.ovrCap} を超過。編成を見直そう`);renderCareer();return;}
+  if(baseTot>cap){S._careerMatch=false;toast(`編成OVR ${baseTot} が上限 ${cap} を超過。編成を見直そう`);renderCareer();return;}
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
@@ -831,29 +833,31 @@ const MATCH_MODES={
     S._careerMatch=false;
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
+    let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
     const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
     const e=document.getElementById("matchEnd");
     let html=`<div class="banner">${head} ${sh}-${sa}</div>`, champCup=null;
     if(inCup){
       const cupName=cr.cup.name, o=careerCupResult(cr,sh,sa);
-      if(o.champion){champCup=o.cup; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
-      else if(o.advance)html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;
+      if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
+      else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;}
       else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
     }else{
       const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};
       if(wasDerby){ // ダービーの結果(勝利=士気ボーナス、それ以外=雪辱)
-        if(sh>sa){cr.boosts.push({pos:"all",stat:"all",mul:CAREER.derbyMul});
+        if(sh>sa){cr.boosts.push({pos:"all",stat:"all",mul:CAREER.derbyMul}); pp+=3;
           html+=`<div class="banner" style="color:#ffd24a">⚔ ダービー制覇! 士気が高まった(監督バフ 全能力+${Math.round((CAREER.derbyMul-1)*1000)/10}%)</div>`;}
         else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⚔ 宿敵レガリアに屈した…次こそ雪辱を</div>`;
       }
       if(o.seasonEnd){
         const pct=Math.round((o.boost.mul-1)*1000)/10;
         if(o.contName){ // 大陸リーグ制覇→系統ステboost
-          const st=MGR_STAT_JP[o.contStat]||o.contStat;
+          const st=MGR_STAT_JP[o.contStat]||o.contStat; pp+=15;
           html+=`<div class="banner" style="color:#ffd24a">🌐 ${o.contName}リーグ制覇! → 監督バフ「${st} +${pct}%」獲得!</div>`;
         }else{ // DIVシーズン終了(順位で昇降格)
           const rankTxt=o.champion?"🏆 優勝":`${o.rank}位`;
+          pp+=o.toCont?20:o.promoted?10:o.champion?8:(o.rank<=2?5:2);
           html+=`<div class="banner" style="color:#7dff9e">📅 DIV${o.seasonDiv} シーズン終了 ${rankTxt}(全${o.size}チーム) 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」</div>`;
           if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
           else if(o.relegated)html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⬇ DIV${cr.div}へ降格…立て直そう</div>`;
@@ -862,6 +866,7 @@ const MATCH_MODES={
         }
       }
     }
+    if(cr&&pp){cr.prestige=(cr.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${cr.prestige})</div>`;}
     e.innerHTML=html;
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";

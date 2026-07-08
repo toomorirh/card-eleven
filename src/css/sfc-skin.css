@@ -148,6 +148,10 @@ h1{text-shadow:3px 3px 0 #06301c}
   border-radius:8px;margin:4px 0;background:#111c2e;cursor:pointer}
 .career-edit .ce-slot:active{background:#16233a}
 .career-edit .ce-slot .ce-meta{margin-left:auto;font-size:10px;color:#cdd6e6;font-family:'DotGothic16';white-space:nowrap}
+/* クラブ施設パネル(名声→段階解放) */
+.fac-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #22304a;border-radius:8px;margin:4px 0;background:#111c2e}
+.fac-row .fac-info{flex:1 1 auto;min-width:0}
+.fac-row .lv{font-size:10px;color:#ffe14d}
 .fieldwrap{position:relative;width:100%}
 /* 試合後スタッツ: 全画面スクロール(11人を窮屈な枠内でなく画面全体で見られる)。
    下部の結果シート(#matchEnd, z140)に被らないよう padding-bottom で余白を確保。 */

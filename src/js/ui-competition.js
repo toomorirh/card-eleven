@@ -543,7 +543,7 @@ function careerStandingsTable(cr){
 // 育成スカッド: 現在の自動編成XIを年齢/フェーズ・調子・成長・OVR(成長込み)で一覧。育てた実感を見せる。
 function careerSquadView(cr){
   if(!cr)return null;
-  let team; try{team=careerTeam(cr.ovrCap);}catch(e){return null;}
+  let team; try{team=careerTeam(careerCap(cr));}catch(e){return null;}
   if(!team||!team.players.length)return null;
   const CI={peak:"⤴",good:"↗",ok:"→",bad:"↘",poor:"⤵"};
   const gsum=p=>{const g=p.grow||{};return(g.off||0)+(g.def||0)+(g.pow||0)+(g.tec||0)+(g.spd||0)+(g.sta||0);};
@@ -570,9 +570,9 @@ function openCareerEditor(){
   careerEditSlots(cr,ov);
 }
 function _ceHead(cr,ov){
-  const base=careerBaseTotal(cr), over=base>cr.ovrCap, head=ov.querySelector(".ce-head");
+  const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, head=ov.querySelector(".ce-head");
   head.innerHTML=`<div class="banner" style="margin:0 0 4px">✏ 育成編成 (${S.form})</div>`
-    +`<div class="lg">編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 上限 ${cr.ovrCap}${over?" ⚠上限超過(試合不可)":""}</div>`;
+    +`<div class="lg">編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 上限 ${cap}${over?" ⚠上限超過(試合不可)":""}</div>`;
   const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:6px";
   const auto=document.createElement("button");auto.className="btn ghost";auto.textContent="⚙ 全て自動に戻す";
   auto.onclick=async()=>{cr.squad={};await save();careerEditSlots(cr,ov);};
@@ -610,7 +610,7 @@ function careerEditPick(cr,slot,ov){
   body.appendChild(clr);
   const usedElse=Object.entries(cr.squad||{}).filter(([k])=>+k!==slot).map(([,v])=>v);
   const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px";
-  S.coll.filter(c=>!usedElse.includes(c.id))
+  careerPool(cr).filter(c=>!usedElse.includes(c.id))
     .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||cardOvr(b)-cardOvr(a))
     .forEach(c=>{
       const e=cardEl(c);
@@ -619,6 +619,48 @@ function careerEditPick(cr,slot,ov){
       grid.appendChild(e);
     });
   body.appendChild(grid);
+}
+// クラブ施設パネル(名声で段階解放): スタジアム/アカデミー/メディカル + 助っ人招へい。
+function careerFacilities(cr){
+  const wrap=document.createElement("div");
+  FACILITIES.forEach(f=>{
+    const lv=facLv(cr,f.id), cost=facCost(f,lv), maxed=lv>=f.max, afford=(cr.prestige||0)>=cost;
+    const row=document.createElement("div");row.className="fac-row";
+    row.innerHTML=`<div class="fac-info"><b>${f.icon} ${f.name}</b> <span class="lv">Lv${lv}/${f.max}</span><br>`
+      +`<span class="lg" style="font-size:10px">${f.descL(lv)}${maxed?"":` → 次Lv: ${f.descL(lv+1)}`}</span></div>`;
+    const b=document.createElement("button");b.className="btn"+(maxed||!afford?" ghost":"");b.style.cssText="flex:0 0 auto;padding:6px 10px";
+    b.textContent=maxed?"MAX":`🏛${cost}`;
+    if(maxed||!afford){b.disabled=true;b.style.opacity=".5";}
+    else b.onclick=async()=>{cr.fac[f.id]=lv+1;cr.prestige-=cost;await save();toast(`${f.icon}${f.name}をLv${lv+1}に強化!`);renderCareer();};
+    row.appendChild(b);wrap.appendChild(row);
+  });
+  // 助っ人(固有選手)招へい: 名声を払い、シーズン限定で固有選手をプールへ追加。
+  const loanRow=document.createElement("div");loanRow.className="fac-row";
+  if(cr.loan){
+    loanRow.innerHTML=`<div class="fac-info"><b>💫 招へい中: ${cr.loan.flag||""}${cr.loan.name}</b><br><span class="lg" style="font-size:10px">シーズン終了で契約満了。編成盤で先発起用できる</span></div>`;
+  }else{
+    const afford=(cr.prestige||0)>=CAREER.loanCost;
+    loanRow.innerHTML=`<div class="fac-info"><b>💫 助っ人を招へい</b><br><span class="lg" style="font-size:10px">固有選手をシーズン限定でプールへ(🏛${CAREER.loanCost})</span></div>`;
+    const b=document.createElement("button");b.className="btn"+(afford?"":" ghost");b.style.cssText="flex:0 0 auto;padding:6px 10px";b.textContent=`🏛${CAREER.loanCost}`;
+    if(!afford){b.disabled=true;b.style.opacity=".5";}else b.onclick=()=>careerLoanOffer(cr);
+    loanRow.appendChild(b);
+  }
+  wrap.appendChild(loanRow);
+  return wrap;
+}
+// 助っ人オファー: ランダム3人の固有選手から1人を選ぶ(名声を消費)。
+function careerLoanOffer(cr){
+  const ids=SIGNATURES.map(s=>s.id), pick=[];
+  while(pick.length<3&&ids.length)pick.push(ids.splice(ri(0,ids.length-1),1)[0]);
+  const ov=document.createElement("div");ov.className="tac-offer";
+  const inn=document.createElement("div");inn.className="tac-offer-in";
+  inn.innerHTML=`<div class="banner">💫 助っ人招へい(🏛${CAREER.loanCost})</div><div class="lg">シーズン限定で加入する固有選手を1人選択</div>`;
+  pick.forEach(id=>{const s=signatureById(id);if(!s)return;
+    const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
+    b.innerHTML=`<b>${s.flag} ${s.name}</b> <span class="lv">${s.age}歳${agePhase(s.age).icon} ${s.pos}</span><br><span class="lg" style="font-size:10px">✦${s.skill.name}</span>`;
+    b.onclick=async()=>{cr.loan=makeSignature(id);cr.prestige-=CAREER.loanCost;await save();ov.remove();toast(`💫 ${s.name}が加入! 編成盤で起用しよう`);renderCareer();};
+    inn.appendChild(b);});
+  ov.appendChild(inn);document.body.appendChild(ov);
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
@@ -634,7 +676,7 @@ function renderCareer(){
   const contNow=cr.contId?continentById(cr.contId):null;
   const stageTxt=contNow?`${contNow.emoji}${contNow.name}リーグ`:cr.stage==="cont"?"大陸リーグ(選択待ち)":`DIV${cr.div}`;
   box.appendChild(mk("div","lg",`👤 <b>${cr.name}</b> 監督 ・ 進行 <b>${cr.step}/${cr.stepsMax||CAREER.steps}</b> 週${(cr.term||0)?` (延長${cr.term})`:""}`));
-  box.appendChild(mk("div","lg",`現在: <b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ シーズン勝点 ${cr.pts||0} ・ 編成OVR上限 <b>${cr.ovrCap}</b>`));
+  box.appendChild(mk("div","lg",`現在: <b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ シーズン勝点 ${cr.pts||0} ・ 編成OVR上限 <b>${careerCap(cr)}</b>${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟${facLv(cr,"stadium")*40})`:""} ・ 🏛名声 <b>${cr.prestige||0}</b>`));
   box.appendChild(mk("div","lg",`🔼 獲得バフ(${cr.boosts.length}): ${cr.boosts.length?cr.boosts.map(boostDesc1).join(" / "):"(まだ無し)"}`));
   box.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
   if(cr.cup){
@@ -652,6 +694,8 @@ function renderCareer(){
     eb.textContent=manualN?`✏ 手動で編成(${manualN}枠指定中)`:"✏ 手動で編成する(調子/成長を見てローテ)";
     eb.onclick=openCareerEditor;box.appendChild(eb);
   }
+  box.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${cr.prestige||0} ―`));
+  box.appendChild(careerFacilities(cr));
   if(cr.stage!=="cont"&&!cr.contId){ // DIVリーグ中は順位表を表示
     const st=careerStandingsTable(cr);
     if(st){box.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));box.appendChild(st);}
