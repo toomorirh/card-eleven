@@ -543,6 +543,12 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  { // 交代枠(ベンチ): 事前設定した控えのみ試合中に投入可(通常=S.bench / 育成=cr.bench)。
+    const onF=new Set(home.players.map(p=>p.c.id));
+    MC.bench=(MC.mode==="career")
+      ? careerBenchCards(S.career).filter(c=>!onF.has(c.id))
+      : ((S.bench||[]).map(id=>S.coll.find(c=>c.id===id)).filter(c=>c&&!onF.has(c.id)));
+  }
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
@@ -587,7 +593,7 @@ function startCareer(){
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0, squad:{}, // 成長/調子/加齢＋手動編成(空=自動)
+    growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], // 成長/調子/加齢＋手動編成(空=自動)＋交代枠
     prestige:0, fac:{stadium:0,academy:0,medical:0}, loan:null}; // クラブの格(名声→施設解放)＋助っ人
   save(); gotoCareer();
 }
@@ -952,9 +958,9 @@ function renderBench(pi){
   const out=MC.home.players[pi];
   const onField=MC.home.players.map(p=>p.c.id);
   const benchedOut=MC.subbedOut||(MC.subbedOut=new Set()); // 既に交代退場した選手は戻せない
-  const bench=S.coll.filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id))
+  const bench=(MC.bench||[]).filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id)) // 事前設定のベンチからのみ交代可
     .sort((a,b)=>posFit(b.sub,out.subRole)-posFit(a.sub,out.subRole)||total(b)-total(a));
-  if(!bench.length){toast("交代で投入できる控え選手がいません");return;}
+  if(!bench.length){toast("交代枠に投入できる控えがいません(編成でベンチを設定)");return;}
   document.getElementById("subTitle").textContent=`INする選手を選択(OUT: ${out.c.name} / 枠は${out.subRole||out.role})`;
   document.getElementById("subList").style.display="none";
   const g=document.getElementById("subBench");g.style.display="flex";g.innerHTML="";

@@ -797,6 +797,15 @@ h1{text-shadow:3px 3px 0 #06301c}
 .fac-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #22304a;border-radius:8px;margin:4px 0;background:#111c2e}
 .fac-row .fac-info{flex:1 1 auto;min-width:0}
 .fac-row .lv{font-size:10px;color:#ffe14d}
+/* ベンチ(交代枠)スロット(通常編成盤) */
+.bench-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.bench-slot{border:1px solid #2a3d56;border-radius:8px;background:#111c2e;padding:5px 3px;text-align:center;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;min-height:70px;justify-content:center}
+.bench-slot.empty{border-style:dashed;opacity:.7}
+.bench-slot .nm{font-size:9px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.bench-slot .ovr{font-size:9px;color:var(--gold)}
+.bench-slot .ph{font-size:20px;color:#4a6285}
+.bench-slot .bs-lb{font-size:9px;color:#8fa3b8}
 .fieldwrap{position:relative;width:100%}
 /* 試合後スタッツ: 全画面スクロール(11人を窮屈な枠内でなく画面全体で見られる)。
    下部の結果シート(#matchEnd, z140)に被らないよう padding-bottom で余白を確保。 */
@@ -948,6 +957,7 @@ h1{text-shadow:3px 3px 0 #06301c}
     <div class="lg" id="chemStatus" style="margin-top:6px"></div>
     <div class="mgr-advice" id="mgrAdvice" style="display:none"></div>
     <div class="pitch" id="pitch"><div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div></div>
+    <div id="benchBox"></div>
     <div class="row" style="margin-top:8px;align-items:center">
       <button class="btn ghost" id="fmBtn">フォーメーション: <span id="fmName">4-4-2</span></button>
       <button class="btn ghost" id="autoBtn" style="flex:0 0 88px">自動編成</button>
@@ -1208,6 +1218,7 @@ const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};
 const STAT_COL={off:"#ff6b6b",def:"#5db4ff",pow:"#ffae57",tec:"#7fdb8e",spd:"#4fd6e0",sta:"#c79bff"}; // ステータス別ゲージ色
 const STAT_SHORT={off:"OF",def:"DF",pow:"PO",tec:"TE",spd:"SP",sta:"ST"}; // カード表示用の略称(視認性重視)
 const DUEL_TYPES={spd:{icon:"⚡",label:"スピード勝負"},pow:{icon:"💪",label:"パワー勝負"},tec:{icon:"🎯",label:"テクニック勝負"}};
+const BENCH_SIZE=5; // 事前設定するベンチ(交代枠)の人数。試合中の交代はこの中からのみ(通常/育成 共通)。
 // 攻撃スタイル レジストリ: btn=ボタン表示 / label=実況表示 / channelBias=チャンネル重みバイアス / mid=支配率補正。
 // 追加=1エントリ(編成のスタイルボタンも自動生成)。※相手AIの選好は別途 oppPickStyle がスタイル別スコアを持つ。
 const STYLES={
@@ -4267,7 +4278,7 @@ var qrcode = function() {
 }();
 
 // ================= 状態と保存 =================
-let S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[]};
+let S={coins:300,coll:[],squad:{},bench:[],form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[]};
 const SAVE_KEY="ci-save";
 const COLL_CAP=500; // クラブに保存できる選手の最大数(超過しないよう入手時にガード)
 // 永続化: 旧環境の window.storage(非同期)があれば優先、無ければブラウザの localStorage(同期)。
@@ -4353,6 +4364,8 @@ async function loadGame(){                                       // つづきか
   if(S.v!==9){migrate();await save();}
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
+  if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換
+  if(S.career&&!Array.isArray(S.career.bench))S.career.bench=[];
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。
@@ -4562,9 +4575,41 @@ function renderPitch(){
       ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
+  renderBenchSlots();
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
+}
+// ベンチ(交代枠): 事前に控えを設定。試合中の交代はここからのみ。
+function renderBenchSlots(){
+  const box=document.getElementById("benchBox"); if(!box)return;
+  if(!Array.isArray(S.bench))S.bench=[];
+  box.innerHTML='<div class="lg" style="margin:8px 0 2px">🔁 ベンチ(交代枠) — 試合中の交代はここからのみ</div>';
+  const row=document.createElement("div");row.className="bench-row";
+  for(let j=0;j<BENCH_SIZE;j++){
+    const id=S.bench[j], c=(id!=null)&&S.coll.find(k=>k.id===id);
+    const d=document.createElement("div");d.className="bench-slot"+(c?" filled":" empty");
+    if(c){d.innerHTML=`<div class="bs-sprite"></div><b class="nm">${c.name}</b><span class="ovr">OVR${total(c)}</span>`;
+      d.querySelector(".bs-sprite").appendChild(spriteCanvas(c,34));}
+    else d.innerHTML=`<div class="ph">＋</div><span class="bs-lb">控え${j+1}</span>`;
+    d.onclick=()=>openBenchPicker(j);
+    row.appendChild(d);
+  }
+  box.appendChild(row);
+}
+function openBenchPicker(j){
+  document.getElementById("pickTitle").textContent=`ベンチ枠${j+1}に置く控え(タップで配置/もう一度で外す)`;
+  const g=document.getElementById("pickGrid");g.innerHTML="";
+  const used=Object.values(S.squad).concat(S.bench.filter((_,k)=>k!==j)); // 先発・他ベンチと重複不可
+  const cur=S.bench[j];
+  S.coll.filter(c=>!used.includes(c.id)).sort((a,b)=>total(b)-total(a)).forEach(c=>{
+    const e=cardEl(c);
+    if(c.id===cur)e.classList.add("sel");
+    e.onclick=async()=>{ if(c.id===cur)S.bench[j]=null; else S.bench[j]=c.id;
+      await save();renderPitch();document.getElementById("picker").classList.remove("on"); };
+    g.appendChild(e);
+  });
+  document.getElementById("picker").classList.add("on");
 }
 // ケミストリー線: 同国籍の選手同士を結ぶ(位置順に鎖状)。最多同国籍=実際にボーナスが出ているグループは
 // 強調(シアン実線)、その他の同国籍ペアは控えめ(破線)。最多の選び方は recalcAuras と同じ(スロット順で先に
@@ -4669,7 +4714,9 @@ document.getElementById("autoBtn").onclick=async()=>{
       || (posFit(b.sub,sub)-posFit(a.sub,sub)));
     const c=pool.shift();if(c)S.squad[i]=c.id;
   });
-  await save();renderPitch();toast("自動編成完了!");
+  const starters=new Set(Object.values(S.squad)); // 残りの上位をベンチへ自動補充
+  S.bench=S.coll.filter(c=>!starters.has(c.id)).sort((a,b)=>total(b)-total(a)).slice(0,BENCH_SIZE).map(c=>c.id);
+  await save();renderPitch();toast("自動編成完了!(ベンチ含む)");
 };
 
 // ================= クラブ(所属選手) =================
@@ -5639,6 +5686,41 @@ function careerEditSlots(cr,ov){
       +`<span class="ce-meta">${age}${ph.icon} ${ck?_CE_CI[ck]:""} ${gtxt} OVR${cardOvr(c)}${pen}</span>`;
     body.appendChild(row);
   });
+  // ベンチ(交代枠): 試合中の交代はここからのみ。素OVRは上限内に含む。
+  if(!Array.isArray(cr.bench))cr.bench=[];
+  const bh=document.createElement("div");bh.className="lg";bh.style.cssText="margin:8px 0 2px";bh.textContent="🔁 ベンチ(交代枠) — 上限内・交代はここから";
+  body.appendChild(bh);
+  const pool=careerPool(cr);
+  for(let j=0;j<BENCH_SIZE;j++){
+    const id=cr.bench[j], c=(id!=null)&&pool.find(k=>k.id===id);
+    const row=document.createElement("div");row.className="ce-slot";row.onclick=()=>careerEditBenchPick(cr,j,ov);
+    if(!c){row.innerHTML=`<span class="pos">控${j+1}</span> <span class="lg">(空き) — タップで選択</span>`;body.appendChild(row);continue;}
+    const age=ageOf(c)+(cr.season||0), ph=agePhase(age);
+    row.innerHTML=`<span class="pos ${subGroup(c.sub)}">控${j+1}</span> <b>${c.name}</b> <span class="lg" style="font-size:9px">${c.sub}</span>`
+      +`<span class="ce-meta">${age}${ph.icon} OVR${cardOvr(c)}</span>`;
+    body.appendChild(row);
+  }
+}
+function careerEditBenchPick(cr,j,ov){
+  const body=ov.querySelector(".ce-body");body.innerHTML="";
+  const bar=document.createElement("div");bar.style.cssText="display:flex;gap:6px;align-items:center;margin-bottom:6px";
+  const back=document.createElement("button");back.className="btn ghost";back.textContent="← 戻る";back.onclick=()=>careerEditSlots(cr,ov);
+  bar.appendChild(back);
+  const t=document.createElement("div");t.className="lg";t.innerHTML=`<b>ベンチ枠${j+1}</b> に置く控え(タップで配置)`;bar.appendChild(t);
+  body.appendChild(bar);
+  const clr=document.createElement("button");clr.className="btn ghost";clr.style.marginBottom="6px";clr.textContent="この枠を空にする";
+  clr.onclick=async()=>{cr.bench[j]=null;await save();careerEditSlots(cr,ov);};
+  body.appendChild(clr);
+  const usedXI=Object.values(cr.squad||{}), usedBench=cr.bench.filter((_,k)=>k!==j);
+  const used=usedXI.concat(usedBench);
+  const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px";
+  careerPool(cr).filter(c=>!used.includes(c.id)).sort((a,b)=>cardOvr(b)-cardOvr(a)).forEach(c=>{
+    const e=cardEl(c);
+    if(cr.bench[j]===c.id)e.classList.add("sel");
+    e.onclick=async()=>{cr.bench[j]=c.id;await save();careerEditSlots(cr,ov);};
+    grid.appendChild(e);
+  });
+  body.appendChild(grid);
 }
 function careerEditPick(cr,slot,ov){
   const body=ov.querySelector(".ce-body");body.innerHTML="";
@@ -5936,19 +6018,22 @@ function myTeam(){
 const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
 // 育成で選べる選手プール = 手持ち + 招へい中の助っ人(固有選手・シーズン限定)。
 function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
+// ベンチ(交代枠)に指定された cardId 集合。先発の自動補完から除外(先発と控えは重複しない)。
+function careerBenchSet(cr){return new Set(((cr&&cr.bench)||[]).filter(v=>v!=null));}
 // 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
-function careerPicks(cr){
+// exclude=先発に使わないカードid集合(=ベンチ指定選手)。
+function careerPicks(cr,exclude){
   const form=FORMS[S.form]||FORMS["4-4-2"], used=new Set(), picks=[], pool=careerPool(cr);
-  const manual=(cr&&cr.squad)||{};
-  form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可)
+  const ex=exclude||careerBenchSet(cr), manual=(cr&&cr.squad)||{};
+  form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可・ベンチ指定は不可)
     let c=null; const mid=manual[i];
-    if(mid!=null){ c=pool.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
+    if(mid!=null&&!ex.has(mid)){ c=pool.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
     if(c)used.add(c.id);
     picks.push({c, sub:sl[0], manual:!!c});
   });
-  picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完
+  picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完(ベンチ指定は除外)
     let best=null,bs=-1;
-    for(const c of pool){ if(used.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    for(const c of pool){ if(used.has(c.id)||ex.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
     if(best){p.c=best;used.add(best.id);}
   });
   return {picks,used};
@@ -5956,15 +6041,18 @@ function careerPicks(cr){
 function careerTeam(cap){
   const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
   const cr=(typeof S!=="undefined")&&S.career, pool=careerPool(cr);
-  const {picks,used}=careerPicks(cr);
+  const ex=careerBenchSet(cr);
+  const benchTot=[...ex].reduce((s,id)=>{const c=pool.find(k=>k.id===id);return s+(c?ovr(c):0);},0);
+  const xiCap=Math.max(0,cap-benchTot); // ベンチぶんを差し引いた先発の実効上限(=XI+ベンチ≤cap)
+  const {picks,used}=careerPicks(cr,ex);
   // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
   const tot=()=>picks.reduce((s,p)=>s+(p.c?ovr(p.c):0),0);
   let guard=0;
-  while(tot()>cap && guard++<300){
+  while(tot()>xiCap && guard++<300){
     let pick=null,alt=null,bestSave=0;
     for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
-      for(const c of pool){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
+      for(const c of pool){ if(used.has(c.id)||ex.has(c.id)||ovr(c)>=ovr(p.c))continue;
         const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
       if(a){const save=ovr(p.c)-ovr(a); if(save>bestSave){bestSave=save;pick=p;alt=a;}}
     }
@@ -5977,8 +6065,18 @@ function careerTeam(cap){
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
-// 現在の育成編成の素OVR合計(上限判定用・成長は非加算)。
-function careerBaseTotal(cr){return careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);}
+// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定用・成長は非加算)。
+function careerBaseTotal(cr){
+  const pool=careerPool(cr);
+  let t=careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);
+  ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
+  return t;
+}
+// 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
+function careerBenchCards(cr){
+  const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
+  return ((cr&&cr.bench)||[]).map(id=>pool.find(k=>k.id===id)).filter(c=>c&&!xi.has(c.id));
+}
 // ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
 // 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
 function growthStatsFor(p){
@@ -7355,6 +7453,12 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  { // 交代枠(ベンチ): 事前設定した控えのみ試合中に投入可(通常=S.bench / 育成=cr.bench)。
+    const onF=new Set(home.players.map(p=>p.c.id));
+    MC.bench=(MC.mode==="career")
+      ? careerBenchCards(S.career).filter(c=>!onF.has(c.id))
+      : ((S.bench||[]).map(id=>S.coll.find(c=>c.id===id)).filter(c=>c&&!onF.has(c.id)));
+  }
   document.getElementById("subN").textContent=3;
   buildField();
   feed(`⚽ キックオフ! vs ${name}${lv?`(Lv.${lv})`:""}`);
@@ -7399,7 +7503,7 @@ function startCareer(){
   S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0, squad:{}, // 成長/調子/加齢＋手動編成(空=自動)
+    growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], // 成長/調子/加齢＋手動編成(空=自動)＋交代枠
     prestige:0, fac:{stadium:0,academy:0,medical:0}, loan:null}; // クラブの格(名声→施設解放)＋助っ人
   save(); gotoCareer();
 }
@@ -7764,9 +7868,9 @@ function renderBench(pi){
   const out=MC.home.players[pi];
   const onField=MC.home.players.map(p=>p.c.id);
   const benchedOut=MC.subbedOut||(MC.subbedOut=new Set()); // 既に交代退場した選手は戻せない
-  const bench=S.coll.filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id))
+  const bench=(MC.bench||[]).filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id)) // 事前設定のベンチからのみ交代可
     .sort((a,b)=>posFit(b.sub,out.subRole)-posFit(a.sub,out.subRole)||total(b)-total(a));
-  if(!bench.length){toast("交代で投入できる控え選手がいません");return;}
+  if(!bench.length){toast("交代枠に投入できる控えがいません(編成でベンチを設定)");return;}
   document.getElementById("subTitle").textContent=`INする選手を選択(OUT: ${out.c.name} / 枠は${out.subRole||out.role})`;
   document.getElementById("subList").style.display="none";
   const g=document.getElementById("subBench");g.style.display="flex";g.innerHTML="";

@@ -182,6 +182,8 @@
 - 画面レイアウト(スマホ操作配慮): OVR関連情報(**平均OVR/TOTAL=`teamOvr`** と **ケミストリー=`chemStatus`**)を**最上部**にまとめ、操作系(**フォーメーション選択 / 自動編成**ボタン)は**最下部**に配置。
 - **自動編成**(旧「おまかせ編成」・`autoBtn`): 各枠を `[①大区分(FW/MF/DF/GK)一致 → ②同区分内はOVR(`total`)優先 → ③同OVRは `posFit`(exact>near>far)]` の順でソートして貪欲配置。**細分一致を基本としつつ、同じ大区分により高OVRの選手がいればそちら(細分違いでも)を優先**。同区分が尽きたら別区分へOVR順でフォールバック。
 - ピッカー/交代候補のソートは `posFit` 降順 → 総合値降順。
+- **ベンチ(交代枠)**(`BENCH_SIZE`=5・通常/育成 共通の構造): 先発XI(11)に加え**控えを事前に `S.bench`(通常)/`cr.bench`(育成)へ設定**。試合中の交代は**この事前ベンチからのみ**(`_beginMatch` が `MC.bench` を供給=通常は `S.bench`→`S.coll`、育成は `careerBenchCards`。`renderBench` は `MC.bench` から選ぶ)。従来の「`S.coll` 全体から交代」は廃止。交代回数は `MC.subs`=3。編成盤: 通常=`renderBenchSlots`/`openBenchPicker`(自動編成 `autoBtn` は残り上位でベンチも補充)、育成=編成盤に控え枠+`careerEditBenchPick`。
+  - **育成の上限**: `careerCap`(素OVR上限)は**XI+ベンチ合計**を制約(`careerBaseTotal` にベンチ加算)。`careerTeam` は先発の実効上限を `cap−ベンチ素OVR` に下げてトリムし、ベンチ指定選手は先発の自動補完から除外(`careerBenchSet`)。超過は編成盤で赤・`startCareerMatch` がブロック。→「厚いベンチ or 強い先発」のトレードオフ。通常モードは上限なし(ベンチ自由)。
 - `makeCard(pos, rar, base, sub)` の第1引数は大分類だが、細分pos(例 "LSB")を渡しても大分類へ正規化し細分として採用する(FORMS各枠の `sl[0]` をそのまま渡せる)。
 
 ### 3.5 国籍とケミストリー

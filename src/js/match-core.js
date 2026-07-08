@@ -86,19 +86,22 @@ function myTeam(){
 const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
 // 育成で選べる選手プール = 手持ち + 招へい中の助っ人(固有選手・シーズン限定)。
 function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
+// ベンチ(交代枠)に指定された cardId 集合。先発の自動補完から除外(先発と控えは重複しない)。
+function careerBenchSet(cr){return new Set(((cr&&cr.bench)||[]).filter(v=>v!=null));}
 // 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
-function careerPicks(cr){
+// exclude=先発に使わないカードid集合(=ベンチ指定選手)。
+function careerPicks(cr,exclude){
   const form=FORMS[S.form]||FORMS["4-4-2"], used=new Set(), picks=[], pool=careerPool(cr);
-  const manual=(cr&&cr.squad)||{};
-  form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可)
+  const ex=exclude||careerBenchSet(cr), manual=(cr&&cr.squad)||{};
+  form.forEach((sl,i)=>{ // 1) 手動枠を配置(所持・重複不可・ベンチ指定は不可)
     let c=null; const mid=manual[i];
-    if(mid!=null){ c=pool.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
+    if(mid!=null&&!ex.has(mid)){ c=pool.find(k=>k.id===mid); if(c&&used.has(c.id))c=null; }
     if(c)used.add(c.id);
     picks.push({c, sub:sl[0], manual:!!c});
   });
-  picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完
+  picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完(ベンチ指定は除外)
     let best=null,bs=-1;
-    for(const c of pool){ if(used.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    for(const c of pool){ if(used.has(c.id)||ex.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
     if(best){p.c=best;used.add(best.id);}
   });
   return {picks,used};
@@ -106,15 +109,18 @@ function careerPicks(cr){
 function careerTeam(cap){
   const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
   const cr=(typeof S!=="undefined")&&S.career, pool=careerPool(cr);
-  const {picks,used}=careerPicks(cr);
+  const ex=careerBenchSet(cr);
+  const benchTot=[...ex].reduce((s,id)=>{const c=pool.find(k=>k.id===id);return s+(c?ovr(c):0);},0);
+  const xiCap=Math.max(0,cap-benchTot); // ベンチぶんを差し引いた先発の実効上限(=XI+ベンチ≤cap)
+  const {picks,used}=careerPicks(cr,ex);
   // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
   const tot=()=>picks.reduce((s,p)=>s+(p.c?ovr(p.c):0),0);
   let guard=0;
-  while(tot()>cap && guard++<300){
+  while(tot()>xiCap && guard++<300){
     let pick=null,alt=null,bestSave=0;
     for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
-      for(const c of pool){ if(used.has(c.id)||ovr(c)>=ovr(p.c))continue;
+      for(const c of pool){ if(used.has(c.id)||ex.has(c.id)||ovr(c)>=ovr(p.c))continue;
         const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
       if(a){const save=ovr(p.c)-ovr(a); if(save>bestSave){bestSave=save;pick=p;alt=a;}}
     }
@@ -127,8 +133,18 @@ function careerTeam(cap){
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
-// 現在の育成編成の素OVR合計(上限判定用・成長は非加算)。
-function careerBaseTotal(cr){return careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);}
+// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定用・成長は非加算)。
+function careerBaseTotal(cr){
+  const pool=careerPool(cr);
+  let t=careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);
+  ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
+  return t;
+}
+// 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
+function careerBenchCards(cr){
+  const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
+  return ((cr&&cr.bench)||[]).map(id=>pool.find(k=>k.id===id)).filter(c=>c&&!xi.has(c.id));
+}
 // ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
 // 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
 function growthStatsFor(p){

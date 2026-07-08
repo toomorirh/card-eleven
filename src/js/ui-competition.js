@@ -596,6 +596,41 @@ function careerEditSlots(cr,ov){
       +`<span class="ce-meta">${age}${ph.icon} ${ck?_CE_CI[ck]:""} ${gtxt} OVR${cardOvr(c)}${pen}</span>`;
     body.appendChild(row);
   });
+  // ベンチ(交代枠): 試合中の交代はここからのみ。素OVRは上限内に含む。
+  if(!Array.isArray(cr.bench))cr.bench=[];
+  const bh=document.createElement("div");bh.className="lg";bh.style.cssText="margin:8px 0 2px";bh.textContent="🔁 ベンチ(交代枠) — 上限内・交代はここから";
+  body.appendChild(bh);
+  const pool=careerPool(cr);
+  for(let j=0;j<BENCH_SIZE;j++){
+    const id=cr.bench[j], c=(id!=null)&&pool.find(k=>k.id===id);
+    const row=document.createElement("div");row.className="ce-slot";row.onclick=()=>careerEditBenchPick(cr,j,ov);
+    if(!c){row.innerHTML=`<span class="pos">控${j+1}</span> <span class="lg">(空き) — タップで選択</span>`;body.appendChild(row);continue;}
+    const age=ageOf(c)+(cr.season||0), ph=agePhase(age);
+    row.innerHTML=`<span class="pos ${subGroup(c.sub)}">控${j+1}</span> <b>${c.name}</b> <span class="lg" style="font-size:9px">${c.sub}</span>`
+      +`<span class="ce-meta">${age}${ph.icon} OVR${cardOvr(c)}</span>`;
+    body.appendChild(row);
+  }
+}
+function careerEditBenchPick(cr,j,ov){
+  const body=ov.querySelector(".ce-body");body.innerHTML="";
+  const bar=document.createElement("div");bar.style.cssText="display:flex;gap:6px;align-items:center;margin-bottom:6px";
+  const back=document.createElement("button");back.className="btn ghost";back.textContent="← 戻る";back.onclick=()=>careerEditSlots(cr,ov);
+  bar.appendChild(back);
+  const t=document.createElement("div");t.className="lg";t.innerHTML=`<b>ベンチ枠${j+1}</b> に置く控え(タップで配置)`;bar.appendChild(t);
+  body.appendChild(bar);
+  const clr=document.createElement("button");clr.className="btn ghost";clr.style.marginBottom="6px";clr.textContent="この枠を空にする";
+  clr.onclick=async()=>{cr.bench[j]=null;await save();careerEditSlots(cr,ov);};
+  body.appendChild(clr);
+  const usedXI=Object.values(cr.squad||{}), usedBench=cr.bench.filter((_,k)=>k!==j);
+  const used=usedXI.concat(usedBench);
+  const grid=document.createElement("div");grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px";
+  careerPool(cr).filter(c=>!used.includes(c.id)).sort((a,b)=>cardOvr(b)-cardOvr(a)).forEach(c=>{
+    const e=cardEl(c);
+    if(cr.bench[j]===c.id)e.classList.add("sel");
+    e.onclick=async()=>{cr.bench[j]=c.id;await save();careerEditSlots(cr,ov);};
+    grid.appendChild(e);
+  });
+  body.appendChild(grid);
 }
 function careerEditPick(cr,slot,ov){
   const body=ov.querySelector(".ce-body");body.innerHTML="";

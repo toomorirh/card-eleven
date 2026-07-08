@@ -1,5 +1,5 @@
 // ================= 状態と保存 =================
-let S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[]};
+let S={coins:300,coll:[],squad:{},bench:[],form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[]};
 const SAVE_KEY="ci-save";
 const COLL_CAP=500; // クラブに保存できる選手の最大数(超過しないよう入手時にガード)
 // 永続化: 旧環境の window.storage(非同期)があれば優先、無ければブラウザの localStorage(同期)。
@@ -85,6 +85,8 @@ async function loadGame(){                                       // つづきか
   if(S.v!==9){migrate();await save();}
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
+  if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換
+  if(S.career&&!Array.isArray(S.career.bench))S.career.bench=[];
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。

@@ -123,9 +123,41 @@ function renderPitch(){
       ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
+  renderBenchSlots();
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
+}
+// ベンチ(交代枠): 事前に控えを設定。試合中の交代はここからのみ。
+function renderBenchSlots(){
+  const box=document.getElementById("benchBox"); if(!box)return;
+  if(!Array.isArray(S.bench))S.bench=[];
+  box.innerHTML='<div class="lg" style="margin:8px 0 2px">🔁 ベンチ(交代枠) — 試合中の交代はここからのみ</div>';
+  const row=document.createElement("div");row.className="bench-row";
+  for(let j=0;j<BENCH_SIZE;j++){
+    const id=S.bench[j], c=(id!=null)&&S.coll.find(k=>k.id===id);
+    const d=document.createElement("div");d.className="bench-slot"+(c?" filled":" empty");
+    if(c){d.innerHTML=`<div class="bs-sprite"></div><b class="nm">${c.name}</b><span class="ovr">OVR${total(c)}</span>`;
+      d.querySelector(".bs-sprite").appendChild(spriteCanvas(c,34));}
+    else d.innerHTML=`<div class="ph">＋</div><span class="bs-lb">控え${j+1}</span>`;
+    d.onclick=()=>openBenchPicker(j);
+    row.appendChild(d);
+  }
+  box.appendChild(row);
+}
+function openBenchPicker(j){
+  document.getElementById("pickTitle").textContent=`ベンチ枠${j+1}に置く控え(タップで配置/もう一度で外す)`;
+  const g=document.getElementById("pickGrid");g.innerHTML="";
+  const used=Object.values(S.squad).concat(S.bench.filter((_,k)=>k!==j)); // 先発・他ベンチと重複不可
+  const cur=S.bench[j];
+  S.coll.filter(c=>!used.includes(c.id)).sort((a,b)=>total(b)-total(a)).forEach(c=>{
+    const e=cardEl(c);
+    if(c.id===cur)e.classList.add("sel");
+    e.onclick=async()=>{ if(c.id===cur)S.bench[j]=null; else S.bench[j]=c.id;
+      await save();renderPitch();document.getElementById("picker").classList.remove("on"); };
+    g.appendChild(e);
+  });
+  document.getElementById("picker").classList.add("on");
 }
 // ケミストリー線: 同国籍の選手同士を結ぶ(位置順に鎖状)。最多同国籍=実際にボーナスが出ているグループは
 // 強調(シアン実線)、その他の同国籍ペアは控えめ(破線)。最多の選び方は recalcAuras と同じ(スロット順で先に
@@ -230,7 +262,9 @@ document.getElementById("autoBtn").onclick=async()=>{
       || (posFit(b.sub,sub)-posFit(a.sub,sub)));
     const c=pool.shift();if(c)S.squad[i]=c.id;
   });
-  await save();renderPitch();toast("自動編成完了!");
+  const starters=new Set(Object.values(S.squad)); // 残りの上位をベンチへ自動補充
+  S.bench=S.coll.filter(c=>!starters.has(c.id)).sort((a,b)=>total(b)-total(a)).slice(0,BENCH_SIZE).map(c=>c.id);
+  await save();renderPitch();toast("自動編成完了!(ベンチ含む)");
 };
 
 // ================= クラブ(所属選手) =================

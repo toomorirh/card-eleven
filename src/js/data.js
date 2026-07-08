@@ -119,6 +119,7 @@ const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};
 const STAT_COL={off:"#ff6b6b",def:"#5db4ff",pow:"#ffae57",tec:"#7fdb8e",spd:"#4fd6e0",sta:"#c79bff"}; // ステータス別ゲージ色
 const STAT_SHORT={off:"OF",def:"DF",pow:"PO",tec:"TE",spd:"SP",sta:"ST"}; // カード表示用の略称(視認性重視)
 const DUEL_TYPES={spd:{icon:"⚡",label:"スピード勝負"},pow:{icon:"💪",label:"パワー勝負"},tec:{icon:"🎯",label:"テクニック勝負"}};
+const BENCH_SIZE=5; // 事前設定するベンチ(交代枠)の人数。試合中の交代はこの中からのみ(通常/育成 共通)。
 // 攻撃スタイル レジストリ: btn=ボタン表示 / label=実況表示 / channelBias=チャンネル重みバイアス / mid=支配率補正。
 // 追加=1エントリ(編成のスタイルボタンも自動生成)。※相手AIの選好は別途 oppPickStyle がスタイル別スコアを持つ。
 const STYLES={
