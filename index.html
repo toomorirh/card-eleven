@@ -614,7 +614,7 @@ canvas.sprite{image-rendering:auto}
 .wt-card.played{opacity:.7}.wt-card.lock{opacity:.45}
 .wt-flag{font-size:26px;flex:0 0 auto;width:34px;text-align:center}
 .wt-info{flex:1;min-width:0;cursor:pointer}
-.wt-name{font-weight:900;font-size:14px}
+.wt-name{font-weight:900;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wt-sig{font-size:10px;color:var(--gold);font-weight:900}
 .wt-res{font-family:'DotGothic16';font-size:12px;flex:0 0 auto;white-space:nowrap}
 .wt-res.W{color:#7dff9e}.wt-res.D{color:#cfdcea}.wt-res.L{color:#ff8e8e}.wt-res.cur{color:var(--gold)}
@@ -7875,9 +7875,9 @@ const MATCH_MODES={
     showStatOverlay(M.home,M.away);
     const idx=M.idx;
     const row=document.createElement("div");row.className="row";
-    const rt=document.createElement("button");rt.className="btn";rt.textContent="🔄 リトライ";
+    const rt=document.createElement("button");rt.className="btn";rt.textContent="リトライ";
     rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
-    const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="戻る";
+    const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="ホームへ戻る";
     bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
     row.appendChild(rt);row.appendChild(bk);
     e.appendChild(row);

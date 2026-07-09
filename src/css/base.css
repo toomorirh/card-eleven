@@ -606,7 +606,7 @@ canvas.sprite{image-rendering:auto}
 .wt-card.played{opacity:.7}.wt-card.lock{opacity:.45}
 .wt-flag{font-size:26px;flex:0 0 auto;width:34px;text-align:center}
 .wt-info{flex:1;min-width:0;cursor:pointer}
-.wt-name{font-weight:900;font-size:14px}
+.wt-name{font-weight:900;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wt-sig{font-size:10px;color:var(--gold);font-weight:900}
 .wt-res{font-family:'DotGothic16';font-size:12px;flex:0 0 auto;white-space:nowrap}
 .wt-res.W{color:#7dff9e}.wt-res.D{color:#cfdcea}.wt-res.L{color:#ff8e8e}.wt-res.cur{color:var(--gold)}

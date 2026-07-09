@@ -802,9 +802,9 @@ const MATCH_MODES={
     showStatOverlay(M.home,M.away);
     const idx=M.idx;
     const row=document.createElement("div");row.className="row";
-    const rt=document.createElement("button");rt.className="btn";rt.textContent="🔄 リトライ";
+    const rt=document.createElement("button");rt.className="btn";rt.textContent="リトライ";
     rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
-    const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="戻る";
+    const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="ホームへ戻る";
     bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
     row.appendChild(rt);row.appendChild(bk);
     e.appendChild(row);
