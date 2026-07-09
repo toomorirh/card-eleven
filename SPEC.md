@@ -498,7 +498,9 @@
     - **コンディション `cond`**: 試合開始時に各先発へ決定(`careerCondition`=前節評価＋フェーズ`condVol`×乱数、±約12〜15%)→`eff` の `p.cond` 倍率。絶好調⤴〜絶不調⤵。キックオフに絶好調/不調をfeed。
     - **加齢 `season`**: シーズン終了ごとに+1(`careerRecordResult`)。`careerTeam` が `p.ageBonus=cr.season` を付与→`effAge` が上昇し、若手→全盛期→老雄へ世代交代。**老雄/ベテランの低調な酷使**(`phase.decline`>0 かつ 評価<5.0)で spd/sta が微衰退。
     - **育成スカッド画面**: `careerSquadView` が現在の編成XIを 年齢/フェーズ・調子・成長(+N)・成長込みOVR で一覧表示(`renderCareer`)。
-  - **手動XI編成盤(B3・実装済み)**: `cr.squad{slot:cardId}` に**先発を手動指定**(空=自動)。`careerPicks` が「手動枠を尊重→空き枠を貪欲補完」、`careerTeam` の上限トリムは**自動枠のみ**下げる(選んだ主力は残す)。`openCareerEditor` の編成盤: 枠一覧(年齢/調子/成長/OVR/⚠適性外)→タップで選手ピッカー、`careerBaseTotal`(素OVR=成長非加算)で**上限厳守**を可視化(超過は赤・`startCareerMatch` がブロック)。「⚙全て自動」で `cr.squad` クリア。→ 調子/成長/加齢を見て**休養・起用・世代交代を選ぶ**ローテ戦略が成立。
+  - **手動XI編成(B3・実装済み・通常編成と共通仕様)**: `cr.squad{slot:cardId}` に**先発を手動指定**(空=自動)。`careerPicks` が「手動枠を尊重→空き枠を貪欲補完」、`careerTeam` の上限トリムは**自動枠のみ**下げる(選んだ主力は残す)。
+    - **編成盤の共通化**: 通常編成の**ピッチ盤描画を共有関数化**(`pitchSlots(pitchEl,ctx)`/`benchSlots(box,ctx)`/`renderChemLines(pitch,squad,find)`/`openFormationPicker(onPick)`。ctx=`{squad,find,onSlot,bench,onBench,slotOvr}`)。育成のスカッドタブは同じピッチ盤(配置スロット＋タップで `#picker`→`openCareerSlotPicker`/`openCareerBenchPicker`)＋ベンチ＋フォーメーション/自動編成ボタンを表示し、`careerPool`(手持ち+助っ人)を供給。通常は `S.squad`/`S.coll`、育成は `cr.squad`/`careerPool` を差し替えるだけ=**両モードで完全に同一の操作**。
+    - **上限表示**: `careerBaseTotal`(素OVR=先発トリム後+ベンチ)を上限と対比表示(超過は琥珀・手持ちの下限がcap超ならプレー可)。「⚙自動編成」で `cr.squad`/`cr.bench` をクリア。育成固有の**年齢/調子/成長**は盤の下に詳細表(`careerSquadView`)で併設。
   - **クラブの格・名声/施設(D・実装済み・キャリア限定/ローグライク)**: `cr.prestige`(名声)＋`cr.fac`(施設Lv)＋`cr.loan`(助っ人)。
     - **名声 `prestige`**: onEndで獲得(勝2/分1＋ダービー勝+3/カップ優勝+15/昇格+10/大陸解禁+20/DIV優勝+8/上位+5)。施設・助っ人の通貨。
     - **施設 `FACILITIES`**(名声で段階解放・`facCost`): 🏟スタジアム→**実効OVR上限 `careerCap`**(+40/Lv、`startCareerMatch`/編成盤/スカッドが参照)、🎓アカデミー→**成長速度 `facGrowthMul`**(+15%/Lv、`careerApplyGrowth`)、🏥メディカル→**コンディション底上げ `facCondShift`**(+0.02/Lv、`careerCondition`)。`careerFacilities` パネル(`renderCareer`)でアップグレード。

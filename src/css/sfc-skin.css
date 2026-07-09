@@ -141,13 +141,6 @@ h1{text-shadow:3px 3px 0 #06301c}
 .ctable tr.meRow td{background:#2a2406;color:var(--gold);font-weight:900}
 .ctable tr.promo td:first-child{box-shadow:inset 3px 0 0 #4caf6a}
 .ctable tr.releg td:first-child{box-shadow:inset 3px 0 0 #d3564a}
-/* 手動XI編成盤(育成) */
-.career-edit{position:fixed;inset:0;z-index:200;background:rgba(6,12,22,.96);overflow:auto;padding:12px}
-.career-edit .ce-in{max-width:520px;margin:0 auto}
-.career-edit .ce-slot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 9px;border:1px solid #22304a;
-  border-radius:8px;margin:4px 0;background:#111c2e;cursor:pointer}
-.career-edit .ce-slot:active{background:#16233a}
-.career-edit .ce-slot .ce-meta{margin-left:auto;font-size:10px;color:#cdd6e6;font-family:'DotGothic16';white-space:nowrap}
 /* クラブ施設パネル(名声→段階解放) */
 .fac-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #22304a;border-radius:8px;margin:4px 0;background:#111c2e}
 .fac-row .fac-info{flex:1 1 auto;min-width:0}

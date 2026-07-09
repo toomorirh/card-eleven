@@ -68,41 +68,60 @@ function slotEffOVR(c,sub,i){
 }
 // 編成スロットが監督の采配条件(KP)に該当するか。一致したcond[sub,stat,th]を返す(無ければnull)。
 function slotTacCond(sub){const am=activeManager();const t=am&&am.tac;return t?t.cond.find(([cs])=>cs===sub)||null:null;}
-function renderPitch(){
-  const p=document.getElementById("pitch");
-  p.querySelectorAll(".slot").forEach(e=>e.remove());
-  document.getElementById("fmName").textContent=S.form;
-  const kp=KEYPOS[S.form]||{};
-  renderChemLines(p); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
+// ===== ピッチ盤(スロット)描画 — 通常/育成で共通。ctx で編成データ源を差し替える =====
+// ctx: {squad(slot→id), find(id→card), onSlot(i,sub), slotOvr?(c,sub,i), tacCond?(sub)}
+function pitchSlots(pitchEl, ctx){
+  pitchEl.querySelectorAll(".slot").forEach(e=>e.remove());
+  const kp=KEYPOS[S.form]||{}, tacCond=ctx.tacCond||slotTacCond, slotOvr=ctx.slotOvr||slotEffOVR;
   FORMS[S.form].forEach((sl,i)=>{
-    const [sub,x,y]=sl;
-    const role=subGroup(sub);
-    const d=document.createElement("div");d.className="slot";
-    d.style.left=x+"%";d.style.top=y+"%";
-    const key=kp[i];
-    if(key)d.classList.add("keypos");
-    const c=S.coll.find(k=>k.id===S.squad[i]);
+    const [sub,x,y]=sl, role=subGroup(sub);
+    const d=document.createElement("div");d.className="slot";d.style.left=x+"%";d.style.top=y+"%";
+    const key=kp[i]; if(key)d.classList.add("keypos");
+    const c=ctx.find(ctx.squad[i]);
     let fitCls="",fitMark="";
     if(c){
       const fit=posFit(c.sub,sub);
-      if(fit>=POSFIT.exact){fitCls="fit-ok";fitMark='<span class="fitmark">✓</span>';}                 // 完全一致
-      else if(fit>POSFIT.group){fitCls="fit-mild";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}    // 同分類・細分違い(本来の細分を表示)
-      else{fitCls="fit-bad";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}                          // 大分類違い
+      if(fit>=POSFIT.exact){fitCls="fit-ok";fitMark='<span class="fitmark">✓</span>';}
+      else if(fit>POSFIT.group){fitCls="fit-mild";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}
+      else{fitCls="fit-bad";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}
     }
-    const cc=slotTacCond(sub); // 監督の采配KP(該当ポジなら必要ステを表示)
+    const cc=tacCond(sub);
     const kpTag=cc?`<div class="kptag${c&&c[cc[1]]>=cc[2]?" met":""}">KP ${STAT_SHORT[cc[1]]}${cc[2]}</div>`:"";
     if(cc)d.classList.add("kp");
     const head=`<div class="slothead ${role} ${fitCls}">${sub}${fitMark}</div>`+(key?`<div class="keytag">⭐${STAT_SHORT[key]}+${Math.round((KEY_MUL-1)*100)}%</div>`:"")+kpTag;
     if(c){
       d.classList.add("filled");
-      const ovr=slotEffOVR(c,sub,i);
+      const ovr=slotOvr(c,sub,i);
       d.innerHTML=`${head}<div class="slotsprite"><div class="slotring ${c.rar}"></div></div>
         <div class="slotinfo"><span class="flag">${c.flag}</span><b class="nm">${c.name}</b><span class="ovr">OVR<b>${ovr}</b></span></div>`;
       d.querySelector(".slotsprite").appendChild(spriteCanvas(c,40));
     }else{d.classList.add("empty");d.innerHTML=`${head}<div class="slotsprite"><div class="ph">＋</div></div>`;}
-    d.onclick=()=>openPicker(i,sub);
-    p.appendChild(d);
+    d.onclick=()=>ctx.onSlot(i,sub);
+    pitchEl.appendChild(d);
   });
+}
+// ベンチ(交代枠)描画 — 通常/育成で共通。ctx: {bench[], find, onBench(j)}
+function benchSlots(box, ctx){
+  if(!Array.isArray(ctx.bench))return;
+  box.innerHTML='<div class="lg" style="margin:8px 0 2px">🔁 ベンチ(交代枠) — 試合中の交代はここからのみ</div>';
+  const row=document.createElement("div");row.className="bench-row";
+  for(let j=0;j<BENCH_SIZE;j++){
+    const id=ctx.bench[j], c=(id!=null)&&ctx.find(id);
+    const d=document.createElement("div");d.className="bench-slot"+(c?" filled":" empty");
+    if(c){d.innerHTML=`<div class="bs-sprite"></div><b class="nm">${c.name}</b><span class="ovr">OVR${total(c)}</span>`;
+      d.querySelector(".bs-sprite").appendChild(spriteCanvas(c,34));}
+    else d.innerHTML=`<div class="ph">＋</div><span class="bs-lb">控え${j+1}</span>`;
+    d.onclick=()=>ctx.onBench(j);
+    row.appendChild(d);
+  }
+  box.appendChild(row);
+}
+function renderPitch(){
+  const p=document.getElementById("pitch");
+  document.getElementById("fmName").textContent=S.form;
+  const find=id=>S.coll.find(k=>k.id===id);
+  renderChemLines(p, S.squad, find); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
+  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR});
   // 同国籍ケミストリー表示
   const el=document.getElementById("chemStatus");
   if(el){
@@ -132,18 +151,7 @@ function renderPitch(){
 function renderBenchSlots(){
   const box=document.getElementById("benchBox"); if(!box)return;
   if(!Array.isArray(S.bench))S.bench=[];
-  box.innerHTML='<div class="lg" style="margin:8px 0 2px">🔁 ベンチ(交代枠) — 試合中の交代はここからのみ</div>';
-  const row=document.createElement("div");row.className="bench-row";
-  for(let j=0;j<BENCH_SIZE;j++){
-    const id=S.bench[j], c=(id!=null)&&S.coll.find(k=>k.id===id);
-    const d=document.createElement("div");d.className="bench-slot"+(c?" filled":" empty");
-    if(c){d.innerHTML=`<div class="bs-sprite"></div><b class="nm">${c.name}</b><span class="ovr">OVR${total(c)}</span>`;
-      d.querySelector(".bs-sprite").appendChild(spriteCanvas(c,34));}
-    else d.innerHTML=`<div class="ph">＋</div><span class="bs-lb">控え${j+1}</span>`;
-    d.onclick=()=>openBenchPicker(j);
-    row.appendChild(d);
-  }
-  box.appendChild(row);
+  benchSlots(box, {bench:S.bench, find:id=>S.coll.find(k=>k.id===id), onBench:openBenchPicker});
 }
 function openBenchPicker(j){
   document.getElementById("pickTitle").textContent=`ベンチ枠${j+1}に置く控え(タップで配置/もう一度で外す)`;
@@ -162,10 +170,12 @@ function openBenchPicker(j){
 // ケミストリー線: 同国籍の選手同士を結ぶ(位置順に鎖状)。最多同国籍=実際にボーナスが出ているグループは
 // 強調(シアン実線)、その他の同国籍ペアは控えめ(破線)。最多の選び方は recalcAuras と同じ(スロット順で先に
 // 最大数に達した国籍=同数時はスロット順で先のもの)。
-function renderChemLines(pitch){
+function renderChemLines(pitch, squad, find){
+  if(!document||!document.createElementNS)return; // SVG非対応環境(テスト等)ではケミ線を描かない
+  squad=squad||S.squad; find=find||(id=>S.coll.find(k=>k.id===id));
   const old=pitch.querySelector("#chemLines");if(old)old.remove();
   const cnt={},groups={};let mx=0,nat=null;
-  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(!c)return;
+  FORMS[S.form].forEach((sl,i)=>{const c=find(squad[i]);if(!c)return;
     const f=c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}
     (groups[f]=groups[f]||[]).push({x:sl[1],y:sl[2]});});
   const NS="http://www.w3.org/2000/svg";
@@ -185,7 +195,7 @@ function renderChemLines(pitch){
   }
   // 名コンビ(ホットライン): 固有ペアが両方スタメンなら金線で結ぶ
   const sigPos={};
-  FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);if(c&&c.sig)sigPos[c.sig]={x:sl[1],y:sl[2]};});
+  FORMS[S.form].forEach((sl,i)=>{const c=find(squad[i]);if(c&&c.sig)sigPos[c.sig]={x:sl[1],y:sl[2]};});
   DUOS.forEach(duo=>{const pa=sigPos[duo.a],pb=sigPos[duo.b];if(!pa||!pb)return;
     const ln=document.createElementNS(NS,"line");
     ln.setAttribute("x1",pa.x);ln.setAttribute("y1",pa.y);ln.setAttribute("x2",pb.x);ln.setAttribute("y2",pb.y);
@@ -238,17 +248,19 @@ function keyPosDesc(f){
   const stat=kp[idxs[0]];
   return `⭐${subs.join("/")} ${STAT_SHORT[stat]}+${Math.round((KEY_MUL-1)*100)}%`;
 }
-document.getElementById("fmBtn").onclick=()=>{
+// フォーメーション選択(通常/育成 共通)。onPick=選択後の再描画コールバック。
+function openFormationPicker(onPick){
   const m=document.getElementById("fmModal"),l=document.getElementById("fmList");l.innerHTML="";
   Object.keys(FORMS).forEach(f=>{
     const b=document.createElement("button");b.className="btn ghost";
     const kd=keyPosDesc(f);
     b.innerHTML=`${f}`+(kd?`<br><span style="font-size:10px;color:#8fa3b8">${kd}</span>`:"");
-    b.onclick=async()=>{S.form=f;await save();m.classList.remove("on");renderPitch();};
+    b.onclick=async()=>{S.form=f;await save();m.classList.remove("on");(onPick||renderPitch)();};
     l.appendChild(b);
   });
   m.classList.add("on");
-};
+}
+document.getElementById("fmBtn").onclick=()=>openFormationPicker(renderPitch);
 document.getElementById("fmModal").onclick=e=>{if(e.target.id==="fmModal")e.target.classList.remove("on");};
 document.getElementById("autoBtn").onclick=async()=>{
   S.squad={};const pool=[...S.coll];
