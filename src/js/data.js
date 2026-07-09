@@ -310,8 +310,8 @@ const CAREER={
   growthThresh:7.0,                // この評価以上で成長(MOM級ほど大きい)
   loanCost:40,                     // 助っ人(固有選手)招へいのプレステージ費用(シーズン限定)
   // 統制(監督の指揮能力): careerCap=統制可能OVR。編成OVRが統制OVRを超えると超過率ぶん全能力が低下。
-  // 例) 編成OVRが統制OVRの130%(=+30%超過)なら overloadK=1.0 で -30%(下限 overloadFloor でクランプ)。
-  overloadK:1.0, overloadFloor:0.5,
+  // overloadK=傾き(超過率×これ) / overloadFloor=下限倍率。既定は緩め: 130%超過→-15%、下限-30%。
+  overloadK:0.5, overloadFloor:0.7,
 };
 // ===== クラブの格(名声/プレステージ)→ 施設で段階解放(キャリア限定・ローグライク) =====
 // prestige=勝利/タイトル/昇格で貯まる。施設をLv上げして編成上限/成長速度/コンディションを強化。
