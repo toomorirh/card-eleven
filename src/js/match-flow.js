@@ -655,7 +655,7 @@ function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCa
 function careerFinalize(){ // カスタム監督を確定して登録
   const cr=S.career; if(!cr)return;
   const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs});
-  S.career=null; save();
+  S.career=null; checkAchievements(); save(); // 初完走の実績(シグネチャー選択券)を判定
   toast(`🎓 任期満了! カスタム監督「${m.name}」誕生! 監督室で起用できます`);
   if(typeof gotoOffice==="function")gotoOffice("mgr");
 }
@@ -878,6 +878,7 @@ const MATCH_MODES={
       }
     }
     if(cr&&pp){cr.prestige=(cr.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${cr.prestige})</div>`;}
+    checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
     e.innerHTML=html;
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";

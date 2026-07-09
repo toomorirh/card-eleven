@@ -418,7 +418,7 @@
 - **定義**: `ACHIEVEMENTS` 配列(`data.js`)で**データ駆動**。各エントリ `{id, icon, title, desc, test:()=>bool, prog:()=>string, reward, rewardLabel}`。`reward` は付与内容 `{sigPacks?, sigSelect?, championPacks?}`。追加は1要素足すだけで判定・画面表示の両方に反映。
 - **判定**: `checkAchievements()`(`state.js`)が未達成(`!S.ms[id]`)かつ `test()` 真のものに `grantReward(reward)` を適用し、達成済みを `S.ms[id]=1` で記録(冪等=二重付与しない)。付与時は `toast`(実績解除「タイトル」報酬名)で通知。
 - **呼び出し箇所**: ①ステージ攻略の試合終了後(`match-flow.js` の `endMatch`)②`loadGame` 時(旧セーブの遡及付与)③編成変更時(`renderPitch` 末尾=合計OVR系の判定)④リーグ報酬確定時(`claimSeason`)。
-- **現行ラインナップ**: `clear4`(Lv4到達→Sパック) / `ovr1000`(編成の合計OVR≧1000→Sパック、`squadTotalOVR()` で判定) / `leagueWin`(リーグ初優勝=`S.leagueWins≥1`→Sパック+チャンピオンパック) / `clearAll`(全クラブ制覇→選択券) / `worldTourPerfect`(ワールドツアー全勝=`S.tourPerfect≥1`→選択券)。
+- **現行ラインナップ**: `clear4`(Lv4到達→Sパック) / `ovr1000`(編成の合計OVR≧1000→Sパック、`squadTotalOVR()` で判定) / `leagueWin`(リーグ初優勝=`S.leagueWins≥1`→Sパック+チャンピオンパック) / `clearAll`(全クラブ制覇→選択券) / `worldTourPerfect`(ワールドツアー全勝=`S.tourPerfect≥1`→選択券) / `careerDone`(監督キャリア初完走=`S.customMgrs.length≥1`→**選択券**。`careerFinalize` で判定) / `intlCup`(インターナショナルクラブカップ初優勝=`S.career.cupsWon` に "international"→**選択券**。カップ優勝時の career onEnd で判定=`cr`存在中に発火)。
 - **リーグ報酬の分離**: コインは順位別に**毎シーズン**付与(優勝🪙500/3位以内250/参加100)。パック類は実績に一本化し、**初優勝**でのみチャンピオンパック+Sパックを付与(`claimSeason` が `S.leagueWins++` → `checkAchievements`)。「新シーズン開始」ボタンは報酬を再付与しない(以前の二重付与バグを修正)。
 - 画面表示: `renderAchievements()`(`ui-roster.js`)が達成済み🏆(`.ach-card.got` 金枠)/未達成🔒(`prog()` の進捗表示)を一覧。
 - セーブ: `S.sigSelect`/`S.leagueWins`/`S.ms`/`S.tour`/`S.tourPerfect` を追加(v9据え置き。欠落フィールドは `||0`・`||{}` 補完で旧セーブ互換)。

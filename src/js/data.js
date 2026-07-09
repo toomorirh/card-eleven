@@ -900,5 +900,11 @@ const ACHIEVEMENTS=[
   {id:"worldTourPerfect", icon:"🌐", title:"世界制覇",  desc:"ワールドツアーを全勝で攻略する",
    test:()=>(S.tourPerfect||0)>=1,   prog:()=>`全勝 ${(S.tourPerfect||0)>=1?1:0}/1`,
    reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
+  {id:"careerDone", icon:"🎓", title:"名将、ここに誕生", desc:"監督キャリアを完走し初のカスタム監督を育て上げる",
+   test:()=>(S.customMgrs||[]).length>=1, prog:()=>`育成監督 ${Math.min((S.customMgrs||[]).length,1)}/1`,
+   reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
+  {id:"intlCup", icon:"🌐", title:"世界クラブの頂点", desc:"インターナショナルクラブカップで初優勝する",
+   test:()=>!!(S.career&&(S.career.cupsWon||[]).includes("international")), prog:()=>`優勝 ${(S.career&&(S.career.cupsWon||[]).includes("international"))?1:0}/1`,
+   reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
 ];
 
