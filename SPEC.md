@@ -508,7 +508,9 @@
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
   - **配置**: **下部メニューの独立モード「🎓 育成」**(`.tabs [data-s="career"]`→`scr-career`/`#careerBox`)。リーグとは別の最上位コンテンツとして扱う。`show("career")`→`renderCareer`、`gotoCareer` は育成タブへ遷移。(旧: リーグ画面のmodeRow内モード)
   - **監督名**: 入力なし。**オーナー名(`S.coach`)を踏襲**(`startCareer` が採用)。
-  - **可視化**: 活動スケジュールを **ワールドツアーと同じ `wt-card` 縦リスト**で表示(`careerScheduleList`)。各行=第N週の活動(⚽リーグ/💪練習/🏆カップ)+詳細(DIV/節/スコア)+結果チップ(🏆勝/🤝分/😢敗)。現在週は ▶「次の活動」行(`.wt-card.cur`=ゴールド枠)。`cr.history[step]` に記録(後でカップ開始日を行として差し込む土台)。
+  - **可視化**: 活動スケジュールを **ワールドツアーと同じ `wt-card` 縦リスト**で表示(`careerScheduleList`)。各行=第N週の活動(⚽リーグ/💪練習/🏆カップ)+詳細(DIV/節/スコア)+結果チップ(🏆勝/🤝分/😢敗)。`cr.history[step]` に記録。
+  - **メイン画面レイアウト(ハブ+セクションタブ・実装済み)**: 情報過多を解消するため `renderCareer` を再編。**常時表示のハブ**=`careerStatusCard`(監督名・週の進捗バー・ステージ/節/勝点・OVR上限・名声)+`careerCurrentActivity`(今週の主操作=①リーグ/②カップ/③練習/🔍偵察 or カップ戦)。その下に**セクションタブ**(`career-tabs`/`_careerTab`)で内容を切替: **📅日程**(`careerScheduleList(cr,true)`=操作ボタンはハブに集約し時系列のみ)/**🏆リーグ&カップ**(`careerStandingsTable`+`careerCupsView`)/**👥スカッド**(`careerSquadView`+編成盤)/**🏛クラブ**(`careerFacilities`)/**🎓監督**(獲得バフ・采配)。
+  - **カップ/トーナメント可視化**(`careerCupsView`): 各カップの**ブラケット(勝ち上がりラダー `CUP_BRACKETS`)**・出場条件の充足・**次エントリー週**(`nextCupEntryWeek`)を常時表示(進行中は勝ち上がり=緑/現在=金でハイライト)。非進行中でも「出たらこの相手と当たる」が事前に見える。
   - **②カップ(フェーズ3・実装済み)**: `CUPS`(国内3試合/大陸5/国際5)。`cond` を満たすと `careerCupPicker` から挑戦→`startCup`。以後 `startCareerMatch` がカップ戦(相手lv=cup.lv)になり、**勝ち抜き(need連勝で優勝・引分/敗北で敗退)**。`careerCupResult`(純粋)。
     - **采配報酬**: 優勝で `CAREER_TACS[pool]` からランダム3提示→1つ選択(`offerCareerTac`)して `cr.tacs` に追加。pool=basic(基本采配)/strong(強化=`pow`増・高発動)/team(国際チームスキル)。
     - **国際チームスキル(`kind:"team"`・新エンジン)**: 発動でチーム全体を数ティック底上げ。`mgrTacAction` が `A._surgeUntil`/`A._surgeMul` を設定→`eff` が surge 倍率を乗算。例: 無敵艦隊(+25%/3T)/ジョゴボニート/ゲルマン魂(+30%)/カテナチオ。`mgrCarryTac` は team tac を from不問で判定。

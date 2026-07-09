@@ -152,6 +152,30 @@ h1{text-shadow:3px 3px 0 #06301c}
 .fac-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #22304a;border-radius:8px;margin:4px 0;background:#111c2e}
 .fac-row .fac-info{flex:1 1 auto;min-width:0}
 .fac-row .lv{font-size:10px;color:#ffe14d}
+.fac-row .btn{width:auto;flex:0 0 auto;margin:0} /* .btn の width:100% を打ち消してボタンが全幅化→情報潰れを防ぐ */
+/* ===== 育成メイン: ステータス/今週/タブ/カップ ===== */
+.career-status{background:#0e1826;border:1px solid #2a3d56;border-radius:10px;padding:8px 10px;margin:6px 0}
+.career-status .cs-top{display:flex;justify-content:space-between;font-size:12px}
+.career-status .cs-bar{position:relative;height:14px;border-radius:7px;background:#1a2740;margin:6px 0;overflow:hidden}
+.career-status .cs-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3f7fd0,#5aa0e6)}
+.career-status .cs-bar-lb{position:absolute;left:0;right:0;top:0;line-height:14px;text-align:center;font-size:9px;color:#eaf1fb;font-family:'DotGothic16'}
+.career-status .cs-row{display:flex;justify-content:space-between;font-size:11px;color:#b8c6da}
+.career-now{background:#131f33;border:1px solid #35507a;border-radius:10px;padding:8px 10px;margin:6px 0}
+.career-now .cn-head{font-weight:900;font-size:13px;color:var(--gold);margin-bottom:2px}
+.career-tabs{display:flex;gap:4px;overflow-x:auto;margin:8px 0 6px;-webkit-overflow-scrolling:touch}
+.career-tabs .ctab{flex:0 0 auto;padding:6px 9px;border:1px solid #2a3d56;border-radius:14px;background:#111c2e;color:#9fb2c8;
+  font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:'DotGothic16'}
+.career-tabs .ctab.on{background:#274064;color:#fff;border-color:#4a76b0}
+.career-body{min-height:60px}
+/* カップ/トーナメント ラダー */
+.cup-card{border:1px solid #22304a;border-radius:8px;background:#111c2e;padding:7px 9px;margin:5px 0}
+.cup-card.active{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,194,90,.4)}
+.cup-card .cup-head{font-size:12px}
+.cup-ladder{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-top:5px}
+.cup-node{font-size:10px;padding:2px 6px;border:1px solid #2a3d56;border-radius:10px;background:#0e1826;color:#b8c6da;white-space:nowrap}
+.cup-node.done{background:#1c3a24;color:#7dff9e;border-color:#3a6a48}
+.cup-node.now{background:#3a2c06;color:var(--gold);border-color:var(--gold);font-weight:900}
+.cup-arrow{color:#4a6285;font-size:9px}
 /* ベンチ(交代枠)スロット(通常編成盤) */
 .bench-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .bench-slot{border:1px solid #2a3d56;border-radius:8px;background:#111c2e;padding:5px 3px;text-align:center;cursor:pointer;
