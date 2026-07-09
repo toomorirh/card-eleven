@@ -538,6 +538,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   hideStatOverlay();
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
+  document.body.classList.add("in-match"); // 共通ヘッダーを隠してフィールドを広く
   const home=home0||myTeam();
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};

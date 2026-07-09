@@ -115,8 +115,14 @@ function checkAchievements(){
 }
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}
-function coinUI(){document.getElementById("coinN").textContent=S.coins;}
+function coinUI(){const e=document.getElementById("coinN");if(e)e.textContent=S.coins;}
 function myName(){return (S.teamName||"").trim()||"マイチーム";} // 自チーム表示名(プロフィール)
+// 共通ヘッダー(オーナー名・チーム名)を更新。コインは coinUI()。
+function renderHeader(){
+  const o=document.getElementById("ahOwner"), t=document.getElementById("ahTeam");
+  if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"オーナー"));
+  if(t)t.textContent=myName();
+}
 // ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====
 // helpIcon(key) を見出し等に埋め込み、タップで HELP[key] をポップアップ。data-help属性を委譲処理。
 function helpIcon(key){return '<span class="help" data-help="'+key+'" role="button" aria-label="説明">?</span>';}
@@ -166,6 +172,8 @@ function show(s){
   if(s==="title"){wrap.classList.remove("no-title");}
   else{wrap.classList.add("no-title");}
   document.body.classList.toggle("on-title",s==="title"); // タイトル中は下部メニュー/コインを隠す
+  document.body.classList.remove("in-match"); // 画面遷移=試合外
+  renderHeader();
   if(s==="title")renderTitleHero();
   if(s==="team")renderPitch();if(s==="coll")renderColl();if(s==="home")renderHome();
   if(s==="gacha")renderGacha();if(s==="office")renderOffice();if(s==="career")renderCareer();

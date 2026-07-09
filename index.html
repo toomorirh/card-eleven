@@ -19,8 +19,16 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   color:var(--gold);text-shadow:0 0 12px rgba(232,194,90,.45)}
 .sub{font-size:11px;text-align:center;color:#8fa3b8;margin-bottom:10px;letter-spacing:1px}
 .no-title h1,.no-title .sub{display:none}
-.coins{position:fixed;top:10px;right:12px;background:var(--night2);border:1px solid var(--gold);
-  border-radius:20px;padding:4px 12px;font-weight:900;font-size:14px;color:var(--gold);z-index:50}
+.coins{background:var(--night2);border:1px solid var(--gold);
+  border-radius:20px;padding:4px 12px;font-weight:900;font-size:14px;color:var(--gold)}
+/* 共通ヘッダー: オーナー名・チーム名・保有コイン(スティッキー) */
+.apphead{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:-12px -12px 8px;padding:6px 12px;background:var(--night2);border-bottom:1px solid #2a3d56}
+.apphead .ah-l{display:flex;align-items:baseline;gap:6px;min-width:0}
+.apphead .ah-owner{font-size:10px;color:#8fa3b8;white-space:nowrap;flex:0 0 auto}
+.apphead .ah-team{font-family:'DotGothic16';font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apphead .coins{flex:0 0 auto;position:relative}
+.on-title .apphead,.in-match .apphead{display:none}
 
 /* tabs */
 .tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--night2);
@@ -256,12 +264,13 @@ canvas.sprite{image-rendering:auto}
 
 /* picker modal */
 .modal{position:fixed;inset:0;background:rgba(5,10,18,.85);z-index:100;display:none;
-  align-items:flex-end;justify-content:center}
+  align-items:center;justify-content:center;padding:16px}
 .modal.on{display:flex}
-.sheet{background:var(--night2);width:100%;max-width:520px;max-height:50vh;overflow-y:auto;position:relative;
-  border-radius:16px 16px 0 0;padding:14px}
+.sheet{background:var(--night2);width:100%;max-width:480px;max-height:82vh;overflow-y:auto;position:relative;
+  border-radius:14px;padding:14px}
 .sheet h3{font-size:14px;margin-bottom:6px}
-.sheet .close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#2a3d56;border-radius:50%;\n  color:#cfdcea;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}\n.sheet .close-btn:active{background:#3d5070}
+.sheet .close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#2a3d56;border-radius:50%;color:#cfdcea;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}
+.sheet .close-btn:active{background:#3d5070}
 
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);
@@ -846,7 +855,7 @@ h1{text-shadow:3px 3px 0 #06301c}
 /* ベンチ(交代枠)スロット(通常編成盤) */
 .bench-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .bench-slot{border:1px solid #2a3d56;border-radius:8px;background:#111c2e;padding:5px 3px;text-align:center;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;gap:2px;min-height:70px;justify-content:center}
+  display:flex;flex-direction:column;align-items:center;gap:2px;min-height:70px;min-width:0;justify-content:center}
 .bench-slot.empty{border-style:dashed;opacity:.7}
 .bench-slot .nm{font-size:9px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .bench-slot .ovr{font-size:9px;color:var(--gold)}
@@ -950,8 +959,11 @@ h1{text-shadow:3px 3px 0 #06301c}
   });
 })();
 </script>
-<div class="coins">🪙 <span id="coinN">0</span></div>
 <div class="wrap">
+  <div class="apphead" id="apphead">
+    <div class="ah-l"><span class="ah-owner" id="ahOwner">👤 オーナー</span><b class="ah-team" id="ahTeam">マイチーム</b></div>
+    <div class="coins">🪙 <span id="coinN">0</span></div>
+  </div>
   <h1>p football</h1>
   <div class="sub">COLLECTIBLE FOOTBALL CARD GAME</div>
 
@@ -4459,8 +4471,14 @@ function checkAchievements(){
 }
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}
-function coinUI(){document.getElementById("coinN").textContent=S.coins;}
+function coinUI(){const e=document.getElementById("coinN");if(e)e.textContent=S.coins;}
 function myName(){return (S.teamName||"").trim()||"マイチーム";} // 自チーム表示名(プロフィール)
+// 共通ヘッダー(オーナー名・チーム名)を更新。コインは coinUI()。
+function renderHeader(){
+  const o=document.getElementById("ahOwner"), t=document.getElementById("ahTeam");
+  if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"オーナー"));
+  if(t)t.textContent=myName();
+}
 // ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====
 // helpIcon(key) を見出し等に埋め込み、タップで HELP[key] をポップアップ。data-help属性を委譲処理。
 function helpIcon(key){return '<span class="help" data-help="'+key+'" role="button" aria-label="説明">?</span>';}
@@ -4510,6 +4528,8 @@ function show(s){
   if(s==="title"){wrap.classList.remove("no-title");}
   else{wrap.classList.add("no-title");}
   document.body.classList.toggle("on-title",s==="title"); // タイトル中は下部メニュー/コインを隠す
+  document.body.classList.remove("in-match"); // 画面遷移=試合外
+  renderHeader();
   if(s==="title")renderTitleHero();
   if(s==="team")renderPitch();if(s==="coll")renderColl();if(s==="home")renderHome();
   if(s==="gacha")renderGacha();if(s==="office")renderOffice();if(s==="career")renderCareer();
@@ -5155,7 +5175,7 @@ function runReveal(p,cards){
         const ab=document.createElement("button");ab.className="btn";ab.textContent="もう1回引く";
         ab.onclick=()=>finish(true);row.appendChild(ab);
       }
-      const cb=document.createElement("button");cb.className=canAgain?"btn ghost":"btn";cb.textContent="とじる";
+      const cb=document.createElement("button");cb.className=canAgain?"btn ghost":"btn";cb.textContent="閉じる";
       cb.onclick=()=>finish(false);row.appendChild(cb);
       rr.appendChild(row);
     };
@@ -5688,7 +5708,7 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
           if(needCont)panel.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
           else panel.appendChild(actBtn(cont?`① ${cont.name}リーグ進行`:"① リーグ進行",startCareerMatch));
           panel.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr)))); // 参加不可なら非活性
-          panel.appendChild(actBtn("③ 練習(+30〜50)",careerPractice));
+          panel.appendChild(actBtn("③ 練習",careerPractice));
           if(!needCont)panel.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
           wrap.appendChild(panel);
         }
@@ -5846,7 +5866,7 @@ function careerCurrentActivity(cr){
     if(needCont)p.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
     else p.appendChild(actBtn(cont?`① ${cont.name}リーグ進行`:"① リーグ進行",startCareerMatch));
     p.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr))));
-    p.appendChild(actBtn("③ 練習(+30〜50)",careerPractice));
+    p.appendChild(actBtn("③ 練習",careerPractice));
     if(!needCont)p.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
     wrap.appendChild(p);
   }
@@ -7591,6 +7611,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   hideStatOverlay();
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-match").classList.add("on");
+  document.body.classList.add("in-match"); // 共通ヘッダーを隠してフィールドを広く
   const home=home0||myTeam();
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};

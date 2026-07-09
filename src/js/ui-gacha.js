@@ -183,7 +183,7 @@ function runReveal(p,cards){
         const ab=document.createElement("button");ab.className="btn";ab.textContent="もう1回引く";
         ab.onclick=()=>finish(true);row.appendChild(ab);
       }
-      const cb=document.createElement("button");cb.className=canAgain?"btn ghost":"btn";cb.textContent="とじる";
+      const cb=document.createElement("button");cb.className=canAgain?"btn ghost":"btn";cb.textContent="閉じる";
       cb.onclick=()=>finish(false);row.appendChild(cb);
       rr.appendChild(row);
     };

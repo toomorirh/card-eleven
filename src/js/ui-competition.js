@@ -521,7 +521,7 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
           if(needCont)panel.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
           else panel.appendChild(actBtn(cont?`① ${cont.name}リーグ進行`:"① リーグ進行",startCareerMatch));
           panel.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr)))); // 参加不可なら非活性
-          panel.appendChild(actBtn("③ 練習(+30〜50)",careerPractice));
+          panel.appendChild(actBtn("③ 練習",careerPractice));
           if(!needCont)panel.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
           wrap.appendChild(panel);
         }
@@ -679,7 +679,7 @@ function careerCurrentActivity(cr){
     if(needCont)p.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
     else p.appendChild(actBtn(cont?`① ${cont.name}リーグ進行`:"① リーグ進行",startCareerMatch));
     p.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr))));
-    p.appendChild(actBtn("③ 練習(+30〜50)",careerPractice));
+    p.appendChild(actBtn("③ 練習",careerPractice));
     if(!needCont)p.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
     wrap.appendChild(p);
   }

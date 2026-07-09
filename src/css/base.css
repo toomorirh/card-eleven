@@ -11,8 +11,16 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   color:var(--gold);text-shadow:0 0 12px rgba(232,194,90,.45)}
 .sub{font-size:11px;text-align:center;color:#8fa3b8;margin-bottom:10px;letter-spacing:1px}
 .no-title h1,.no-title .sub{display:none}
-.coins{position:fixed;top:10px;right:12px;background:var(--night2);border:1px solid var(--gold);
-  border-radius:20px;padding:4px 12px;font-weight:900;font-size:14px;color:var(--gold);z-index:50}
+.coins{background:var(--night2);border:1px solid var(--gold);
+  border-radius:20px;padding:4px 12px;font-weight:900;font-size:14px;color:var(--gold)}
+/* 共通ヘッダー: オーナー名・チーム名・保有コイン(スティッキー) */
+.apphead{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:-12px -12px 8px;padding:6px 12px;background:var(--night2);border-bottom:1px solid #2a3d56}
+.apphead .ah-l{display:flex;align-items:baseline;gap:6px;min-width:0}
+.apphead .ah-owner{font-size:10px;color:#8fa3b8;white-space:nowrap;flex:0 0 auto}
+.apphead .ah-team{font-family:'DotGothic16';font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apphead .coins{flex:0 0 auto;position:relative}
+.on-title .apphead,.in-match .apphead{display:none}
 
 /* tabs */
 .tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--night2);
@@ -248,12 +256,13 @@ canvas.sprite{image-rendering:auto}
 
 /* picker modal */
 .modal{position:fixed;inset:0;background:rgba(5,10,18,.85);z-index:100;display:none;
-  align-items:flex-end;justify-content:center}
+  align-items:center;justify-content:center;padding:16px}
 .modal.on{display:flex}
-.sheet{background:var(--night2);width:100%;max-width:520px;max-height:50vh;overflow-y:auto;position:relative;
-  border-radius:16px 16px 0 0;padding:14px}
+.sheet{background:var(--night2);width:100%;max-width:480px;max-height:82vh;overflow-y:auto;position:relative;
+  border-radius:14px;padding:14px}
 .sheet h3{font-size:14px;margin-bottom:6px}
-.sheet .close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#2a3d56;border-radius:50%;\n  color:#cfdcea;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}\n.sheet .close-btn:active{background:#3d5070}
+.sheet .close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#2a3d56;border-radius:50%;color:#cfdcea;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}
+.sheet .close-btn:active{background:#3d5070}
 
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);
