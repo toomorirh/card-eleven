@@ -169,6 +169,28 @@ h1{text-shadow:3px 3px 0 #06301c}
 .cup-node.done{background:#1c3a24;color:#7dff9e;border-color:#3a6a48}
 .cup-node.now{background:#3a2c06;color:var(--gold);border-color:var(--gold);font-weight:900}
 .cup-arrow{color:#4a6285;font-size:9px}
+/* PK戦オーバーレイ */
+.pkshoot{position:fixed;inset:0;z-index:210;background:rgba(6,12,22,.97);display:flex;align-items:center;justify-content:center;padding:14px}
+.pkshoot .pk-in{width:100%;max-width:440px;text-align:center}
+.pkshoot .pk-title{font-family:'DotGothic16';font-size:26px;color:var(--gold);text-shadow:0 0 14px rgba(232,194,90,.5)}
+.pkshoot .pk-sub{font-size:11px;color:#9fb2c8;margin:2px 0 8px}
+.pkshoot .pk-score{font-family:'DotGothic16';font-size:22px;margin:6px 0}
+.pkshoot .pk-score b{color:#fff;font-size:28px;padding:0 6px}
+.pkshoot .pk-tn{font-size:12px;color:#5aa0e6}.pkshoot .pk-tn.away{color:#ff8e8e}
+.pkshoot .pk-marks{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:3px 0}
+.pkshoot .pk-marks.away{margin-bottom:8px}
+.pkshoot .pk-mark{width:20px;height:20px;line-height:20px;border-radius:50%;font-size:11px;border:1px solid #2a3d56;background:#111c2e}
+.pkshoot .pk-mark.g{background:#1c3a24;border-color:#3a6a48}
+.pkshoot .pk-mark.m{background:#3a1c1c;border-color:#6a3a3a;color:#ff8e8e}
+.pkshoot .pk-arena{position:relative;min-height:150px;display:flex;align-items:center;justify-content:space-around;
+  background:#0e1826;border:1px solid #2a3d56;border-radius:12px;margin-top:8px;padding:10px}
+.pkshoot .pk-fig{filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.pkshoot .pk-kicker{position:absolute;left:0;right:0;bottom:6px;font-size:12px;color:#dce6f2}
+.pkshoot .pk-result{position:absolute;left:0;right:0;top:8px;font-family:'DotGothic16';font-size:22px;font-weight:900}
+.pkshoot .pk-result.goal{color:#7dff9e;text-shadow:0 0 14px rgba(125,255,158,.7)}
+.pkshoot .pk-result.save{color:#ff8e8e;text-shadow:0 0 14px rgba(255,142,142,.7)}
+.pkshoot .pk-final{margin-top:10px;font-family:'DotGothic16';font-size:18px}
+.pkshoot .pk-final.win{color:var(--gold)}.pkshoot .pk-final.lose{color:#ff8e8e}
 /* ベンチ(交代枠)スロット(通常編成盤) */
 .bench-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .bench-slot{border:1px solid #2a3d56;border-radius:8px;background:#111c2e;padding:5px 3px;text-align:center;cursor:pointer;

@@ -173,6 +173,7 @@ const TUNING={
     foulBase:0.05,        // フィニッシュ系リンクでの守備側ファウル発生率
     boxChance:{dribble:0.35,cutin:0.30,cross:0.20,through:0.30}, // ファウルがエリア内(=PK)になる確率
     pkBase:1.9,           // PKのシュート威力(高い=高確率で決まる)
+    pkShootBase:1.2,      // PK戦のシュート威力(通常PKより低め=外しも出て決着ドラマが生まれる。決定率≈7割)
     fkDirectShare:0.45,   // 中央/近いFK=直接シュートの割合(残りはクロス)
     cornerOnClear:0.11,   // 危険なクリアがCKになる割合
     cornerOnSave:0.10,    // GKセーブがCKになる割合

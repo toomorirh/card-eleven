@@ -814,6 +814,28 @@ h1{text-shadow:3px 3px 0 #06301c}
 .cup-node.done{background:#1c3a24;color:#7dff9e;border-color:#3a6a48}
 .cup-node.now{background:#3a2c06;color:var(--gold);border-color:var(--gold);font-weight:900}
 .cup-arrow{color:#4a6285;font-size:9px}
+/* PK戦オーバーレイ */
+.pkshoot{position:fixed;inset:0;z-index:210;background:rgba(6,12,22,.97);display:flex;align-items:center;justify-content:center;padding:14px}
+.pkshoot .pk-in{width:100%;max-width:440px;text-align:center}
+.pkshoot .pk-title{font-family:'DotGothic16';font-size:26px;color:var(--gold);text-shadow:0 0 14px rgba(232,194,90,.5)}
+.pkshoot .pk-sub{font-size:11px;color:#9fb2c8;margin:2px 0 8px}
+.pkshoot .pk-score{font-family:'DotGothic16';font-size:22px;margin:6px 0}
+.pkshoot .pk-score b{color:#fff;font-size:28px;padding:0 6px}
+.pkshoot .pk-tn{font-size:12px;color:#5aa0e6}.pkshoot .pk-tn.away{color:#ff8e8e}
+.pkshoot .pk-marks{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:3px 0}
+.pkshoot .pk-marks.away{margin-bottom:8px}
+.pkshoot .pk-mark{width:20px;height:20px;line-height:20px;border-radius:50%;font-size:11px;border:1px solid #2a3d56;background:#111c2e}
+.pkshoot .pk-mark.g{background:#1c3a24;border-color:#3a6a48}
+.pkshoot .pk-mark.m{background:#3a1c1c;border-color:#6a3a3a;color:#ff8e8e}
+.pkshoot .pk-arena{position:relative;min-height:150px;display:flex;align-items:center;justify-content:space-around;
+  background:#0e1826;border:1px solid #2a3d56;border-radius:12px;margin-top:8px;padding:10px}
+.pkshoot .pk-fig{filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.pkshoot .pk-kicker{position:absolute;left:0;right:0;bottom:6px;font-size:12px;color:#dce6f2}
+.pkshoot .pk-result{position:absolute;left:0;right:0;top:8px;font-family:'DotGothic16';font-size:22px;font-weight:900}
+.pkshoot .pk-result.goal{color:#7dff9e;text-shadow:0 0 14px rgba(125,255,158,.7)}
+.pkshoot .pk-result.save{color:#ff8e8e;text-shadow:0 0 14px rgba(255,142,142,.7)}
+.pkshoot .pk-final{margin-top:10px;font-family:'DotGothic16';font-size:18px}
+.pkshoot .pk-final.win{color:var(--gold)}.pkshoot .pk-final.lose{color:#ff8e8e}
 /* ベンチ(交代枠)スロット(通常編成盤) */
 .bench-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .bench-slot{border:1px solid #2a3d56;border-radius:8px;background:#111c2e;padding:5px 3px;text-align:center;cursor:pointer;
@@ -1289,6 +1311,7 @@ const TUNING={
     foulBase:0.05,        // フィニッシュ系リンクでの守備側ファウル発生率
     boxChance:{dribble:0.35,cutin:0.30,cross:0.20,through:0.30}, // ファウルがエリア内(=PK)になる確率
     pkBase:1.9,           // PKのシュート威力(高い=高確率で決まる)
+    pkShootBase:1.2,      // PK戦のシュート威力(通常PKより低め=外しも出て決着ドラマが生まれる。決定率≈7割)
     fkDirectShare:0.45,   // 中央/近いFK=直接シュートの割合(残りはクロス)
     cornerOnClear:0.11,   // 危険なクリアがCKになる割合
     cornerOnSave:0.10,    // GKセーブがCKになる割合
@@ -6250,12 +6273,15 @@ function careerRecordResult(cr,sh,sa){
   }
   return out;
 }
-// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり、引分/敗北で敗退。need連勝で優勝。
-function careerCupResult(cr,sh,sa){
-  const cup=cr.cup, res=sh>sa?"W":sh===sa?"D":"L";
-  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:sh+"-"+sa,rnd:cup.i+1,need:cup.need,opp:cr.oppName||""};
+// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり。引分は PK戦(pk)で決着し勝者が勝ち上がり。
+// pk={win,sa,sd}=引分をPKで決着した場合の結果(win=自チーム勝ち)。無ければ引分=敗退。
+function careerCupResult(cr,sh,sa,pk){
+  const cup=cr.cup;
+  const res = sh>sa?"W" : sh<sa?"L" : (pk ? (pk.win?"W":"L") : "D");
+  const scLabel = sh+"-"+sa + (pk ? ` (PK ${pk.sa}-${pk.sd})` : "");
+  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:scLabel,rnd:cup.i+1,need:cup.need,opp:cr.oppName||"",pk:pk?(pk.win?"W":"L"):undefined};
   cr.step++;
-  const out={res,cup};
+  const out={res,cup,pk:!!pk};
   if(res==="W"){
     cup.win++; cup.i++;
     if(cup.win>=cup.need){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); cr.cup=null; out.champion=true; }
@@ -7819,7 +7845,11 @@ const MATCH_MODES={
     const e=document.getElementById("matchEnd");
     let html=`<div class="banner">${head} ${sh}-${sa}</div>`, champCup=null;
     if(inCup){
-      const cupName=cr.cup.name, o=careerCupResult(cr,sh,sa);
+      const cupName=cr.cup.name;
+      let pk=null;
+      if(sh===sa){ pk=await pkShootout(M.home,M.away); } // 規定時間 引分 → PK戦で決着
+      const o=careerCupResult(cr,sh,sa,pk);
+      if(pk)html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} ${pk.win?"勝ち抜け!":"敗退"}</div>`;
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;}
       else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
@@ -7879,6 +7909,56 @@ function offerCareerTac(pool,cup){
     inn.appendChild(b);
   });
   document.body.appendChild(ov);
+}
+// ===== PK戦(カップの引分決着) =====
+// キッカー順=シュート力(off×0.6+tec×0.4×shoot)の高い順。5人→以降は循環。
+function pkOrder(T){return T.players.filter(p=>p.role!=="GK").slice()
+  .sort((a,b)=>((b.c.off*0.6+b.c.tec*0.4)*(fx(b).shoot||1))-((a.c.off*0.6+a.c.tec*0.4)*(fx(a).shoot||1)));}
+// 1本のPK判定(純: キッカー off/tec × pkShootBase vs GK def)。
+function pkResolve(kicker,gk,A,D,min){
+  const sSc=(eff(kicker,"off",min,A,D)*0.6+eff(kicker,"tec",min,A,D)*0.4)*(fx(kicker).shoot||1)*TUNING.setpiece.pkShootBase*rr();
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*rr();
+  return sSc>gSc*TH.gk;
+}
+// PK戦: 5本先取(交互)→決着せねばサドンデス。専用オーバーレイで1本ずつ演出。{win,sa,sd} を返す。
+async function pkShootout(A,D){
+  const gkA=pickGK(A), gkD=pickGK(D), orderA=pkOrder(A), orderD=pkOrder(D), min=(MC&&MC.min)||90;
+  const hn=myName(), an=(MC&&MC.name)||"相手";
+  const ov=document.createElement("div");ov.className="pkshoot";
+  ov.innerHTML=`<div class="pk-in">
+    <div class="pk-title">⚽ PK戦</div><div class="pk-sub">規定時間 引分 → PK戦で決着</div>
+    <div class="pk-score"><span class="pk-tn">${hn}</span> <b id="pkSa">0</b> - <b id="pkSd">0</b> <span class="pk-tn away">${an}</span></div>
+    <div class="pk-marks" id="pkMarksA"></div><div class="pk-marks away" id="pkMarksD"></div>
+    <div class="pk-arena" id="pkArena"></div></div>`;
+  document.body.appendChild(ov);
+  const marksA=ov.querySelector("#pkMarksA"), marksD=ov.querySelector("#pkMarksD"), arena=ov.querySelector("#pkArena");
+  const elSa=ov.querySelector("#pkSa"), elSd=ov.querySelector("#pkSd");
+  let sa=0,sd=0,ka=0,kd=0;
+  const addMark=(row,goal)=>{const m=document.createElement("span");m.className="pk-mark "+(goal?"g":"m");m.textContent=goal?"⚽":"✕";row.appendChild(m);};
+  const kick=async(home)=>{
+    const kicker=(home?orderA[ka%orderA.length]:orderD[kd%orderD.length]), gk=home?gkD:gkA;
+    arena.innerHTML="";
+    const kf=document.createElement("div");kf.className="pk-fig k";kf.appendChild(spriteCanvas(kicker.c,92));
+    const gf=document.createElement("div");gf.className="pk-fig g";gf.appendChild(spriteCanvas(gk.c,92));
+    const nm=document.createElement("div");nm.className="pk-kicker";nm.innerHTML=`${(home?"🔵":"🔴")} ${kicker.c.flag||""} <b>${kicker.c.name}</b>`;
+    arena.appendChild(kf);arena.appendChild(gf);arena.appendChild(nm);
+    await sleep(480);
+    const goal=pkResolve(kicker,gk,home?A:D,home?D:A,min);
+    const w=document.createElement("div");w.className="pk-result "+(goal?"goal":"save");w.textContent=goal?"⚽ GOAL!":"🧤 STOP!";arena.appendChild(w);
+    if(home){addMark(marksA,goal);if(goal){sa++;elSa.textContent=sa;}ka++;}
+    else{addMark(marksD,goal);if(goal){sd++;elSd.textContent=sd;}kd++;}
+    await sleep(680);
+  };
+  const decided=()=>{const remA=Math.max(0,5-ka),remD=Math.max(0,5-kd);return sa>sd+remD||sd>sa+remA;};
+  for(let i=0;i<5;i++){ await kick(true); if(decided())break; await kick(false); if(decided())break; }
+  let guard=0;
+  while(sa===sd && guard++<25){ await kick(true); await kick(false); } // サドンデス
+  const win=sa>sd;
+  const fin=document.createElement("div");fin.className="pk-final "+(win?"win":"lose");
+  fin.innerHTML=win?`🏆 ${hn} PK勝ち抜け! <b>${sa}-${sd}</b>`:`😢 PK敗退… <b>${sa}-${sd}</b>`;
+  ov.querySelector(".pk-in").appendChild(fin);
+  await sleep(1600); ov.remove();
+  return {win,sa,sd};
 }
 async function endMatch(){
   const M=MC,sh=M.home.score,sa=M.away.score;

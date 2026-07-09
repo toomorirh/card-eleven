@@ -845,7 +845,11 @@ const MATCH_MODES={
     const e=document.getElementById("matchEnd");
     let html=`<div class="banner">${head} ${sh}-${sa}</div>`, champCup=null;
     if(inCup){
-      const cupName=cr.cup.name, o=careerCupResult(cr,sh,sa);
+      const cupName=cr.cup.name;
+      let pk=null;
+      if(sh===sa){ pk=await pkShootout(M.home,M.away); } // 規定時間 引分 → PK戦で決着
+      const o=careerCupResult(cr,sh,sa,pk);
+      if(pk)html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} ${pk.win?"勝ち抜け!":"敗退"}</div>`;
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;}
       else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
@@ -905,6 +909,56 @@ function offerCareerTac(pool,cup){
     inn.appendChild(b);
   });
   document.body.appendChild(ov);
+}
+// ===== PK戦(カップの引分決着) =====
+// キッカー順=シュート力(off×0.6+tec×0.4×shoot)の高い順。5人→以降は循環。
+function pkOrder(T){return T.players.filter(p=>p.role!=="GK").slice()
+  .sort((a,b)=>((b.c.off*0.6+b.c.tec*0.4)*(fx(b).shoot||1))-((a.c.off*0.6+a.c.tec*0.4)*(fx(a).shoot||1)));}
+// 1本のPK判定(純: キッカー off/tec × pkShootBase vs GK def)。
+function pkResolve(kicker,gk,A,D,min){
+  const sSc=(eff(kicker,"off",min,A,D)*0.6+eff(kicker,"tec",min,A,D)*0.4)*(fx(kicker).shoot||1)*TUNING.setpiece.pkShootBase*rr();
+  const gSc=eff(gk,"def",min,D,A)*(fx(gk).save||1)*rr();
+  return sSc>gSc*TH.gk;
+}
+// PK戦: 5本先取(交互)→決着せねばサドンデス。専用オーバーレイで1本ずつ演出。{win,sa,sd} を返す。
+async function pkShootout(A,D){
+  const gkA=pickGK(A), gkD=pickGK(D), orderA=pkOrder(A), orderD=pkOrder(D), min=(MC&&MC.min)||90;
+  const hn=myName(), an=(MC&&MC.name)||"相手";
+  const ov=document.createElement("div");ov.className="pkshoot";
+  ov.innerHTML=`<div class="pk-in">
+    <div class="pk-title">⚽ PK戦</div><div class="pk-sub">規定時間 引分 → PK戦で決着</div>
+    <div class="pk-score"><span class="pk-tn">${hn}</span> <b id="pkSa">0</b> - <b id="pkSd">0</b> <span class="pk-tn away">${an}</span></div>
+    <div class="pk-marks" id="pkMarksA"></div><div class="pk-marks away" id="pkMarksD"></div>
+    <div class="pk-arena" id="pkArena"></div></div>`;
+  document.body.appendChild(ov);
+  const marksA=ov.querySelector("#pkMarksA"), marksD=ov.querySelector("#pkMarksD"), arena=ov.querySelector("#pkArena");
+  const elSa=ov.querySelector("#pkSa"), elSd=ov.querySelector("#pkSd");
+  let sa=0,sd=0,ka=0,kd=0;
+  const addMark=(row,goal)=>{const m=document.createElement("span");m.className="pk-mark "+(goal?"g":"m");m.textContent=goal?"⚽":"✕";row.appendChild(m);};
+  const kick=async(home)=>{
+    const kicker=(home?orderA[ka%orderA.length]:orderD[kd%orderD.length]), gk=home?gkD:gkA;
+    arena.innerHTML="";
+    const kf=document.createElement("div");kf.className="pk-fig k";kf.appendChild(spriteCanvas(kicker.c,92));
+    const gf=document.createElement("div");gf.className="pk-fig g";gf.appendChild(spriteCanvas(gk.c,92));
+    const nm=document.createElement("div");nm.className="pk-kicker";nm.innerHTML=`${(home?"🔵":"🔴")} ${kicker.c.flag||""} <b>${kicker.c.name}</b>`;
+    arena.appendChild(kf);arena.appendChild(gf);arena.appendChild(nm);
+    await sleep(480);
+    const goal=pkResolve(kicker,gk,home?A:D,home?D:A,min);
+    const w=document.createElement("div");w.className="pk-result "+(goal?"goal":"save");w.textContent=goal?"⚽ GOAL!":"🧤 STOP!";arena.appendChild(w);
+    if(home){addMark(marksA,goal);if(goal){sa++;elSa.textContent=sa;}ka++;}
+    else{addMark(marksD,goal);if(goal){sd++;elSd.textContent=sd;}kd++;}
+    await sleep(680);
+  };
+  const decided=()=>{const remA=Math.max(0,5-ka),remD=Math.max(0,5-kd);return sa>sd+remD||sd>sa+remA;};
+  for(let i=0;i<5;i++){ await kick(true); if(decided())break; await kick(false); if(decided())break; }
+  let guard=0;
+  while(sa===sd && guard++<25){ await kick(true); await kick(false); } // サドンデス
+  const win=sa>sd;
+  const fin=document.createElement("div");fin.className="pk-final "+(win?"win":"lose");
+  fin.innerHTML=win?`🏆 ${hn} PK勝ち抜け! <b>${sa}-${sd}</b>`:`😢 PK敗退… <b>${sa}-${sd}</b>`;
+  ov.querySelector(".pk-in").appendChild(fin);
+  await sleep(1600); ov.remove();
+  return {win,sa,sd};
 }
 async function endMatch(){
   const M=MC,sh=M.home.score,sa=M.away.score;

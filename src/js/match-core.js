@@ -264,12 +264,15 @@ function careerRecordResult(cr,sh,sa){
   }
   return out;
 }
-// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり、引分/敗北で敗退。need連勝で優勝。
-function careerCupResult(cr,sh,sa){
-  const cup=cr.cup, res=sh>sa?"W":sh===sa?"D":"L";
-  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:sh+"-"+sa,rnd:cup.i+1,need:cup.need,opp:cr.oppName||""};
+// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり。引分は PK戦(pk)で決着し勝者が勝ち上がり。
+// pk={win,sa,sd}=引分をPKで決着した場合の結果(win=自チーム勝ち)。無ければ引分=敗退。
+function careerCupResult(cr,sh,sa,pk){
+  const cup=cr.cup;
+  const res = sh>sa?"W" : sh<sa?"L" : (pk ? (pk.win?"W":"L") : "D");
+  const scLabel = sh+"-"+sa + (pk ? ` (PK ${pk.sa}-${pk.sd})` : "");
+  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:scLabel,rnd:cup.i+1,need:cup.need,opp:cr.oppName||"",pk:pk?(pk.win?"W":"L"):undefined};
   cr.step++;
-  const out={res,cup};
+  const out={res,cup,pk:!!pk};
   if(res==="W"){
     cup.win++; cup.i++;
     if(cup.win>=cup.need){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); cr.cup=null; out.champion=true; }
