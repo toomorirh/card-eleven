@@ -133,10 +133,12 @@ function careerTeam(cap){
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
-// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定用・成長は非加算)。
+// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定/表示用・成長は非加算)。
+// 先発は careerTeam の「トリム後(=実際に出場する)」合計を使う(最良XIではなく上限に収めた編成)。
 function careerBaseTotal(cr){
   const pool=careerPool(cr);
-  let t=careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);
+  const team=careerTeam((typeof careerCap==="function")?careerCap(cr):(cr?cr.ovrCap:0));
+  let t=team.players.reduce((s,p)=>s+cardOvr(p.c),0);
   ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
   return t;
 }

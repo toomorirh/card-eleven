@@ -572,7 +572,7 @@ function openCareerEditor(){
 function _ceHead(cr,ov){
   const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, head=ov.querySelector(".ce-head");
   head.innerHTML=`<div class="banner" style="margin:0 0 4px">✏ 育成編成 (${S.form})</div>`
-    +`<div class="lg">編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 上限 ${cap}${over?" ⚠上限超過(試合不可)":""}</div>`;
+    +`<div class="lg">編成OVR <b style="color:${over?"#ffb15a":"#7dff9e"}">${base}</b> / 上限 ${cap}${over?" ⚠上限超過(手持ちが強く下限がcap超・プレーは可能)":""}</div>`;
   const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:6px";
   const auto=document.createElement("button");auto.className="btn ghost";auto.textContent="⚙ 全て自動に戻す";
   auto.onclick=async()=>{cr.squad={};await save();careerEditSlots(cr,ov);};

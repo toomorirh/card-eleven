@@ -603,10 +603,9 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   if(finalizeCareerIfDone())return;
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
   const cap=careerCap(cr); // スタジアム施設ぶんを含む実効上限
-  const team=careerTeam(cap);
+  const team=careerTeam(cap); // 上限内に可能な限りトリムした最良編成(手持ちの下限がcap超なら best-effort)
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
-  const baseTot=careerBaseTotal(cr); // 手動編成が上限超過ならブロック(選んだ主力の素OVR合計)
-  if(baseTot>cap){S._careerMatch=false;toast(`編成OVR ${baseTot} が上限 ${cap} を超過。編成を見直そう`);renderCareer();return;}
+  // 上限は careerTeam が可能な範囲でトリム。手持ちが強く下限がcapを上回る場合でもプレー可能(ブロックしない)。
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)

@@ -5662,7 +5662,7 @@ function openCareerEditor(){
 function _ceHead(cr,ov){
   const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, head=ov.querySelector(".ce-head");
   head.innerHTML=`<div class="banner" style="margin:0 0 4px">✏ 育成編成 (${S.form})</div>`
-    +`<div class="lg">編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 上限 ${cap}${over?" ⚠上限超過(試合不可)":""}</div>`;
+    +`<div class="lg">編成OVR <b style="color:${over?"#ffb15a":"#7dff9e"}">${base}</b> / 上限 ${cap}${over?" ⚠上限超過(手持ちが強く下限がcap超・プレーは可能)":""}</div>`;
   const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-top:6px";
   const auto=document.createElement("button");auto.className="btn ghost";auto.textContent="⚙ 全て自動に戻す";
   auto.onclick=async()=>{cr.squad={};await save();careerEditSlots(cr,ov);};
@@ -6065,10 +6065,12 @@ function careerTeam(cap){
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
-// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定用・成長は非加算)。
+// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定/表示用・成長は非加算)。
+// 先発は careerTeam の「トリム後(=実際に出場する)」合計を使う(最良XIではなく上限に収めた編成)。
 function careerBaseTotal(cr){
   const pool=careerPool(cr);
-  let t=careerPicks(cr).picks.reduce((s,p)=>s+(p.c?cardOvr(p.c):0),0);
+  const team=careerTeam((typeof careerCap==="function")?careerCap(cr):(cr?cr.ovrCap:0));
+  let t=team.players.reduce((s,p)=>s+cardOvr(p.c),0);
   ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
   return t;
 }
@@ -7513,10 +7515,9 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   if(finalizeCareerIfDone())return;
   S._careerMatch=true; // careerTeam→buildTeam→homeManager が育成中監督を拾えるよう先に立てる
   const cap=careerCap(cr); // スタジアム施設ぶんを含む実効上限
-  const team=careerTeam(cap);
+  const team=careerTeam(cap); // 上限内に可能な限りトリムした最良編成(手持ちの下限がcap超なら best-effort)
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
-  const baseTot=careerBaseTotal(cr); // 手動編成が上限超過ならブロック(選んだ主力の素OVR合計)
-  if(baseTot>cap){S._careerMatch=false;toast(`編成OVR ${baseTot} が上限 ${cap} を超過。編成を見直そう`);renderCareer();return;}
+  // 上限は careerTeam が可能な範囲でトリム。手持ちが強く下限がcapを上回る場合でもプレー可能(ブロックしない)。
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
