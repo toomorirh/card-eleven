@@ -348,17 +348,32 @@ const CAREER_TACS={
     {name:"カテナチオ",     kind:"team", flag:"🇮🇹", cond:[["CB","def",18]],  chance:0.50, surge:{mul:1.22,ticks:4}},
   ],
 };
-// カップ(監督キャリア): 勝ち抜き need 連勝で優勝→采配tac報酬。出場条件(cond)・相手lv・報酬プール。
-// need=連勝数 / lv=相手 / period=エントリー可能な週(この倍数の週のみ) / cond=前提条件。
+// カップ(監督キャリア): size強のトーナメント(ドロー=ランダム組合せ)。決勝まで勝ち抜くと優勝→采配tac報酬。
+// size=出場チーム数(2^rounds) / rounds=回戦数 / poolLv=相手クラブのlv帯 / period=エントリー週(倍数) / cond=前提。
 const CUPS=[
-  {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", need:3, lv:5, pool:"basic",  period:5,
+  {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", size:8,  rounds:3, poolLv:[3,7],  pool:"basic",  period:5,
    cond:cr=>cr.div<=2,                                   condText:"DIV2到達"},
-  {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", need:5, lv:7, pool:"strong", period:7,
+  {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", size:16, rounds:4, poolLv:[4,10], pool:"strong", period:7,
    cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または キングズクラブカップ優勝"},
-  {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", need:5, lv:8, pool:"team",   period:13,
+  {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", size:16, rounds:4, poolLv:[5,10], pool:"team",   period:13,
    cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"コンチネンタルカップ優勝"},
 ];
 function cupById(id){return CUPS.find(c=>c.id===id)||null;}
+// 回戦名(そのラウンドに残っているチーム数から)。
+function roundLabel(n){return n<=2?"決勝":n<=4?"準決勝":n<=8?"準々決勝":n<=16?"1回戦":n<=32?"2回戦":n+"強";}
+// カップの相手プール(lv帯のクラブ・宿敵は除外)。
+function cupClubPool(cup){const[mn,mx]=cup.poolLv||[3,10];
+  return Object.keys(OPP_CLUBS).filter(id=>id!=="nemesis"&&OPP_CLUBS[id].lv>=mn&&OPP_CLUBS[id].lv<=mx);}
+// トーナメント表を抽選(ドロー): 自チーム "__me" + プールから size-1 クラブ → 全体をシャッフル(=ランダム組合せ)。
+// 返り値 bracket[0]=初戦の並び(隣接ペアが1回戦の各カード)。
+function drawCupBracket(cup){
+  const pool=cupClubPool(cup).slice();
+  for(let i=pool.length-1;i>0;i--){const j=ri(0,i);[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const teams=["__me",...pool.slice(0,cup.size-1)];
+  while(teams.length<cup.size)teams.push(pool[teams.length%(pool.length||1)]||"aizen"); // プール不足時の保険
+  for(let i=teams.length-1;i>0;i--){const j=ri(0,i);[teams[i],teams[j]]=[teams[j],teams[i]];} // シード=ランダム
+  return [teams];
+}
 // ===== 監督キャリアの相手クラブ(名前付き・OVR Tier・seedでロスター固定=偵察可) =====
 // lv=強さ(6.6+lv が1ステ平均) / form=陣形 / seed=固定ロスター / boss=看板強敵。
 const OPP_CLUBS={
@@ -418,17 +433,11 @@ function careerLeaguePool(cr){
 }
 // 宿敵の現在のlv(DIVに応じて一段強い)。
 function nemesisLv(cr){return (CAREER.divLv[cr.div]||5)+2;}
-// カップは固定ブラケット(いつも当たる相手)。末尾=決勝の看板ボス。
-const CUP_BRACKETS={
-  domestic:     ["norte","rosa","caled"],
-  continental:  ["azur","estrella","pantera","imperio","aurum"],
-  international: ["pantera","imperio","volca","grandex","titania"],
-};
-// 現在の対戦相手クラブ(カップ中はブラケット、通常はDIVの節)を返す。
+// 現在の対戦相手クラブ(カップ中はブラケットの当該回戦の相手、通常はDIVの節)を返す。
 function careerOpponent(cr){
   if(!cr)return null;
   let id;
-  if(cr.cup){ id=(CUP_BRACKETS[cr.cup.id]||[])[cr.cup.i]; }
+  if(cr.cup){ const cur=(cr.cup.bracket||[])[cr.cup.round]||[]; const mi=cur.indexOf("__me"); id=mi<0?null:cur[mi^1]; } // __meの対戦ペア
   else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
   else { const pool=careerLeaguePool(cr); id=pool[(cr.node||0)%pool.length]; }
   if(!id)return null;

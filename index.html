@@ -805,15 +805,22 @@ h1{text-shadow:3px 3px 0 #06301c}
   font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:'DotGothic16'}
 .career-tabs .ctab.on{background:#274064;color:#fff;border-color:#4a76b0}
 .career-body{min-height:60px}
-/* カップ/トーナメント ラダー */
+/* カップ/トーナメント表(ブラケット) */
 .cup-card{border:1px solid #22304a;border-radius:8px;background:#111c2e;padding:7px 9px;margin:5px 0}
 .cup-card.active{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,194,90,.4)}
 .cup-card .cup-head{font-size:12px}
-.cup-ladder{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-top:5px}
-.cup-node{font-size:10px;padding:2px 6px;border:1px solid #2a3d56;border-radius:10px;background:#0e1826;color:#b8c6da;white-space:nowrap}
-.cup-node.done{background:#1c3a24;color:#7dff9e;border-color:#3a6a48}
-.cup-node.now{background:#3a2c06;color:var(--gold);border-color:var(--gold);font-weight:900}
-.cup-arrow{color:#4a6285;font-size:9px}
+.cup-bracket{margin-top:6px}
+.cup-round{margin:5px 0}
+.cup-rn{font-size:10px;color:#ffe14d;font-family:'DotGothic16';margin-bottom:2px}
+.cup-matches{display:flex;flex-wrap:wrap;gap:5px}
+.cup-match{display:inline-flex;align-items:center;gap:3px;padding:2px 5px;border:1px solid #22304a;border-radius:8px;background:#0e1826}
+.cup-match.mine{border-color:#4a76b0;background:#16233a}
+.cup-match.now{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,194,90,.45)}
+.cup-team{font-size:10px;color:#b8c6da;white-space:nowrap;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.cup-team.me{color:var(--gold);font-weight:900}
+.cup-team.won{color:#7dff9e}
+.cup-team.lost{color:#5a6b80;text-decoration:line-through}
+.cup-vs{font-size:8px;color:#4a6285}
 /* PK戦オーバーレイ */
 .pkshoot{position:fixed;inset:0;z-index:210;background:rgba(6,12,22,.97);display:flex;align-items:center;justify-content:center;padding:14px}
 .pkshoot .pk-in{width:100%;max-width:440px;text-align:center}
@@ -1486,17 +1493,32 @@ const CAREER_TACS={
     {name:"カテナチオ",     kind:"team", flag:"🇮🇹", cond:[["CB","def",18]],  chance:0.50, surge:{mul:1.22,ticks:4}},
   ],
 };
-// カップ(監督キャリア): 勝ち抜き need 連勝で優勝→采配tac報酬。出場条件(cond)・相手lv・報酬プール。
-// need=連勝数 / lv=相手 / period=エントリー可能な週(この倍数の週のみ) / cond=前提条件。
+// カップ(監督キャリア): size強のトーナメント(ドロー=ランダム組合せ)。決勝まで勝ち抜くと優勝→采配tac報酬。
+// size=出場チーム数(2^rounds) / rounds=回戦数 / poolLv=相手クラブのlv帯 / period=エントリー週(倍数) / cond=前提。
 const CUPS=[
-  {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", need:3, lv:5, pool:"basic",  period:5,
+  {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", size:8,  rounds:3, poolLv:[3,7],  pool:"basic",  period:5,
    cond:cr=>cr.div<=2,                                   condText:"DIV2到達"},
-  {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", need:5, lv:7, pool:"strong", period:7,
+  {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", size:16, rounds:4, poolLv:[4,10], pool:"strong", period:7,
    cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または キングズクラブカップ優勝"},
-  {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", need:5, lv:8, pool:"team",   period:13,
+  {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", size:16, rounds:4, poolLv:[5,10], pool:"team",   period:13,
    cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"コンチネンタルカップ優勝"},
 ];
 function cupById(id){return CUPS.find(c=>c.id===id)||null;}
+// 回戦名(そのラウンドに残っているチーム数から)。
+function roundLabel(n){return n<=2?"決勝":n<=4?"準決勝":n<=8?"準々決勝":n<=16?"1回戦":n<=32?"2回戦":n+"強";}
+// カップの相手プール(lv帯のクラブ・宿敵は除外)。
+function cupClubPool(cup){const[mn,mx]=cup.poolLv||[3,10];
+  return Object.keys(OPP_CLUBS).filter(id=>id!=="nemesis"&&OPP_CLUBS[id].lv>=mn&&OPP_CLUBS[id].lv<=mx);}
+// トーナメント表を抽選(ドロー): 自チーム "__me" + プールから size-1 クラブ → 全体をシャッフル(=ランダム組合せ)。
+// 返り値 bracket[0]=初戦の並び(隣接ペアが1回戦の各カード)。
+function drawCupBracket(cup){
+  const pool=cupClubPool(cup).slice();
+  for(let i=pool.length-1;i>0;i--){const j=ri(0,i);[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const teams=["__me",...pool.slice(0,cup.size-1)];
+  while(teams.length<cup.size)teams.push(pool[teams.length%(pool.length||1)]||"aizen"); // プール不足時の保険
+  for(let i=teams.length-1;i>0;i--){const j=ri(0,i);[teams[i],teams[j]]=[teams[j],teams[i]];} // シード=ランダム
+  return [teams];
+}
 // ===== 監督キャリアの相手クラブ(名前付き・OVR Tier・seedでロスター固定=偵察可) =====
 // lv=強さ(6.6+lv が1ステ平均) / form=陣形 / seed=固定ロスター / boss=看板強敵。
 const OPP_CLUBS={
@@ -1556,17 +1578,11 @@ function careerLeaguePool(cr){
 }
 // 宿敵の現在のlv(DIVに応じて一段強い)。
 function nemesisLv(cr){return (CAREER.divLv[cr.div]||5)+2;}
-// カップは固定ブラケット(いつも当たる相手)。末尾=決勝の看板ボス。
-const CUP_BRACKETS={
-  domestic:     ["norte","rosa","caled"],
-  continental:  ["azur","estrella","pantera","imperio","aurum"],
-  international: ["pantera","imperio","volca","grandex","titania"],
-};
-// 現在の対戦相手クラブ(カップ中はブラケット、通常はDIVの節)を返す。
+// 現在の対戦相手クラブ(カップ中はブラケットの当該回戦の相手、通常はDIVの節)を返す。
 function careerOpponent(cr){
   if(!cr)return null;
   let id;
-  if(cr.cup){ id=(CUP_BRACKETS[cr.cup.id]||[])[cr.cup.i]; }
+  if(cr.cup){ const cur=(cr.cup.bracket||[])[cr.cup.round]||[]; const mi=cur.indexOf("__me"); id=mi<0?null:cur[mi^1]; } // __meの対戦ペア
   else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
   else { const pool=careerLeaguePool(cr); id=pool[(cr.node||0)%pool.length]; }
   if(!id)return null;
@@ -5640,15 +5656,16 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
       wrap.appendChild(row("played","💪",wk,`練習 ・ OVR上限+${h.gain||"?"}→${h.cap||""}`,`<span class="wt-res">💪</span>`));
     }else if(h&&h.act==="C"){
       const chip=`<span class="wt-res ${h.res}">${h.res==="W"?"🏆 勝":h.res==="D"?"🤝 分":"😢 敗"}</span>`;
-      wrap.appendChild(row("played","🏆",wk,`${h.name||"カップ"} ${h.rnd||""}/${h.need||""}${h.opp?" vs "+h.opp:""} ・ ${h.sc||""}`,chip));
+      wrap.appendChild(row("played","🏆",wk,`${h.name||"カップ"} ${h.round||""}${h.opp?" vs "+h.opp:""} ・ ${h.sc||""}`,chip));
     }else if(i===cr.step){ // 現在週=次の実施を選ぶ箱(ボタン内蔵)
       const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
       if(cr.cup){ // カップ進行中: 敗退/優勝までカップ戦のみ選択可
+        const rl=roundLabel((cr.cup.bracket[cr.cup.round]||[]).length);
         const oppTxt=opp?`相手: ${opp.name}${opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
-        wrap.appendChild(row("cur",cr.cup.emoji,`${wk} ・ ${cr.cup.name}`,`${cr.cup.win}/${cr.cup.need}勝 ・ ${oppTxt}`,`<span class="wt-res cur">${cr.cup.win}/${cr.cup.need}</span>`));
+        wrap.appendChild(row("cur",cr.cup.emoji,`${wk} ・ ${cr.cup.name}`,`${rl} ・ ${oppTxt}`,`<span class="wt-res cur">${rl}</span>`));
         if(!noActions){
           const panel=document.createElement("div");panel.className="cur-actions";
-          panel.appendChild(actBtn(`▶ 第${cr.cup.i+1}/${cr.cup.need}戦`,startCareerMatch));
+          panel.appendChild(actBtn(`▶ ${rl}`,startCareerMatch));
           panel.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
           wrap.appendChild(panel);
         }
@@ -5807,10 +5824,11 @@ function careerCurrentActivity(cr){
     const p=document.createElement("div");p.className="cur-actions";p.appendChild(actBtn("① 任期を締める",()=>finalizeCareerIfDone()||renderCareer()));wrap.appendChild(p);return wrap;}
   const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
   if(cr.cup){
+    const rl=roundLabel((cr.cup.bracket[cr.cup.round]||[]).length);
     const oppTxt=opp?`相手: ${opp.name}${opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
-    wrap.innerHTML=`<div class="cn-head">${cr.cup.emoji} ${cr.cup.name} ・ ${cr.cup.win}/${cr.cup.need}勝</div><div class="lg">${oppTxt}</div>`;
+    wrap.innerHTML=`<div class="cn-head">${cr.cup.emoji} ${cr.cup.name} ・ ${rl}</div><div class="lg">${oppTxt}</div>`;
     const p=document.createElement("div");p.className="cur-actions";
-    p.appendChild(actBtn(`▶ 第${cr.cup.i+1}/${cr.cup.need}戦`,startCareerMatch));
+    p.appendChild(actBtn(`▶ ${rl}`,startCareerMatch));
     p.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
     wrap.appendChild(p);
   }else{
@@ -5836,20 +5854,36 @@ function careerTabBar(){
 }
 // 次にこのカップにエントリーできる週(period の倍数・1基点)。
 function nextCupEntryWeek(cup,step){for(let w=step;w<CAREER.steps*3+CAREER.extendWeeks*2+10;w++){if(((w+1)%cup.period)===0)return w+1;}return null;}
-// カップ/トーナメントの可視化: 各カップの条件・次エントリー週・ブラケット(勝ち上がりラダー)。
+// 進行中カップのトーナメント表: 各回戦のカード(ペア)を並べ、自チームを金・勝者を緑で表示。
+function cupBracketView(cup){
+  const wrap=document.createElement("div");wrap.className="cup-bracket";
+  const nm=id=>id==="__me"?myName():((OPP_CLUBS[id]||{}).name||id);
+  for(let r=0;r<cup.bracket.length;r++){
+    const teams=cup.bracket[r], next=cup.bracket[r+1];
+    const round=document.createElement("div");round.className="cup-round";
+    let h=`<div class="cup-rn">${roundLabel(teams.length)}${r===cup.round?" ▶":""}</div><div class="cup-matches">`;
+    for(let k=0;k<teams.length;k+=2){
+      const a=teams[k], b=teams[k+1], winner=next?next[k/2]:null, mine=(a==="__me"||b==="__me");
+      const chip=id=>{const me=id==="__me",won=winner&&winner===id,lost=winner&&winner!==id;
+        return `<span class="cup-team${me?" me":""}${won?" won":""}${lost?" lost":""}">${nm(id)}</span>`;};
+      h+=`<span class="cup-match${mine?" mine":""}${(r===cup.round&&mine)?" now":""}">${chip(a)}<span class="cup-vs">v</span>${chip(b)}</span>`;
+    }
+    h+=`</div>`; round.innerHTML=h; wrap.appendChild(round);
+  }
+  if(cup.bracket.length<cup.rounds){const t=document.createElement("div");t.className="lg";t.style.fontSize="9px";t.textContent="この先の対戦は勝ち上がりで決定";wrap.appendChild(t);}
+  return wrap;
+}
+// カップ一覧: 各カップの規模・条件・次エントリー週。進行中はトーナメント表(ドロー)を表示。
 function careerCupsView(cr){
   const wrap=document.createElement("div");
-  const ladder=(cupId,winN,curI)=>{const br=CUP_BRACKETS[cupId]||[];
-    return br.map((id,idx)=>{const o=OPP_CLUBS[id]||{},nm=o.name||id,boss=o.boss?"👑":"",last=idx===br.length-1;
-      let cls="cup-node";if(winN!=null){if(idx<winN)cls+=" done";else if(idx===curI)cls+=" now";}
-      return `<span class="${cls}">${last?"🏆":""}${nm}${boss}</span>`;}).join('<span class="cup-arrow">▶</span>');};
   CUPS.forEach(cup=>{
     const active=cr.cup&&cr.cup.id===cup.id, met=cup.cond(cr), nextWk=nextCupEntryWeek(cup,cr.step);
     const card=document.createElement("div");card.className="cup-card"+(active?" active":"");
-    let h=`<div class="cup-head">${cup.emoji} <b>${cup.name}</b> ・ ${cup.need}連勝で優勝`;
-    if(active)h+=` <span style="color:var(--gold)">▶ ${cr.cup.win}/${cr.cup.need}勝</span>`;
+    let h=`<div class="cup-head">${cup.emoji} <b>${cup.name}</b> ・ ${cup.size}強トーナメント`;
+    if(active)h+=` <span style="color:var(--gold)">▶ ${roundLabel((cr.cup.bracket[cr.cup.round]||[]).length)}</span>`;
     h+=`</div><div class="lg" style="font-size:10px">出場条件: ${cup.condText} ${met?"✅":"✕"} ・ ${cup.period}の倍数週にエントリー${nextWk?`(次: 第${nextWk}週)`:""}</div>`;
-    card.innerHTML=h+`<div class="cup-ladder">${ladder(cup.id,active?cr.cup.win:null,active?cr.cup.i:null)}</div>`;
+    card.innerHTML=h;
+    if(active)card.appendChild(cupBracketView(cr.cup));
     wrap.appendChild(card);
   });
   return wrap;
@@ -5937,14 +5971,14 @@ function careerCupPicker(){
   const cr=S.career; if(!cr||cr.cup)return;
   const ov=document.createElement("div");ov.className="tac-offer";
   const inn=document.createElement("div");inn.className="tac-offer-in";
-  inn.innerHTML=`<div class="banner">🏆 カップ挑戦</div><div class="lg">${cr.cup?"":"勝ち抜きで優勝すると采配スキルを獲得。負けると敗退(週は消費)。"}</div>`;
+  inn.innerHTML=`<div class="banner">🏆 カップ挑戦</div><div class="lg">${cr.cup?"":"ドロー抽選のトーナメント。決勝まで勝ち抜くと優勝→采配スキル。負けると敗退(週は消費・引分はPK戦)。"}</div>`;
   CUPS.forEach(cup=>{
     const condOk=cup.cond(cr), entryOk=cupEntryWeek(cup,cr.step), enter=condOk&&entryOk, won=(cr.cupsWon||[]).includes(cup.id);
     const nextWk=Math.ceil((cr.step+1)/cup.period)*cup.period; // 次のエントリー週
     const status=!condOk?`🔒 ${cup.condText}`:!entryOk?`第${nextWk}週にエントリー可(${cup.period}の倍数週)`:"✅ 今週エントリー可能!";
     const reward=cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配";
     const b=document.createElement("button");b.className="btn"+(enter?"":" ghost");b.style.cssText="margin-top:6px;text-align:left";
-    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.need}連勝・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${reward} ・ ${status}</span>`;
+    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.size}強・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${reward} ・ ${status}</span>`;
     if(enter)b.onclick=()=>{ov.remove();startCup(cup.id);};
     inn.appendChild(b);
   });
@@ -6273,20 +6307,33 @@ function careerRecordResult(cr,sh,sa){
   }
   return out;
 }
-// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり。引分は PK戦(pk)で決着し勝者が勝ち上がり。
-// pk={win,sa,sd}=引分をPKで決着した場合の結果(win=自チーム勝ち)。無ければ引分=敗退。
+// クラブ同士のノックアウト1試合をlv差で決着(引分なし・勝者idを返す)。
+function simKnockout(a,b){
+  const la=(OPP_CLUBS[a]||{}).lv||5, lb=(OPP_CLUBS[b]||{}).lv||5;
+  const pA=Math.max(0.15,Math.min(0.85,0.5+(la-lb)*0.06));
+  return Math.random()<pA?a:b;
+}
+// カップ1試合の結果処理(純粋・トーナメント)。当該回戦のあなたの試合を結果で、他カードは simKnockout で
+// 同時進行して次の回戦(bracket[r+1])を生成。決勝を勝てば優勝、負け(引分PK負け含む)は敗退。
+// pk={win,sa,sd}=引分をPKで決着した場合(win=自チーム勝ち)。無ければ引分=敗退。
 function careerCupResult(cr,sh,sa,pk){
-  const cup=cr.cup;
+  const cup=cr.cup, r=cup.round, cur=(cup.bracket[r]||[]).slice();
   const res = sh>sa?"W" : sh<sa?"L" : (pk ? (pk.win?"W":"L") : "D");
-  const scLabel = sh+"-"+sa + (pk ? ` (PK ${pk.sa}-${pk.sd})` : "");
-  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:scLabel,rnd:cup.i+1,need:cup.need,opp:cr.oppName||"",pk:pk?(pk.win?"W":"L"):undefined};
+  const next=[];
+  for(let k=0;k<cur.length;k+=2){ const a=cur[k], b=cur[k+1];
+    next.push((a==="__me"||b==="__me") ? (res==="W"?"__me":(a==="__me"?b:a)) : simKnockout(a,b)); }
+  cup.bracket[r+1]=next; cup.round++;
+  const roundName=roundLabel(cur.length), scLabel=sh+"-"+sa+(pk?` (PK ${pk.sa}-${pk.sd})`:"");
+  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:scLabel,round:roundName,opp:cr.oppName||"",pk:pk?(pk.win?"W":"L"):undefined};
   cr.step++;
-  const out={res,cup,pk:!!pk};
+  const out={res,cup,pk:!!pk,roundName};
   if(res==="W"){
-    cup.win++; cup.i++;
-    if(cup.win>=cup.need){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); cr.cup=null; out.champion=true; }
+    if(cup.round>=cup.rounds){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); out.champion=true; out.cup=cup; cr.cup=null; }
     else out.advance=true;
-  }else{ cr.cup=null; out.eliminated=true; }
+  }else{ // 敗退: 残りのブラケットをシミュして優勝クラブを決定(演出=誰が勝ち上がったか)
+    let cont=next; while(cont.length>1){const nx=[];for(let k=0;k<cont.length;k+=2)nx.push(simKnockout(cont[k],cont[k+1]));cont=nx;}
+    out.champId=cont[0]; out.eliminated=true; out.cup=cup; cr.cup=null;
+  }
   return out;
 }
 function oppTeam(lv,club){
@@ -7615,7 +7662,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
   cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
-  const label=cr.cup?`${cr.cup.emoji} ${cr.cup.name} 第${cr.cup.i+1}/${cr.cup.need}戦: ${cr.oppName}`
+  const label=cr.cup?`${cr.cup.emoji} ${cr.cup.name} ${roundLabel((cr.cup.bracket[cr.cup.round]||[]).length)}: ${cr.oppName}`
     :cont?`${cont.emoji} ${cont.name}リーグ 第${cr.node+1}節: ${cr.oppName}`
     :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
@@ -7632,9 +7679,9 @@ function startCup(id){ // ②カップ: エントリー週かつ条件を満た�
   if(cr.step>=CAREER.steps){toast("任期は終了しています");return;}
   if(!cup.cond(cr)){toast(`出場条件を満たしていません(${cup.condText})`);return;}
   if(!cupEntryWeek(cup,cr.step)){toast(`${cup.name}は${cup.period}の倍数の週のみエントリー可能です`);return;}
-  cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,need:cup.need,lv:cup.lv,pool:cup.pool,win:0,i:0};
+  cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,pool:cup.pool,size:cup.size,rounds:cup.rounds,round:0,bracket:drawCupBracket(cup)};
   save(); renderCareer();
-  toast(`${cup.emoji} ${cup.name}に出場! ${cup.need}連勝で優勝だ`);
+  toast(`${cup.emoji} ${cup.name}(${cup.size}強)のドロー確定! 決勝まで勝ち抜け`);
 }
 function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const cr=S.career; if(!cr||cr.finished)return;
@@ -7851,8 +7898,8 @@ const MATCH_MODES={
       const o=careerCupResult(cr,sh,sa,pk);
       if(pk)html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} ${pk.win?"勝ち抜け!":"敗退"}</div>`;
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
-      else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;}
-      else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
+      else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
+      else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`;}
     }else{
       const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};

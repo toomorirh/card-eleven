@@ -615,7 +615,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
   cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
-  const label=cr.cup?`${cr.cup.emoji} ${cr.cup.name} 第${cr.cup.i+1}/${cr.cup.need}戦: ${cr.oppName}`
+  const label=cr.cup?`${cr.cup.emoji} ${cr.cup.name} ${roundLabel((cr.cup.bracket[cr.cup.round]||[]).length)}: ${cr.oppName}`
     :cont?`${cont.emoji} ${cont.name}リーグ 第${cr.node+1}節: ${cr.oppName}`
     :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
@@ -632,9 +632,9 @@ function startCup(id){ // ②カップ: エントリー週かつ条件を満た�
   if(cr.step>=CAREER.steps){toast("任期は終了しています");return;}
   if(!cup.cond(cr)){toast(`出場条件を満たしていません(${cup.condText})`);return;}
   if(!cupEntryWeek(cup,cr.step)){toast(`${cup.name}は${cup.period}の倍数の週のみエントリー可能です`);return;}
-  cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,need:cup.need,lv:cup.lv,pool:cup.pool,win:0,i:0};
+  cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,pool:cup.pool,size:cup.size,rounds:cup.rounds,round:0,bracket:drawCupBracket(cup)};
   save(); renderCareer();
-  toast(`${cup.emoji} ${cup.name}に出場! ${cup.need}連勝で優勝だ`);
+  toast(`${cup.emoji} ${cup.name}(${cup.size}強)のドロー確定! 決勝まで勝ち抜け`);
 }
 function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const cr=S.career; if(!cr||cr.finished)return;
@@ -851,8 +851,8 @@ const MATCH_MODES={
       const o=careerCupResult(cr,sh,sa,pk);
       if(pk)html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} ${pk.win?"勝ち抜け!":"敗退"}</div>`;
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
-      else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${cupName} ${o.cup.win}勝目! 次の試合へ</div>`;}
-      else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${cupName} 敗退…また挑戦しよう</div>`;
+      else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
+      else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`;}
     }else{
       const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};

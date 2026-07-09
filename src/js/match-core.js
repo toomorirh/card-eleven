@@ -264,20 +264,33 @@ function careerRecordResult(cr,sh,sa){
   }
   return out;
 }
-// カップ1試合の結果処理(純粋)。勝ち抜き=勝利のみ勝ち上がり。引分は PK戦(pk)で決着し勝者が勝ち上がり。
-// pk={win,sa,sd}=引分をPKで決着した場合の結果(win=自チーム勝ち)。無ければ引分=敗退。
+// クラブ同士のノックアウト1試合をlv差で決着(引分なし・勝者idを返す)。
+function simKnockout(a,b){
+  const la=(OPP_CLUBS[a]||{}).lv||5, lb=(OPP_CLUBS[b]||{}).lv||5;
+  const pA=Math.max(0.15,Math.min(0.85,0.5+(la-lb)*0.06));
+  return Math.random()<pA?a:b;
+}
+// カップ1試合の結果処理(純粋・トーナメント)。当該回戦のあなたの試合を結果で、他カードは simKnockout で
+// 同時進行して次の回戦(bracket[r+1])を生成。決勝を勝てば優勝、負け(引分PK負け含む)は敗退。
+// pk={win,sa,sd}=引分をPKで決着した場合(win=自チーム勝ち)。無ければ引分=敗退。
 function careerCupResult(cr,sh,sa,pk){
-  const cup=cr.cup;
+  const cup=cr.cup, r=cup.round, cur=(cup.bracket[r]||[]).slice();
   const res = sh>sa?"W" : sh<sa?"L" : (pk ? (pk.win?"W":"L") : "D");
-  const scLabel = sh+"-"+sa + (pk ? ` (PK ${pk.sa}-${pk.sd})` : "");
-  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:scLabel,rnd:cup.i+1,need:cup.need,opp:cr.oppName||"",pk:pk?(pk.win?"W":"L"):undefined};
+  const next=[];
+  for(let k=0;k<cur.length;k+=2){ const a=cur[k], b=cur[k+1];
+    next.push((a==="__me"||b==="__me") ? (res==="W"?"__me":(a==="__me"?b:a)) : simKnockout(a,b)); }
+  cup.bracket[r+1]=next; cup.round++;
+  const roundName=roundLabel(cur.length), scLabel=sh+"-"+sa+(pk?` (PK ${pk.sa}-${pk.sd})`:"");
+  (cr.history=cr.history||[])[cr.step]={act:"C",cup:cup.id,name:cup.name,res,sc:scLabel,round:roundName,opp:cr.oppName||"",pk:pk?(pk.win?"W":"L"):undefined};
   cr.step++;
-  const out={res,cup,pk:!!pk};
+  const out={res,cup,pk:!!pk,roundName};
   if(res==="W"){
-    cup.win++; cup.i++;
-    if(cup.win>=cup.need){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); cr.cup=null; out.champion=true; }
+    if(cup.round>=cup.rounds){ cr.cupsWon=cr.cupsWon||[]; cr.cupsWon.push(cup.id); out.champion=true; out.cup=cup; cr.cup=null; }
     else out.advance=true;
-  }else{ cr.cup=null; out.eliminated=true; }
+  }else{ // 敗退: 残りのブラケットをシミュして優勝クラブを決定(演出=誰が勝ち上がったか)
+    let cont=next; while(cont.length>1){const nx=[];for(let k=0;k<cont.length;k+=2)nx.push(simKnockout(cont[k],cont[k+1]));cont=nx;}
+    out.champId=cont[0]; out.eliminated=true; out.cup=cup; cr.cup=null;
+  }
   return out;
 }
 function oppTeam(lv,club){

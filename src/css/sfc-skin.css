@@ -160,15 +160,22 @@ h1{text-shadow:3px 3px 0 #06301c}
   font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:'DotGothic16'}
 .career-tabs .ctab.on{background:#274064;color:#fff;border-color:#4a76b0}
 .career-body{min-height:60px}
-/* カップ/トーナメント ラダー */
+/* カップ/トーナメント表(ブラケット) */
 .cup-card{border:1px solid #22304a;border-radius:8px;background:#111c2e;padding:7px 9px;margin:5px 0}
 .cup-card.active{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,194,90,.4)}
 .cup-card .cup-head{font-size:12px}
-.cup-ladder{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-top:5px}
-.cup-node{font-size:10px;padding:2px 6px;border:1px solid #2a3d56;border-radius:10px;background:#0e1826;color:#b8c6da;white-space:nowrap}
-.cup-node.done{background:#1c3a24;color:#7dff9e;border-color:#3a6a48}
-.cup-node.now{background:#3a2c06;color:var(--gold);border-color:var(--gold);font-weight:900}
-.cup-arrow{color:#4a6285;font-size:9px}
+.cup-bracket{margin-top:6px}
+.cup-round{margin:5px 0}
+.cup-rn{font-size:10px;color:#ffe14d;font-family:'DotGothic16';margin-bottom:2px}
+.cup-matches{display:flex;flex-wrap:wrap;gap:5px}
+.cup-match{display:inline-flex;align-items:center;gap:3px;padding:2px 5px;border:1px solid #22304a;border-radius:8px;background:#0e1826}
+.cup-match.mine{border-color:#4a76b0;background:#16233a}
+.cup-match.now{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,194,90,.45)}
+.cup-team{font-size:10px;color:#b8c6da;white-space:nowrap;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.cup-team.me{color:var(--gold);font-weight:900}
+.cup-team.won{color:#7dff9e}
+.cup-team.lost{color:#5a6b80;text-decoration:line-through}
+.cup-vs{font-size:8px;color:#4a6285}
 /* PK戦オーバーレイ */
 .pkshoot{position:fixed;inset:0;z-index:210;background:rgba(6,12,22,.97);display:flex;align-items:center;justify-content:center;padding:14px}
 .pkshoot .pk-in{width:100%;max-width:440px;text-align:center}
