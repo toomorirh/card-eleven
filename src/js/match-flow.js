@@ -605,7 +605,8 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const cap=careerCap(cr); // スタジアム施設ぶんを含む実効上限
   const team=careerTeam(cap); // 上限内に可能な限りトリムした最良編成(手持ちの下限がcap超なら best-effort)
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
-  // 上限は careerTeam が可能な範囲でトリム。手持ちが強く下限がcapを上回る場合でもプレー可能(ブロックしない)。
+  // 統制: 編成OVRが統制可能OVR(cap)を超えると超過率ぶん全能力が低下(eff の T.ctrl)。
+  team.ctrl=careerOverloadMul(cr);
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
@@ -619,6 +620,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
     :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
   _beginMatch(oppTeam(lv,{form,seed}), label, form, lv, -1, team);
+  if(team.ctrl<1)feed(`⚠ 統制超過! 編成OVRが統制可能OVRを上回り 全能力 -${Math.round((1-team.ctrl)*100)}%(監督の指揮が追いつかない)`,"chance");
   const hot=team.players.filter(p=>cr.cond[p.c.id]==="peak").map(p=>p.c.name); // 調子ハイライト
   const cold=team.players.filter(p=>cr.cond[p.c.id]==="poor").map(p=>p.c.name);
   if(hot.length)feed(`⤴ 絶好調: ${hot.join("、")}`,"chance");

@@ -1425,6 +1425,9 @@ const CAREER={
   growthFloor:4,                   // 衰退の下限(-)。老雄の酷使で下がる幅の上限
   growthThresh:7.0,                // この評価以上で成長(MOM級ほど大きい)
   loanCost:40,                     // 助っ人(固有選手)招へいのプレステージ費用(シーズン限定)
+  // 統制(監督の指揮能力): careerCap=統制可能OVR。編成OVRが統制OVRを超えると超過率ぶん全能力が低下。
+  // 例) 編成OVRが統制OVRの130%(=+30%超過)なら overloadK=1.0 で -30%(下限 overloadFloor でクランプ)。
+  overloadK:1.0, overloadFloor:0.5,
 };
 // ===== クラブの格(名声/プレステージ)→ 施設で段階解放(キャリア限定・ローグライク) =====
 // prestige=勝利/タイトル/昇格で貯まる。施設をLv上げして編成上限/成長速度/コンディションを強化。
@@ -5770,7 +5773,7 @@ function careerStatusCard(cr){
   const d=document.createElement("div");d.className="career-status";
   d.innerHTML=`<div class="cs-top"><span>👤 <b>${cr.name}</b> 監督</span><span>🏛 名声 <b>${cr.prestige||0}</b></span></div>
     <div class="cs-bar"><div class="cs-fill" style="width:${pct}%"></div><span class="cs-bar-lb">${cr.step}/${stepsMax}週${(cr.term||0)?` (延長${cr.term})`:""}</span></div>
-    <div class="cs-row"><span><b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ 勝点${cr.pts||0}</span><span>OVR上限 <b>${careerCap(cr)}</b>${cr.season?` ・ ${cr.season}季`:""}</span></div>`;
+    <div class="cs-row"><span><b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ 勝点${cr.pts||0}</span><span>統制OVR <b>${careerCap(cr)}</b>${careerOverloadMul(cr)<1?` <span style="color:#ff8e8e">⚠-${Math.round((1-careerOverloadMul(cr))*100)}%</span>`:""}${cr.season?` ・ ${cr.season}季`:""}</span></div>`;
   return d;
 }
 // 今週の活動カード(=主操作。①リーグ/②カップ/③練習/偵察 or カップ戦)。ハブに常時表示。
@@ -5855,8 +5858,8 @@ function renderCareer(){
     if(cr.stage==="cont")body.appendChild(mk("div","lg",`🌐 大陸リーグ: 制覇済 ${(cr.contWon||[]).length}/${CONTINENTS.length}。${cr.contId?"進行中":"「今週の活動」から挑戦する大陸を選択"}`));
   }else if(_careerTab==="squad"){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
-    const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap;
-    body.appendChild(mk("div","lg",`編成OVR <b style="color:${over?"#ffb15a":"#7dff9e"}">${base}</b> / 上限 ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?" ⚠超過(手持ちが強く下限がcap超・プレー可)":""}`));
+    const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
+    body.appendChild(mk("div","lg",`編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
     const rowb=mk("div");rowb.style.cssText="display:flex;gap:6px;margin:4px 0";
     const fmB=mk("button","btn ghost");fmB.textContent=`フォーメーション: ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
     const autoB=mk("button","btn ghost");autoB.textContent="⚙ 自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
@@ -6125,6 +6128,14 @@ function careerBaseTotal(cr){
   ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
   return t;
 }
+// 統制ペナルティ倍率: 編成OVR(素・XI+ベンチ)が統制可能OVR(careerCap)を超えた超過率ぶん全能力を低下。
+// 例) 編成OVR/統制OVR=1.30 → 1-(1.30-1)*overloadK = -30%(overloadFloor でクランプ)。統制内は 1.0。
+function careerOverloadMul(cr){
+  const cap=careerCap(cr); if(cap<=0)return 1;
+  const r=careerBaseTotal(cr)/cap;
+  if(r<=1)return 1;
+  return Math.max(CAREER.overloadFloor, 1-(r-1)*CAREER.overloadK);
+}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
   const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
@@ -6351,7 +6362,7 @@ function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
   const surge=(T&&T._surgeUntil&&min<T._surgeUntil)?(T._surgeMul||1):1; // 国際チームスキル(kind:team)発動中の一時バフ
   const base=p.c[k]+(p.grow?(p.grow[k]||0):0); // 育成の成長値(キャリア限定・上限別枠。非キャリアはnull=不変)
-  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1); // p.cond=調子(キャリア)
+  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1)*(T&&T.ctrl||1); // p.cond=調子 / T.ctrl=統制超過ペナルティ
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=密集ブロック)を1つ返す(発動抽選は呼び出し側)。
@@ -7568,7 +7579,8 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const cap=careerCap(cr); // スタジアム施設ぶんを含む実効上限
   const team=careerTeam(cap); // 上限内に可能な限りトリムした最良編成(手持ちの下限がcap超なら best-effort)
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
-  // 上限は careerTeam が可能な範囲でトリム。手持ちが強く下限がcapを上回る場合でもプレー可能(ブロックしない)。
+  // 統制: 編成OVRが統制可能OVR(cap)を超えると超過率ぶん全能力が低下(eff の T.ctrl)。
+  team.ctrl=careerOverloadMul(cr);
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
@@ -7582,6 +7594,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
     :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
   _beginMatch(oppTeam(lv,{form,seed}), label, form, lv, -1, team);
+  if(team.ctrl<1)feed(`⚠ 統制超過! 編成OVRが統制可能OVRを上回り 全能力 -${Math.round((1-team.ctrl)*100)}%(監督の指揮が追いつかない)`,"chance");
   const hot=team.players.filter(p=>cr.cond[p.c.id]==="peak").map(p=>p.c.name); // 調子ハイライト
   const cold=team.players.filter(p=>cr.cond[p.c.id]==="poor").map(p=>p.c.name);
   if(hot.length)feed(`⤴ 絶好調: ${hot.join("、")}`,"chance");

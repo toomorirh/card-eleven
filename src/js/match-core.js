@@ -142,6 +142,14 @@ function careerBaseTotal(cr){
   ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
   return t;
 }
+// 統制ペナルティ倍率: 編成OVR(素・XI+ベンチ)が統制可能OVR(careerCap)を超えた超過率ぶん全能力を低下。
+// 例) 編成OVR/統制OVR=1.30 → 1-(1.30-1)*overloadK = -30%(overloadFloor でクランプ)。統制内は 1.0。
+function careerOverloadMul(cr){
+  const cap=careerCap(cr); if(cap<=0)return 1;
+  const r=careerBaseTotal(cr)/cap;
+  if(r<=1)return 1;
+  return Math.max(CAREER.overloadFloor, 1-(r-1)*CAREER.overloadK);
+}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
   const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
@@ -368,7 +376,7 @@ function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
   const surge=(T&&T._surgeUntil&&min<T._surgeUntil)?(T._surgeMul||1):1; // 国際チームスキル(kind:team)発動中の一時バフ
   const base=p.c[k]+(p.grow?(p.grow[k]||0):0); // 育成の成長値(キャリア限定・上限別枠。非キャリアはnull=不変)
-  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1); // p.cond=調子(キャリア)
+  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1)*(T&&T.ctrl||1); // p.cond=調子 / T.ctrl=統制超過ペナルティ
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=密集ブロック)を1つ返す(発動抽選は呼び出し側)。

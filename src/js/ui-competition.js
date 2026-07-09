@@ -651,7 +651,7 @@ function careerStatusCard(cr){
   const d=document.createElement("div");d.className="career-status";
   d.innerHTML=`<div class="cs-top"><span>👤 <b>${cr.name}</b> 監督</span><span>🏛 名声 <b>${cr.prestige||0}</b></span></div>
     <div class="cs-bar"><div class="cs-fill" style="width:${pct}%"></div><span class="cs-bar-lb">${cr.step}/${stepsMax}週${(cr.term||0)?` (延長${cr.term})`:""}</span></div>
-    <div class="cs-row"><span><b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ 勝点${cr.pts||0}</span><span>OVR上限 <b>${careerCap(cr)}</b>${cr.season?` ・ ${cr.season}季`:""}</span></div>`;
+    <div class="cs-row"><span><b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ 勝点${cr.pts||0}</span><span>統制OVR <b>${careerCap(cr)}</b>${careerOverloadMul(cr)<1?` <span style="color:#ff8e8e">⚠-${Math.round((1-careerOverloadMul(cr))*100)}%</span>`:""}${cr.season?` ・ ${cr.season}季`:""}</span></div>`;
   return d;
 }
 // 今週の活動カード(=主操作。①リーグ/②カップ/③練習/偵察 or カップ戦)。ハブに常時表示。
@@ -736,8 +736,8 @@ function renderCareer(){
     if(cr.stage==="cont")body.appendChild(mk("div","lg",`🌐 大陸リーグ: 制覇済 ${(cr.contWon||[]).length}/${CONTINENTS.length}。${cr.contId?"進行中":"「今週の活動」から挑戦する大陸を選択"}`));
   }else if(_careerTab==="squad"){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
-    const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap;
-    body.appendChild(mk("div","lg",`編成OVR <b style="color:${over?"#ffb15a":"#7dff9e"}">${base}</b> / 上限 ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?" ⚠超過(手持ちが強く下限がcap超・プレー可)":""}`));
+    const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
+    body.appendChild(mk("div","lg",`編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
     const rowb=mk("div");rowb.style.cssText="display:flex;gap:6px;margin:4px 0";
     const fmB=mk("button","btn ghost");fmB.textContent=`フォーメーション: ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
     const autoB=mk("button","btn ghost");autoB.textContent="⚙ 自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);

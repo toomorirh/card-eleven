@@ -505,6 +505,7 @@
     - **名声 `prestige`**: onEndで獲得(勝2/分1＋ダービー勝+3/カップ優勝+15/昇格+10/大陸解禁+20/DIV優勝+8/上位+5)。施設・助っ人の通貨。
     - **施設 `FACILITIES`**(名声で段階解放・`facCost`): 🏟スタジアム→**実効OVR上限 `careerCap`**(+40/Lv、`startCareerMatch`/編成盤/スカッドが参照)、🎓アカデミー→**成長速度 `facGrowthMul`**(+15%/Lv、`careerApplyGrowth`)、🏥メディカル→**コンディション底上げ `facCondShift`**(+0.02/Lv、`careerCondition`)。`careerFacilities` パネル(`renderCareer`)でアップグレード。
     - **助っ人招へい `loan`**: 名声`loanCost`を払い固有選手を1人**シーズン限定**で編成プールへ(`careerLoanOffer`→`makeSignature`)。`careerPool`(=`S.coll`+loan)が careerPicks/careerTeam/編成ピッカーに供給。シーズン終了(`careerRecordResult`)で契約満了=`cr.loan=null`。
+  - **統制(監督の指揮能力・実装済み)**: `careerCap`(=`cr.ovrCap`+🏟)を**統制可能OVR**と再定義。**編成OVR(素・XI+ベンチ=`careerBaseTotal`)が統制OVRを超えると超過率ぶん全能力が低下**(`careerOverloadMul`=`max(overloadFloor, 1-(編成OVR/統制OVR-1)*overloadK)`。既定 K=1.0/floor0.5 → 130%で-30%・下限-50%)。`startCareerMatch` が `team.ctrl` にセット→`eff` に乗算(自チームのみ・相手/非キャリアは1.0)。スカッド/ステータス/試合開始feedに「統制超過 -N%」を表示。`careerTeam` の自動編成は統制内にトリム(=安全な既定)なので、**手動で統制を超えて強い選手を並べる/手持ちの下限が統制OVR超**の時にペナルティが発生。練習・🏟スタジアムで統制OVRを上げれば強い編成を機能させられる(=監督の成長)。
   - **③練習**: `careerPractice` で `ovrCap` を **+30〜50 ランダム**緩和(`practiceMin/Max`)。
   - **操作UI**: ①リーグ/②カップ/③練習のボタンは**スケジュールの「現在週の箱」内**(`.cur-actions`)に表示(進行が明確)。②は今週エントリー可能なカップが無ければ**非活性**。開くと現在週へ自動スクロール。
   - **満了**: step≥48 で `finalizeCareerIfDone` が `createCustomManager` で確定→監督室で起用可。`S.career=null`。
