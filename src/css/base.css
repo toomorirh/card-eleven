@@ -51,29 +51,30 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .collmore{font-family:'M PLUS 1p',sans-serif;font-weight:800;font-size:13px;padding:10px 16px;border-radius:10px;
   background:#1b2c44;color:#cfe0f2;border:2px solid #3a4f6c;cursor:pointer;align-self:center;margin:6px auto;width:90%}
 .collmore:active{transform:scale(.98)}
-/* N: シンプルな鉄枠 */
-.card.n{border-color:#46586e;background:linear-gradient(165deg,#243549,#121e30)}
-.card.n .rar{color:#8fa3b8}
-/* R: シルバーメタリック+流れる光沢 */
-.card.r{border-color:#c8d4e0;background:linear-gradient(165deg,#3e5066,#192535 55%,#2c3c52);
-  box-shadow:0 0 8px rgba(180,200,225,.3),inset 0 0 0 1px rgba(220,235,250,.25),inset 0 0 12px rgba(190,210,235,.12)}
+/* ===== C/R/SR: フィールドグリーン(芝目)ベース。レア度は枠と艶で差別化 ===== */
+.card.n,.card.r,.card.sr{background:
+  repeating-linear-gradient(0deg,transparent 0 19px,rgba(0,0,0,.07) 19px 38px),
+  linear-gradient(170deg,#236041,#0f3221 72%,#0c2a1b)}
+/* C: 素朴な枠 */
+.card.n{border-color:#3f5f4a}
+.card.n .rar{color:#bfe0cb}
+/* R: シルバー枠+流れる光沢 */
+.card.r{border-color:#c8d4e0;box-shadow:0 0 8px rgba(180,200,225,.3),inset 0 0 0 1px rgba(220,235,250,.28)}
 .card.r .rar{color:#e6eef7;text-shadow:0 0 5px rgba(200,225,250,.9)}
 .card.r::before{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(120deg,transparent 30%,rgba(225,240,255,.2) 46%,rgba(225,240,255,.05) 52%,transparent 68%);
   background-size:250% 250%;animation:sheenR 5.5s ease-in-out infinite alternate}
 @keyframes sheenR{from{background-position:0% 0%}to{background-position:100% 100%}}
-/* SR: ゴールド二重枠+虹ホロ背景+キラ流光+粒子 */
-.card.sr{border-color:#f0cd6a;background:linear-gradient(165deg,#54451d,#221a08);
-  box-shadow:0 0 14px rgba(232,194,90,.5),inset 0 0 0 2px rgba(255,236,185,.4),inset 0 0 14px rgba(255,220,140,.22)}
+/* SR: ゴールド枠+控えめな金の艶(虹ホロは上位帯へ移動) */
+.card.sr{border-color:#f0cd6a;box-shadow:0 0 12px rgba(232,194,90,.4),inset 0 0 0 2px rgba(255,236,185,.38)}
 .card.sr .rar{color:#ffe18a;text-shadow:0 0 7px rgba(255,210,110,1)}
 .card.sr .pnm{color:#ffeebe}
 .card.sr::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(130deg,rgba(255,90,130,.17),rgba(255,212,95,.17),rgba(115,255,175,.17),rgba(95,185,255,.17),rgba(205,115,255,.17));
-  background-size:320% 320%;animation:holobg 5s ease-in-out infinite alternate}
+  background:linear-gradient(120deg,transparent 32%,rgba(255,236,175,.24) 46%,rgba(255,236,175,.06) 52%,transparent 68%);
+  background-size:250% 250%;animation:sheenR 5s ease-in-out infinite alternate}
+.card.sr::after{display:none}
+/* エモーショナル等で使う虹ホロ/流光キーフレーム(定義は保持) */
 @keyframes holobg{from{background-position:0% 0%}to{background-position:100% 100%}}
-.card.sr::after{content:"";position:absolute;inset:-60%;pointer-events:none;
-  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.5) 44%,rgba(120,255,210,.38) 50%,rgba(255,160,220,.38) 56%,transparent 70%);
-  animation:holo 2.6s linear infinite}
 @keyframes holo{from{transform:translateX(-40%) rotate(8deg)}to{transform:translateX(40%) rotate(8deg)}}
 .card .spark{position:absolute;color:#fff3c4;text-shadow:0 0 7px #ffd96a;pointer-events:none;
   font-size:11px;z-index:3;animation:tw 1.9s infinite}
@@ -90,7 +91,7 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .card .radar .rspoke line{stroke:rgba(255,255,255,.11);stroke-width:.6}
 .card .radar .rfill{fill:rgba(95,200,216,.26);stroke:#5fc8d8;stroke-width:1.5;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(95,200,216,.55))}
 .card.sr .radar .rfill{fill:rgba(240,205,106,.24);stroke:#f0cd6a;filter:drop-shadow(0 0 3px rgba(240,205,106,.6))}
-.card.l .radar .rfill{fill:rgba(255,150,180,.22);stroke:#ff9bb4;filter:drop-shadow(0 0 4px rgba(255,150,180,.6))}
+.card.l .radar .rfill{fill:rgba(255,222,150,.22);stroke:#ffd479;filter:drop-shadow(0 0 4px rgba(255,210,120,.6))}
 .card .face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
 canvas.sprite{image-rendering:auto}
 .card .rlab{position:absolute;z-index:3;font-family:'DotGothic16';font-size:8px;font-weight:700;color:#9fb2c6;line-height:1;white-space:nowrap;display:flex;align-items:center;gap:2px;text-shadow:0 1px 2px #000}
