@@ -172,9 +172,9 @@ function claimSeason(rank){
   if(rank===1){reward=500;msg="🏆 優勝賞金🪙500!";S.leagueWins=(S.leagueWins||0)+1;}
   else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
   S.coins+=reward;coinUI();toast(msg);
-  const letters=rank===1?2:1; // 周回報酬: シーズン完了で紹介状(優勝は2枚)→ガチャの監督スカウトに使う
+  const letters=rank===1?2:1; // 周回報酬: シーズン完了で紹介状(優勝は2枚)→スカウト画面の監督スカウトに使う
   S.introLetters=(S.introLetters||0)+letters;
-  toast(`✉️ 監督の紹介状 +${letters}(計${S.introLetters}) ・ ガチャ「監督スカウト」で獲得`);
+  toast(`✉️ 監督の紹介状 +${letters}(計${S.introLetters}) ・ スカウト画面の「監督スカウト」で獲得`);
   if(checkAchievements())save(); // 初優勝の実績(チャンピオンパック+シグネチャーパック)などを付与
 }
 function playLeagueRound(){
@@ -420,7 +420,7 @@ function _selectOfTab(o){
   else if(o==="mgr")renderManagers();
   else if(o==="ach")renderAchievements();
 }
-// ===== 監督(契約): 紹介済みの監督から起用する1名を選ぶ(契約=起用ごとにコイン・交代制)。スカウトはガチャ側。 =====
+// ===== 監督(契約): 紹介済みの監督から起用する1名を選ぶ(契約=起用ごとにコイン・交代制)。監督スカウトはスカウト画面側。 =====
 function renderManagers(){
   const box=document.getElementById("ofMgr");box.innerHTML="";
   S.mgrOwned=S.mgrOwned||[];
@@ -441,7 +441,7 @@ function renderManagers(){
   // 契約候補(紹介済み監督の一覧)
   const ch=mk("div","banner");ch.style.cssText="font-size:13px;margin-top:14px";ch.textContent="― 契約候補 ―";box.appendChild(ch);
   const owned=MANAGERS.filter(m=>S.mgrOwned.includes(m.id));
-  if(!owned.length){const e=mk("div","lg");e.innerHTML="まだ監督がいません。<b>ガチャ</b>の「監督スカウト」(✉️紹介状)で獲得しましょう。";box.appendChild(e);}
+  if(!owned.length){const e=mk("div","lg");e.innerHTML="まだ監督がいません。<b>スカウト</b>画面の「監督スカウト」(✉️紹介状)で獲得しましょう。";box.appendChild(e);}
   owned.forEach(m=>{
     const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
     d.appendChild(mgrPortrait(m,62));
@@ -826,7 +826,7 @@ function careerCupPicker(){
   inn.appendChild(bk);
   ov.appendChild(inn);document.body.appendChild(ov);
 }
-// 監督スカウト(紹介状ガチャ・ガチャ画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
+// 監督スカウト(紹介状スカウト・スカウト画面から呼ぶ): 紹介状1枚で未所持の監督を1名カタログへ。
 function scoutManager(){
   if((S.introLetters||0)<1){toast("紹介状が足りません");return null;}
   const pool=MANAGERS.filter(m=>!S.mgrOwned.includes(m.id));

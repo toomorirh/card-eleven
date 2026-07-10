@@ -795,7 +795,7 @@ const MATCH_MODES={
     if(Math.random()<dropP){
       S.legendPacks=(S.legendPacks||0)+1;
       dropMsg=`<div class="banner" style="font-size:15px;color:#7dff9e">🎁 レジェンドパックを手に入れた!!</div>`;
-      feed("🎁 レジェンドパックを手に入れた!!ガチャ画面で開封できる","goal");
+      feed("🎁 レジェンドパックを手に入れた!!スカウト画面で開封できる","goal");
     }
     const e=document.getElementById("matchEnd");
     e.innerHTML=`<div class="banner">${msg}</div>`+dropMsg;
@@ -828,7 +828,7 @@ const MATCH_MODES={
         extra+=`<div class="banner" style="font-size:14px;color:#ff9ec4">🌟 固有選手「${pick.name}」を獲得!!</div>`;
       }
       if(d.done.every(x=>x)&&!d.claimed){ d.claimed=true; S.sigPacks=(S.sigPacks||0)+1; // 全勝→チケット
-        extra+=`<div class="banner" style="color:#ffd24a">🎟️ デイリー全勝! シグネチャーガチャチケットを獲得!(ガチャで開封)</div>`; }
+        extra+=`<div class="banner" style="color:#ffd24a">🎟️ デイリー全勝! シグネチャースカウトチケットを獲得!(スカウトで開封)</div>`; }
     }
     e.innerHTML=html+extra;
     showStatOverlay(M.home,M.away);
