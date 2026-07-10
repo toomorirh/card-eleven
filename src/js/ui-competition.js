@@ -755,10 +755,10 @@ function renderCareer(){
   }else if(_careerTab==="squad"){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
-    body.appendChild(mk("div","lg",`編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
+    body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
     const rowb=mk("div");rowb.style.cssText="display:flex;gap:6px;margin:4px 0";
-    const fmB=mk("button","btn ghost");fmB.textContent=`フォーメーション: ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
-    const autoB=mk("button","btn ghost");autoB.textContent="⚙ 自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
+    const fmB=mk("button","btn ghost");fmB.style.flex="1";fmB.style.whiteSpace="nowrap";fmB.textContent=`陣形 ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
+    const autoB=mk("button","btn ghost");autoB.style.flex="1";autoB.style.whiteSpace="nowrap";autoB.textContent="自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
     body.appendChild(rowb);
     // ピッチ盤(通常編成と同じ仕様・共通の pitchSlots/benchSlots を使用)
     const pitch=mk("div","pitch");
@@ -776,7 +776,8 @@ function renderCareer(){
     body.appendChild(careerFacilities(cr));
   }else if(_careerTab==="manager"){
     body.appendChild(mk("div","banner","― 🎓 監督の能力 ―"));
-    body.appendChild(mk("div","lg",`🔼 獲得バフ(${cr.boosts.length}): ${cr.boosts.length?cr.boosts.map(boostDesc1).join(" / "):"(まだ無し)"}`));
+    body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
+    if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.65">内訳 ${cr.boosts.length}件: ${cr.boosts.map(boostDesc1).join(" / ")}</span>`));
     body.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
   }
 }

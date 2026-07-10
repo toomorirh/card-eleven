@@ -290,6 +290,20 @@ function mgrTacs(m){return m?(m.tacs||(m.tac?[m.tac]:[])):[];}
 function managerById(id){return MANAGERS.find(m=>m.id===id)||(typeof S!=="undefined"&&(S.customMgrs||[]).find(m=>m.id===id))||null;}
 function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerById(S.mgrActive):null;}
 function boostDesc1(b){return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
+// バフを (pos,stat) ごとに合算(=乗算)して要約表示。多数の小バフを1行の効果まとめに。
+function boostLabel(pos,stat){
+  if(pos==="all"&&stat==="all")return "全能力";
+  if(pos==="all")return MGR_STAT_JP[stat]||stat;
+  if(stat==="all")return (MGR_POS_JP[pos]||pos)+"全体";
+  return (MGR_POS_JP[pos]||pos)+"の"+(MGR_STAT_JP[stat]||stat);
+}
+function boostSummary(boosts){
+  if(!boosts||!boosts.length)return "";
+  const agg={}; boosts.forEach(b=>{const k=b.pos+"|"+b.stat; agg[k]=(agg[k]||1)*b.mul;});
+  return Object.keys(agg).map(k=>{const [pos,stat]=k.split("|"); return {label:boostLabel(pos,stat), pct:Math.round((agg[k]-1)*1000)/10};})
+    .filter(p=>p.pct>0.05).sort((a,b)=>b.pct-a.pct)
+    .map(p=>`${p.label} <b style="color:var(--gold)">+${p.pct}%</b>`).join(" ・ ");
+}
 function mgrBoostDesc(m){const a=mgrBoosts(m);return a.length?a.map(boostDesc1).join(" / "):"ブースト無し";}
 function mgrTacDesc(m){const a=mgrTacs(m);return a.length?a.map(t=>`采配「${t.name}」`).join(" / "):"";}
 // ===== 監督キャリアモード(WCCF風・カスタム監督の育成) =====

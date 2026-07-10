@@ -293,7 +293,7 @@ canvas.sprite{image-rendering:auto}
 #matchEnd:not(:empty) .banner{font-size:18px;margin:0}
 #matchEnd:not(:empty) .btn{max-width:340px;margin:0}
 .tactics{display:flex;gap:6px;margin:8px 0}
-.tactics button{flex:1;padding:10px 4px;border-radius:8px;border:1px solid #2a3d56;background:var(--night2);
+.tactics button{flex:1;padding:14px 4px;min-height:46px;border-radius:8px;border:1px solid #2a3d56;background:var(--night2);
   color:var(--ink);font-family:inherit;font-weight:900;font-size:12px;cursor:pointer}
 .tactics button.on{background:var(--gold);color:#11202f;border-color:var(--gold)}
 .banner{font-family:'DotGothic16';text-align:center;font-size:22px;color:var(--gold);margin:10px 0;
