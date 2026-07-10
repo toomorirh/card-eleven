@@ -78,11 +78,11 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 @keyframes lframe{0%,100%{border-color:#ff6a6a}17%{border-color:#ffd25e}33%{border-color:#7dff9e}
   50%{border-color:#5ec8ff}67%{border-color:#b07dff}83%{border-color:#ff7de8}}
 /* ===== LEGEND(実戦力・補完枠): 国籍カラーの縦割り背景 + ブロンズ枠。Signatureとはシェイプで区別 ===== */
-.card.l:not(.sig){border:2px solid #d8ad63!important;
+.card.l:not(.sig){border:2px solid #e8bd6e!important;
   background:
-    radial-gradient(circle at 50% 44%,rgba(6,10,20,.66),rgba(6,10,20,.15) 58%,transparent 72%),
-    linear-gradient(180deg,var(--c1,#c9a24a) 0%,#0b1526 40%,#0b1526 60%,var(--c2,#2a3d56) 100%)!important;
-  box-shadow:0 0 10px rgba(216,173,99,.4),inset 0 0 0 1px rgba(255,236,190,.32)!important}
+    radial-gradient(circle at 50% 40%,rgba(6,10,20,.5),rgba(6,10,20,.06) 50%,transparent 66%),
+    linear-gradient(180deg,var(--c1,#c9a24a) 0%,var(--c1,#c9a24a) 24%,#101d31 45%,#101d31 55%,var(--c2,#2a3d56) 76%,var(--c2,#2a3d56) 100%)!important;
+  box-shadow:0 0 11px rgba(232,189,110,.45),inset 0 0 0 1px rgba(255,240,200,.35)!important}
 .card.l:not(.sig) .rar{color:#ffe7b0;text-shadow:0 0 6px rgba(255,200,110,.85);font-size:9px}
 .card.l:not(.sig) .pnm{color:#fff1d6}
 .card.l:not(.sig) .sk{background:linear-gradient(90deg,#5a4a1e,#8a6c2e);color:#fff3dd}
@@ -90,11 +90,11 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   background:linear-gradient(180deg,rgba(255,255,255,.12),transparent 26%)}
 .card.l:not(.sig)::after{display:none!important}
 /* ===== SIGNATURE(最上位手前の目玉): 国籍カラーの斜め背景 + ゴールド二重枠 + 光沢 ===== */
-.card.l.sig{border:2px solid #f2d072!important;
+.card.l.sig{border:2px solid #f7d878!important;
   background:
-    radial-gradient(circle at 50% 34%,rgba(6,10,20,.58),rgba(6,10,20,.12) 56%,transparent 70%),
-    linear-gradient(135deg,var(--c1,#c9a24a) 0%,#0b1526 46%,#0b1526 54%,var(--c2,#2a3d56) 100%)!important;
-  box-shadow:0 0 15px rgba(242,208,114,.5),inset 0 0 0 2px rgba(255,240,190,.42)!important}
+    radial-gradient(circle at 50% 34%,rgba(6,10,20,.44),rgba(6,10,20,.05) 48%,transparent 64%),
+    linear-gradient(135deg,var(--c1,#c9a24a) 0%,var(--c1,#c9a24a) 22%,#101d31 46%,#101d31 54%,var(--c2,#2a3d56) 78%,var(--c2,#2a3d56) 100%)!important;
+  box-shadow:0 0 16px rgba(247,216,120,.55),inset 0 0 0 2px rgba(255,244,200,.45)!important}
 .card.l.sig .rar{color:#fff;text-shadow:0 0 6px rgba(255,210,120,.9);font-size:9px}
 .card.l.sig .pnm{color:#fff6d8}
 .card.l.sig .sk{background:linear-gradient(90deg,#7a5f17,#b08c2e);color:#fff7dd}
@@ -105,6 +105,10 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   background:linear-gradient(115deg,transparent 36%,rgba(255,246,205,.42) 48%,transparent 60%);
   animation:holo 3.2s linear infinite}
 .slot .scard.l{border-color:#d8ad63}
+/* Legend/Signatureの情報帯: 明るい国籍色の上でも文字が読めるよう暗いスクリムを敷く(色の主張は上部で確保) */
+.card.l .cinfo::before{content:"";position:absolute;left:-5px;right:-5px;top:-3px;bottom:-5px;z-index:-1;
+  background:linear-gradient(rgba(8,12,22,.4),rgba(8,12,22,.82));border-radius:0 0 6px 6px}
+.card.l .pnm{text-shadow:0 1px 2px rgba(0,0,0,.65)}
 /* ===== エモーショナル(最上位): LEGENDより一段強い虹色イリディセント+宇宙的グロー ===== */
 .card.emo{border:3px solid #fff!important;background:linear-gradient(165deg,#241036,#0a0414)!important;
   box-shadow:inset 0 0 0 2px rgba(255,255,255,.6),0 0 14px rgba(180,120,255,.6)!important;
