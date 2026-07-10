@@ -727,7 +727,7 @@ const MATCH_MODES={
   league:{ async onEnd(M,sh,sa){
     S._leagueMatch=false;
     const e=document.getElementById("matchEnd");
-    const r=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const r=resWordEmoji(sh>sa?"W":sh===sa?"D":"L");
     e.innerHTML=`<div class="banner">${r} ${sh}-${sa}</div>`;
     showStatOverlay(M.home,M.away);
     finishLeagueRound(sh,sa);
@@ -743,7 +743,7 @@ const MATCH_MODES={
     const rec=S.friendRec||(S.friendRec={}); const e2=rec[coach]||(rec[coach]={w:0,d:0,l:0});
     if(sh>sa)e2.w++;else if(sh===sa)e2.d++;else e2.l++;
     const e=document.getElementById("matchEnd");
-    const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const head=resWordEmoji(sh>sa?"W":sh===sa?"D":"L");
     e.innerHTML=`<div class="banner">🤝 vs ${tn} ${head} ${sh}-${sa}</div>`;
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="監督室へ戻る";
@@ -758,7 +758,7 @@ const MATCH_MODES={
     const r=sh>sa?"W":sh===sa?"D":"L";
     tour.res[tour.i]=r;
     const e=document.getElementById("matchEnd");
-    const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const head=resWordEmoji(r);
     let drop="";
     if(r==="W"){ // 署名保有国に勝利 → 低確率で固有選手ドロップ(未所持優先)
       const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
@@ -785,9 +785,9 @@ const MATCH_MODES={
   stage:{ async onEnd(M,sh,sa){
     const lv=M.lv;
     let msg,reward;
-    if(sh>sa){msg="🏆 勝利!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
-    else if(sh===sa){msg="🤝 引き分け";reward=TUNING.reward.draw;}
-    else{msg="😢 敗北…";reward=TUNING.reward.lose;}
+    if(sh>sa){msg="🏆 WIN!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
+    else if(sh===sa){msg="🤝 DRAW";reward=TUNING.reward.draw;}
+    else{msg="😢 LOSE…";reward=TUNING.reward.lose;}
     S.coins+=reward;coinUI();
     feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
     const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
@@ -815,7 +815,7 @@ const MATCH_MODES={
   daily:{ async onEnd(M,sh,sa){ // デイリークエスト: 勝利で撃破+10%固有ドロップ、全勝でシグネチャーチケット1枚/日
     const k=S._dailyMatch; S._dailyMatch=null;
     const d=S.daily, t=d&&d.teams[k], nation=t?WORLD_NATIONS[t.idx]:null, win=sh>sa;
-    const head=win?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
+    const head=resWordEmoji(win?"W":sh===sa?"D":"L");
     const e=document.getElementById("matchEnd");
     let html=`<div class="banner">${head} ${sh}-${sa}</div>`, extra="";
     if(win&&d&&nation){
@@ -842,15 +842,15 @@ const MATCH_MODES={
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
-    const head=sh>sa?"🏆 勝利":sh===sa?"🤝 引分":"😢 敗北";
     const e=document.getElementById("matchEnd");
-    let html=`<div class="banner">${head} ${sh}-${sa}</div>`, champCup=null;
+    let html="", champCup=null, headRes=(sh>sa?"W":sh===sa?"D":"L"), pkNote="";
     if(inCup){
       const cupName=cr.cup.name;
       let pk=null;
       if(sh===sa){ pk=await pkShootout(M.home,M.away); } // 規定時間 引分 → PK戦で決着
       const o=careerCupResult(cr,sh,sa,pk);
-      if(pk)html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} ${pk.win?"勝ち抜け!":"敗退"}</div>`;
+      if(pk){ headRes=pk.win?"W":"L"; pkNote=` (PK ${pk.sa}-${pk.sd})`; // ヘッダーの勝敗もPK結果を反映
+        html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
       else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`;}
@@ -880,7 +880,7 @@ const MATCH_MODES={
     }
     if(cr&&pp){cr.prestige=(cr.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${cr.prestige})</div>`;}
     checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
-    e.innerHTML=html;
+    e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";
     // 優勝時は先に采配報酬を提示(習得後にfinalize判定=延長任期の確定に間に合わせる)。それ以外は任期満了なら確定。
@@ -928,7 +928,7 @@ async function pkShootout(A,D){
   const hn=myName(), an=(MC&&MC.name)||"相手";
   const ov=document.createElement("div");ov.className="pkshoot";
   ov.innerHTML=`<div class="pk-in">
-    <div class="pk-title">⚽ PK戦</div><div class="pk-sub">規定時間 引分 → PK戦で決着</div>
+    <div class="pk-title">⚽ PK戦</div><div class="pk-sub">規定時間 DRAW → PK戦で決着</div>
     <div class="pk-score"><span class="pk-tn">${hn}</span> <b id="pkSa">0</b> - <b id="pkSd">0</b> <span class="pk-tn away">${an}</span></div>
     <div class="pk-marks" id="pkMarksA"></div><div class="pk-marks away" id="pkMarksD"></div>
     <div class="pk-arena" id="pkArena"></div></div>`;

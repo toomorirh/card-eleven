@@ -289,6 +289,9 @@ function mgrTacs(m){return m?(m.tacs||(m.tac?[m.tac]:[])):[];}
 // 名将(MANAGERS)に加えてカスタム監督(S.customMgrs)も解決する。
 function managerById(id){return MANAGERS.find(m=>m.id===id)||(typeof S!=="undefined"&&(S.customMgrs||[]).find(m=>m.id===id))||null;}
 function activeManager(){return (typeof S!=="undefined"&&S.mgrActive)?managerById(S.mgrActive):null;}
+// 勝敗表記(勝/分/敗 → WIN/DRAW/LOSE)。res="W"|"D"|"L"。
+function resWord(res){return res==="W"?"WIN":res==="D"?"DRAW":"LOSE";}
+function resWordEmoji(res){return res==="W"?"🏆 WIN":res==="D"?"🤝 DRAW":"😢 LOSE";}
 function boostDesc1(b){return `${MGR_POS_JP[b.pos]||b.pos}の${MGR_STAT_JP[b.stat]||b.stat} +${Math.round((b.mul-1)*100)}%`;}
 // バフを (pos,stat) ごとに合算(=乗算)して要約表示。多数の小バフを1行の効果まとめに。
 function boostLabel(pos,stat){

@@ -131,7 +131,7 @@ function renderLeagueMode(){
   }
   // 順位表
   const rk=rankList(lg.table);
-  let h='<tr><th>順位</th><th>クラブ</th><th>試</th><th>勝</th><th>分</th><th>敗</th><th>得失</th><th>点</th></tr>';
+  let h='<tr><th>順位</th><th>クラブ</th><th>試</th><th>W</th><th>D</th><th>L</th><th>得失</th><th>点</th></tr>';
   rk.forEach((r,n)=>{
     const me=r.i===0?' class="me"':'';
     h+=`<tr${me}><td>${n+1}</td><td style="text-align:left">${lgName(r.i)}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${(r.gf-r.ga>=0?"+":"")+(r.gf-r.ga)}</td><td><b>${r.pt}</b></td></tr>`;
@@ -216,7 +216,7 @@ function renderWorld(){
     const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
     const d=document.createElement("div");
     d.className="wt-card"+(res?" played":"")+(cur?" cur":"")+(locked?" lock":"");
-    const chip=res?`<span class="wt-res ${res}">${res==="W"?"🏆 勝":res==="D"?"🤝 分":"😢 敗"}</span>`:(cur?`<span class="wt-res cur">▶ 挑戦</span>`:`<span class="wt-res">🔒</span>`);
+    const chip=res?`<span class="wt-res ${res}">${resWordEmoji(res)}</span>`:(cur?`<span class="wt-res cur">▶ 挑戦</span>`:`<span class="wt-res">🔒</span>`);
     d.innerHTML=`<div class="wt-flag">${nation.flag}</div>
       <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} ${(!locked)?'<span class="scout-hint">🔍</span>':''}</div>
       <div class="lv">${cur?"挑戦中":locked?"未到達":"対戦済"}・陣形 ${nation.form}</div></div>${chip}`;
@@ -228,7 +228,7 @@ function renderWorld(){
   if(done){
     const perfect=tour.res.every(x=>x==="W");
     const w=document.createElement("div");w.className="banner";
-    w.textContent=perfect?"🌐 全勝!世界制覇!!":`ツアー終了 ${wins}勝${tour.res.filter(x=>x==="D").length}分${tour.res.filter(x=>x==="L").length}敗`;
+    w.textContent=perfect?"🌐 全勝!世界制覇!!":`ツアー終了 ${wins}W ${tour.res.filter(x=>x==="D").length}D ${tour.res.filter(x=>x==="L").length}L`;
     foot.appendChild(w);
     const b=document.createElement("button");b.className="btn";b.textContent="新しいツアーを始める";
     b.onclick=()=>{S.tour={i:0,res:[]};save();renderWorld();};foot.appendChild(b);
@@ -400,7 +400,7 @@ function renderOffice(){
   card.innerHTML=`<div class="wt-info">`
     +`<div class="wt-name">${myName()}</div>`
     +`<div class="lv">オーナー: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
-    +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}勝${d}分${l}敗)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
+    +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
     +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:"未契約"} ・ ✉️${S.introLetters||0}</div>`
     +`</div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
@@ -487,14 +487,14 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
   for(let i=0;i<(cr.stepsMax||CAREER.steps);i++){
     const h=cr.history&&cr.history[i], wk=`第${i+1}週`;
     if(h&&h.act==="L"){
-      const chip=`<span class="wt-res ${h.res}">${h.res==="W"?"🏆 勝":h.res==="D"?"🤝 分":"😢 敗"}</span>`;
+      const chip=`<span class="wt-res ${h.res}">${resWordEmoji(h.res)}</span>`;
       const league=h.cont?`🌐${h.cont}リーグ`:`DIV${h.div}`;
       const sub=`${league} 第${h.nd||"?"}節${h.opp?" vs "+h.opp:""} ・ ${h.sc||""}${h.season?` ・ 🏆制覇! バフ+${h.pct}%`:""}`;
       wrap.appendChild(row("played",h.season?"🏆":"⚽",wk,sub,chip));
     }else if(h&&h.act==="P"){
       wrap.appendChild(row("played","💪",wk,`練習 ・ OVR上限+${h.gain||"?"}→${h.cap||""}`,`<span class="wt-res">💪</span>`));
     }else if(h&&h.act==="C"){
-      const chip=`<span class="wt-res ${h.res}">${h.res==="W"?"🏆 勝":h.res==="D"?"🤝 分":"😢 敗"}</span>`;
+      const chip=`<span class="wt-res ${h.res}">${resWordEmoji(h.res)}${h.pk?"<br><span style='font-size:8px'>PK</span>":""}</span>`;
       wrap.appendChild(row("played","🏆",wk,`${h.name||"カップ"} ${h.round||""}${h.opp?" vs "+h.opp:""} ・ ${h.sc||""}`,chip));
     }else if(i===cr.step){ // 現在週=次の実施を選ぶ箱(ボタン内蔵)
       const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
