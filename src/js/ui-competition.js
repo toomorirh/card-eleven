@@ -777,7 +777,7 @@ function renderCareer(){
   }else if(_careerTab==="manager"){
     body.appendChild(mk("div","banner","― 🎓 監督の能力 ―"));
     body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
-    if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.65">内訳 ${cr.boosts.length}件: ${cr.boosts.map(boostDesc1).join(" / ")}</span>`));
+    if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.6">(獲得バフ ${cr.boosts.length}件を合算表示)</span>`));
     body.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
   }
 }

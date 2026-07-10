@@ -300,14 +300,15 @@ function boostLabel(pos,stat){
   if(stat==="all")return (MGR_POS_JP[pos]||pos)+"全体";
   return (MGR_POS_JP[pos]||pos)+"の"+(MGR_STAT_JP[stat]||stat);
 }
-function boostSummary(boosts){
-  if(!boosts||!boosts.length)return "";
-  const agg={}; boosts.forEach(b=>{const k=b.pos+"|"+b.stat; agg[k]=(agg[k]||1)*b.mul;});
+// バフを (pos,stat) ごとに乗算合算 → [{label,pct}] を効果の大きい順に返す(全能力の複数バフも1つにまとまる)。
+function boostAgg(boosts){
+  const agg={}; (boosts||[]).forEach(b=>{const k=b.pos+"|"+b.stat; agg[k]=(agg[k]||1)*b.mul;});
   return Object.keys(agg).map(k=>{const [pos,stat]=k.split("|"); return {label:boostLabel(pos,stat), pct:Math.round((agg[k]-1)*1000)/10};})
-    .filter(p=>p.pct>0.05).sort((a,b)=>b.pct-a.pct)
-    .map(p=>`${p.label} <b style="color:var(--gold)">+${p.pct}%</b>`).join(" ・ ");
+    .filter(p=>p.pct>0.05).sort((a,b)=>b.pct-a.pct);
 }
-function mgrBoostDesc(m){const a=mgrBoosts(m);return a.length?a.map(boostDesc1).join(" / "):"ブースト無し";}
+function boostSummary(boosts){const a=boostAgg(boosts);
+  return a.length?a.map(p=>`${p.label} <b style="color:var(--gold)">+${p.pct}%</b>`).join(" ・ "):"";}
+function mgrBoostDesc(m){const a=boostAgg(mgrBoosts(m));return a.length?a.map(p=>`${p.label} +${p.pct}%`).join(" / "):"ブースト無し";}
 function mgrTacDesc(m){const a=mgrTacs(m);return a.length?a.map(t=>`采配「${t.name}」`).join(" / "):"";}
 // ===== 監督キャリアモード(WCCF風・カスタム監督の育成) =====
 // 任期48ステップ(12ヶ月×4週)。①リーグ ②カップ(P3) ③練習 を選び1ステップ=1試合で進める。
