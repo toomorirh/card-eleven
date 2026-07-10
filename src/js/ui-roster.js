@@ -3,13 +3,12 @@
 function renderTitleHero(){
   const el=document.getElementById("titleHero");if(!el)return;
   const list=(typeof SIGNATURES!=="undefined")?SIGNATURES:[];
+  const nameEl=document.getElementById("titleHeroName");
   if(!list.length){el.textContent="🎴";return;}
-  const c=makeSignature(rnd(list).id);
+  const c=makeSignature(rnd(list).id);        // 中央ヒーロー(トロフィー位置)にランダム固有選手を大きく表示
   el.innerHTML="";
-  el.appendChild(spriteCanvas(c,150));
-  const cap=document.createElement("div");cap.className="thero-cap";
-  cap.innerHTML=`${c.flag} <b>${c.name}</b>`;
-  el.appendChild(cap);
+  el.appendChild(spriteCanvas(c,200));
+  if(nameEl)nameEl.innerHTML=`${c.flag} <b>${c.name}</b>`;
 }
 // 6ステの六角レーダー(背景)。頂点順: OF(上)→DF→PO→TE→SP→ST(時計回り)
 function radarSVG(c){
