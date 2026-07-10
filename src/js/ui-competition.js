@@ -134,9 +134,12 @@ function renderLeagueMode(){
   let h='<tr><th>順位</th><th>クラブ</th><th>試</th><th>W</th><th>D</th><th>L</th><th>得失</th><th>点</th></tr>';
   rk.forEach((r,n)=>{
     const me=r.i===0?' class="me"':'';
-    h+=`<tr${me}><td>${n+1}</td><td style="text-align:left">${lgName(r.i)}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${(r.gf-r.ga>=0?"+":"")+(r.gf-r.ga)}</td><td><b>${r.pt}</b></td></tr>`;
+    const nmCell=r.i===0?`<td style="text-align:left">${lgName(r.i)}</td>`
+      :`<td class="scout-td" data-club-lg="${r.i}" style="text-align:left">${lgName(r.i)} <span class="scout-hint">🔍</span></td>`; // クラブ名タップで偵察
+    h+=`<tr${me}><td>${n+1}</td>${nmCell}<td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${(r.gf-r.ga>=0?"+":"")+(r.gf-r.ga)}</td><td><b>${r.pt}</b></td></tr>`;
   });
   tbl.innerHTML=h;
+  tbl.querySelectorAll("[data-club-lg]").forEach(td=>{td.onclick=()=>openScout(+td.dataset.clubLg-1);}); // LG_CLUBS[i]=CLUBS[i-1]
   const done=lg.round>=lg.fixtures.length;
   head.innerHTML=`<div class="banner" style="font-size:15px">― リーグ戦 第${Math.min(lg.round+1,lg.fixtures.length)}節${done?"終了":""} ―</div>`;
   fb.innerHTML="";
@@ -218,7 +221,7 @@ function renderWorld(){
     d.className="wt-card"+(res?" played":"")+(cur?" cur":"")+(locked?" lock":"");
     const chip=res?`<span class="wt-res ${res}">${resWordEmoji(res)}</span>`:(cur?`<span class="wt-res cur">▶ 挑戦</span>`:`<span class="wt-res">🔒</span>`);
     d.innerHTML=`<div class="wt-flag">${nation.flag}</div>
-      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} ${(!locked)?'<span class="scout-hint">🔍</span>':''}</div>
+      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} ${(!locked)?'<span class="scout-hint">🔍偵察</span>':''}</div>
       <div class="lv">${cur?"挑戦中":locked?"未到達":"対戦済"}・陣形 ${nation.form}</div></div>${chip}`;
     if(!locked)d.querySelector(".wt-info").onclick=()=>openWorldScout(k);
     if(cur){const ko=document.createElement("button");ko.className="btn ko-btn";ko.textContent="KickOff";ko.onclick=()=>startWorldMatch();d.appendChild(ko);}
@@ -247,7 +250,7 @@ function renderDaily(){
     const sigs=SIGNATURES.filter(s=>s.flag===nation.flag), cleared=d.done[k];
     const card=document.createElement("div");card.className="wt-card"+(cleared?" played":" cur");
     card.innerHTML=`<div class="wt-flag">${nation.flag}</div>
-      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} <span class="scout-hint">🔍</span></div>
+      <div class="wt-info"><div class="wt-name">${nation.name}${sigs.length?` <span class="wt-sig">★${sigs.length}</span>`:""} <span class="scout-hint">🔍偵察</span></div>
       <div class="lv">平均OVR ${ovr} ・ 陣形 ${nation.form}</div></div>
       ${cleared?`<span class="wt-res W">🏆 撃破</span>`:`<span class="wt-res cur">▶ 挑戦</span>`}`;
     card.querySelector(".wt-info").onclick=()=>renderScout(`偵察: ${nation.flag} ${nation.name}`,
@@ -541,9 +544,13 @@ function careerStandingsTable(cr){
   let h='<table class="ctable"><tr><th>#</th><th>クラブ</th><th>試</th><th>勝点</th><th>差</th></tr>';
   rows.forEach((r,i)=>{const rank=i+1, zone=rank<=promoteRank?"promo":(cr.div<3&&rank>=size)?"releg":"";
     const nm=r.me?`🎓 ${r.name}`:r.rival?`⚔ ${r.name}`:r.name;
-    h+=`<tr class="${r.me?"meRow ":""}${zone}"><td>${rank}</td><td>${nm}</td><td>${r.pl}</td><td><b>${r.pts}</b></td><td>${r.gd>0?"+"+r.gd:r.gd}</td></tr>`;});
-  h+=`</table><div class="lg" style="font-size:10px">🟩昇格圏(上位${promoteRank})${cr.div<3?" / 🟥降格圏(最下位)":""} ・ ⚔宿敵レガリア</div>`;
-  wrap.innerHTML=h; return wrap;
+    const nmCell=r.me?`<td>${nm}</td>`
+      :`<td class="scout-td" data-club="${r.id}">${nm} <span class="scout-hint">🔍</span></td>`; // クラブ名タップで偵察
+    h+=`<tr class="${r.me?"meRow ":""}${zone}"><td>${rank}</td>${nmCell}<td>${r.pl}</td><td><b>${r.pts}</b></td><td>${r.gd>0?"+"+r.gd:r.gd}</td></tr>`;});
+  h+=`</table><div class="lg" style="font-size:10px">🟩昇格圏(上位${promoteRank})${cr.div<3?" / 🟥降格圏(最下位)":""} ・ ⚔宿敵レガリア ・ クラブ名タップで偵察</div>`;
+  wrap.innerHTML=h;
+  wrap.querySelectorAll("[data-club]").forEach(td=>{td.onclick=()=>scoutClub(careerClubById(cr,td.dataset.club));});
+  return wrap;
 }
 // 育成スカッド: 現在の自動編成XIを年齢/フェーズ・調子・成長・OVR(成長込み)で一覧。育てた実感を見せる。
 function careerSquadView(cr){
@@ -664,7 +671,7 @@ function careerCurrentActivity(cr){
   const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
   if(cr.cup){
     const rl=roundLabel((cr.cup.bracket[cr.cup.round]||[]).length);
-    const oppTxt=opp?`相手: ${opp.name}${opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
+    const oppTxt=opp?`相手: <span class="scout-name">${opp.name}${opp.boss?" 👑":""} <span class="scout-hint">🔍</span></span>(OVR約${oppOvr}・${opp.form})`:"";
     wrap.innerHTML=`<div class="cn-head">${cr.cup.emoji} ${cr.cup.name} ・ ${rl}</div><div class="lg">${oppTxt}</div>`;
     const p=document.createElement("div");p.className="cur-actions";
     p.appendChild(actBtn(`▶ ${rl}`,startCareerMatch));
@@ -673,7 +680,7 @@ function careerCurrentActivity(cr){
   }else{
     const cont=cr.contId?continentById(cr.contId):null, needCont=cr.stage==="cont"&&!cr.contId;
     const league=cont?`${cont.emoji}${cont.name}リーグ 第${cr.node+1}/${CAREER.nodes}節`:needCont?"大陸リーグ(選択待ち)":`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節`;
-    const oppTxt=(opp&&!needCont)?`次戦: ${opp.name}${opp.derby?" ⚔宿敵":opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
+    const oppTxt=(opp&&!needCont)?`次戦: <span class="scout-name">${opp.name}${opp.derby?" ⚔宿敵":opp.boss?" 👑":""} <span class="scout-hint">🔍</span></span>(OVR約${oppOvr}・${opp.form})`:"";
     wrap.innerHTML=`<div class="cn-head">▶ 第${cr.step+1}週 ・ ${league}</div><div class="lg">${oppTxt}</div>`;
     const p=document.createElement("div");p.className="cur-actions";
     if(needCont)p.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
@@ -683,6 +690,7 @@ function careerCurrentActivity(cr){
     if(!needCont)p.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
     wrap.appendChild(p);
   }
+  const sn=wrap.querySelector(".scout-name"); if(sn)sn.onclick=()=>careerScout(cr); // 次戦相手名タップでも偵察
   return wrap;
 }
 function careerTabBar(){
@@ -694,7 +702,7 @@ function careerTabBar(){
 // 次にこのカップにエントリーできる週(period の倍数・1基点)。
 function nextCupEntryWeek(cup,step){for(let w=step;w<CAREER.steps*3+CAREER.extendWeeks*2+10;w++){if(((w+1)%cup.period)===0)return w+1;}return null;}
 // 進行中カップのトーナメント表: 各回戦のカード(ペア)を並べ、自チームを金・勝者を緑で表示。
-function cupBracketView(cup){
+function cupBracketView(cup,cr){
   const wrap=document.createElement("div");wrap.className="cup-bracket";
   const nm=id=>id==="__me"?myName():((OPP_CLUBS[id]||{}).name||id);
   for(let r=0;r<cup.bracket.length;r++){
@@ -703,13 +711,14 @@ function cupBracketView(cup){
     let h=`<div class="cup-rn">${roundLabel(teams.length)}${r===cup.round?" ▶":""}</div><div class="cup-matches">`;
     for(let k=0;k<teams.length;k+=2){
       const a=teams[k], b=teams[k+1], winner=next?next[k/2]:null, mine=(a==="__me"||b==="__me");
-      const chip=id=>{const me=id==="__me",won=winner&&winner===id,lost=winner&&winner!==id;
-        return `<span class="cup-team${me?" me":""}${won?" won":""}${lost?" lost":""}">${nm(id)}</span>`;};
+      const chip=id=>{const me=id==="__me",won=winner&&winner===id,lost=winner&&winner!==id, scout=!me&&OPP_CLUBS[id];
+        return `<span class="cup-team${me?" me":""}${won?" won":""}${lost?" lost":""}${scout?" scout-td":""}"${scout?` data-club="${id}"`:""}>${nm(id)}</span>`;};
       h+=`<span class="cup-match${mine?" mine":""}${(r===cup.round&&mine)?" now":""}">${chip(a)}<span class="cup-vs">v</span>${chip(b)}</span>`;
     }
     h+=`</div>`; round.innerHTML=h; wrap.appendChild(round);
   }
   if(cup.bracket.length<cup.rounds){const t=document.createElement("div");t.className="lg";t.style.fontSize="9px";t.textContent="この先の対戦は勝ち上がりで決定";wrap.appendChild(t);}
+  wrap.querySelectorAll("[data-club]").forEach(el=>{el.onclick=()=>scoutClub(careerClubById(cr,el.dataset.club));}); // 表中のチーム名タップで偵察
   return wrap;
 }
 // カップ一覧: 各カップの規模・条件・次エントリー週。進行中はトーナメント表(ドロー)を表示。
@@ -722,7 +731,7 @@ function careerCupsView(cr){
     if(active)h+=` <span style="color:var(--gold)">▶ ${roundLabel((cr.cup.bracket[cr.cup.round]||[]).length)}</span>`;
     h+=`</div><div class="lg" style="font-size:10px">出場条件: ${cup.condText} ${met?"✅":"✕"} ・ ${cup.period}の倍数週にエントリー${nextWk?`(次: 第${nextWk}週)`:""}</div>`;
     card.innerHTML=h;
-    if(active)card.appendChild(cupBracketView(cr.cup));
+    if(active)card.appendChild(cupBracketView(cr.cup,cr));
     wrap.appendChild(card);
   });
   return wrap;
@@ -781,14 +790,16 @@ function renderCareer(){
     body.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
   }
 }
-// 相手クラブの偵察(名前付き・seed固定ロスターをXIプレビュー)。
-function careerScout(cr){
-  const opp=careerOpponent(cr); if(!opp)return;
+// 相手クラブの偵察(名前付き・seed固定ロスターをXIプレビュー)。opp={name,lv,form,seed,boss}。
+// 順位表/トーナメント表/次戦カードのチーム名タップから共通で呼ぶ。
+function scoutClub(opp){
+  if(!opp)return;
   const t=oppTeam(opp.lv,{form:opp.form,seed:opp.seed});
   const ovr=Math.round(t.players.reduce((s,p)=>s+p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta,0)/t.players.length);
   renderScout(`偵察: ${opp.name}${opp.boss?" 👑":""}`,
     `平均OVR <b style="color:var(--gold)">${ovr}</b> ／ 陣形 <b>${opp.form}</b>${FORM_DESC[opp.form]?`<br><span class="lc-desc">${FORM_DESC[opp.form]}</span>`:""}`, t);
 }
+function careerScout(cr){ scoutClub(careerOpponent(cr)); }
 // 大陸リーグ選択(DIV1制覇後)。6節制覇で系統ステboost。
 function careerContPicker(){
   const cr=S.career; if(!cr||cr.contId||cr.stage!=="cont")return;

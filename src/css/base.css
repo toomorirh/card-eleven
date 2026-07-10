@@ -199,7 +199,13 @@ canvas.sprite{image-rendering:auto}
 /* ステージカード: 情報(タップで偵察) + KickOffボタン1つ */
 .lc-info{flex:1;min-width:0;cursor:pointer}
 .lc-desc{font-size:10px;color:#8fa3b8;margin-top:3px;line-height:1.5}
-.scout-hint{font-size:9px;color:var(--cyan);border:1px solid #2a5a66;padding:0 4px;margin-left:4px;vertical-align:middle}
+.scout-hint{font-size:9px;color:var(--cyan);border:1px solid #2a5a66;padding:0 4px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+/* チーム名タップで偵察: 順位表/トーナメント表/次戦カードで共通の可視アフォーダンス */
+.scout-td,.scout-name{cursor:pointer}
+.ctable td.scout-td,.cup-team.scout-td,.scout-name{text-decoration:underline dotted rgba(120,200,220,.55);text-underline-offset:2px}
+.ctable td.scout-td:active,.cup-team.scout-td:active,.scout-name:active{opacity:.6}
+/* 密な表内では偵察マークを枠なしの絵文字だけに(行ごとの枠は煩雑なので) */
+.ctable .scout-hint,.cup-bracket .scout-hint,.scout-name .scout-hint{border:none;padding:0;margin-left:2px}
 .ko-btn{width:auto!important;margin:0 0 0 8px!important;padding:9px 16px!important;flex:0 0 auto;font-size:14px}
 /* 自チーム戦力(編成画面) */
 .teamovr{font-size:13px;color:var(--ink);text-align:center;margin:2px 0 4px;font-weight:700}

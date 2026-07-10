@@ -459,6 +459,12 @@ function careerLeaguePool(cr){
 }
 // 宿敵の現在のlv(DIVに応じて一段強い)。
 function nemesisLv(cr){return (CAREER.divLv[cr.div]||5)+2;}
+// クラブidから偵察用の相手オブジェクトを得る(宿敵はlvが動的)。順位表/トーナメント表のチーム名タップ偵察で共用。
+function careerClubById(cr,id){
+  if(!id||id==="__me"||!OPP_CLUBS[id])return null;
+  if(id==="nemesis")return Object.assign({id:"nemesis"},OPP_CLUBS.nemesis,{lv:nemesisLv(cr),derby:true}); // 宿敵はlv動的+ダービー印
+  return Object.assign({id},OPP_CLUBS[id]);
+}
 // 現在の対戦相手クラブ(カップ中はブラケットの当該回戦の相手、通常はDIVの節)を返す。
 function careerOpponent(cr){
   if(!cr)return null;
@@ -466,9 +472,7 @@ function careerOpponent(cr){
   if(cr.cup){ const cur=(cr.cup.bracket||[])[cr.cup.round]||[]; const mi=cur.indexOf("__me"); id=mi<0?null:cur[mi^1]; } // __meの対戦ペア
   else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
   else { const pool=careerLeaguePool(cr); id=pool[(cr.node||0)%pool.length]; }
-  if(!id)return null;
-  if(id==="nemesis")return Object.assign({id:"nemesis"},OPP_CLUBS.nemesis,{lv:nemesisLv(cr),derby:true}); // 宿敵はlv動的+ダービー印
-  return Object.assign({id},OPP_CLUBS[id]);
+  return careerClubById(cr,id);
 }
 // その週(0基点stepの週=step+1)がカップのエントリー週か(periodの倍数)。
 function cupEntryWeek(cup,step){return ((step+1)%cup.period)===0;}
