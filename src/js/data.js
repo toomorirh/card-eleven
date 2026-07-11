@@ -263,10 +263,17 @@ function typeFlavor(c){return (c&&TYPE_FLAVOR[c.type])||{};}
 // クラブ系(国籍跨ぎ)はプレイヤーが集めて発動。国籍内コンビはワールドツアー代表(単一国籍)が自然と揃え、
 // 相手チームも名コンビを繰り出す。
 const DUOS=[
-  {a:"bergkamp", b:"henry",  name:"インヴィジブルズ"},  // クラブ系(NL+FR)
-  {a:"messi",    b:"neymar", name:"MSN"},              // クラブ系(AR+BR)
-  {a:"henry",    b:"mbappe", name:"トリコロール"},      // 🇫🇷 フランス代表で発動
-  {a:"kaka",     b:"neymar", name:"ジンガ"},           // 🇧🇷 ブラジル代表で発動
+  {a:"bergkamp", b:"henry",     name:"インヴィジブルズ"},  // クラブ系(NL+FR)
+  {a:"messi",    b:"neymar",    name:"MSN"},              // クラブ系(AR+BR)
+  {a:"henry",    b:"mbappe",    name:"トリコロール"},      // 🇫🇷 フランス代表で発動
+  {a:"kaka",     b:"neymar",    name:"ジンガ"},           // 🇧🇷 ブラジル代表で発動
+  {a:"zidane_ucl",b:"r9",       name:"ギャラクティコス"},  // クラブ系(FR+BR): レアル・マドリード
+  {a:"r9",       b:"rcarlos",   name:"セレソンの閃光"},    // 🇧🇷 ブラジル代表で発動
+  {a:"figo",     b:"ronaldo",   name:"ポルトガルの誇り"},  // 🇵🇹 ポルトガル代表で発動
+  {a:"batistuta",b:"maradona",  name:"アルゼンチンの魂"},  // 🇦🇷 アルゼンチン代表で発動
+  {a:"delpiero", b:"buffon",    name:"ユヴェントゥスの絆"},// 🇮🇹 イタリア代表/ユーベで発動
+  {a:"torres",   b:"busquets",  name:"ラ・ロハ"},          // 🇪🇸 スペイン代表で発動(2010)
+  {a:"beckenbauer",b:"lahm",    name:"ディ・マンシャフト"},// 🇩🇪 ドイツ代表で発動
 ];
 const DUO_CHANCE=0.55; // ボルテージ閾値+両者スタメン+起点が片割れ、を満たした上での発動率
 const DUO_GATE=0.30;   // 名コンビのボルテージ閾値(両固有起用への報酬として采配0.5より緩い)
