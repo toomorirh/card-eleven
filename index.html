@@ -88,10 +88,13 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   font-size:11px;z-index:3;animation:tw 1.9s infinite}
 .card .spark.s2{animation-delay:.9s;font-size:9px}
 @keyframes tw{0%,100%{opacity:0;transform:scale(.4) rotate(0deg)}50%{opacity:1;transform:scale(1.15) rotate(25deg)}}
-.card .chead{display:flex;align-items:center;width:100%;padding:2px 3px 0;min-width:0;z-index:3;position:relative}
+.card .chead{display:flex;align-items:center;gap:2px;width:100%;padding:2px 3px 0;min-width:0;z-index:3;position:relative}
 .card .pos{flex:0 0 auto;font-size:10px;font-weight:900;padding:1px 5px;border-radius:4px;color:#0c1626}
 .pos.GK{background:#f0c34e}.pos.DF{background:#6fc2f0}.pos.MF{background:#7fdb8e}.pos.FW{background:#f08080}
 .card .rar{font-family:'DotGothic16';font-size:11px;color:var(--gold)}
+/* 上部ヘッダー: ポジション(左)・グレード(中央)・国籍(右) */
+.card .cgrade{flex:1;min-width:0;text-align:center;font-size:9px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 1px rgba(0,0,0,.45)}
+.card .cflag{flex:0 0 auto;font-size:13px;line-height:1}
 /* ===== レーダー(背景)+ 中央スプライト ===== */
 .card .radar{position:relative;width:100%;height:96px;margin-top:1px}
 .card .radarsvg{position:absolute;inset:0;width:100%;height:100%}
@@ -757,7 +760,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     radial-gradient(circle at 50% 36%,rgba(6,10,20,.18),transparent 52%),
     linear-gradient(135deg,var(--c1,#c9a24a) 0%,var(--c1,#c9a24a) 22%,#f4f8fd 45%,#f4f8fd 55%,var(--c2,#2a3d56) 78%,var(--c2,#2a3d56) 100%)!important;
   box-shadow:0 0 16px rgba(247,216,120,.55),inset 0 0 0 2px rgba(255,244,200,.45)!important}
-.card.l.sig .rar{color:#fff;text-shadow:0 0 6px rgba(255,210,120,.9);font-size:9px}
+.card.l.sig .rar{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6),0 0 6px rgba(255,210,120,.9);font-size:9px}
 .card.l.sig .pnm{color:#fff6d8}
 .card.l.sig .sk{background:linear-gradient(90deg,#7a5f17,#b08c2e);color:#fff7dd}
 .card.l.sig::before{content:"";position:absolute;inset:0;pointer-events:none;
@@ -1233,10 +1236,11 @@ const NAMES=["バルデロ","シュナイト","ロッカ","カミナリオ","ド
 const FLAGS=["🇧🇷","🇦🇷","🇮🇹","🇪🇸","🇩🇪","🇫🇷","🇬🇧","🇳🇱","🇵🇹","🇯🇵","🇺🇾","🇭🇷","🇸🇪","🇲🇽","🇧🇪","🇩🇰"];
 // 国籍カラー(2色): Legend/Signatureカードの背景を国籍で表現。白は視認性のため淡グレー寄りに。
 const NAT_COLORS={
+  // 全16か国で (c1,c2) の組が一意になるよう配色(中段は常に白/暗)。同色2国は鏡像(順番反転)か色調差で区別。
   "🇧🇷":["#12cc59","#ffe62e"],"🇦🇷":["#8ec9f2","#f4f8fd"],"🇮🇹":["#12b866","#e8394f"],"🇪🇸":["#e81a30","#ffd21a"],
-  "🇩🇪":["#f21a1a","#ffd633"],"🇫🇷":["#2a72e0","#ff5347"],"🇬🇧":["#f4f8fd","#e8283f"],"🇳🇱":["#ff8a2a","#3a6ce0"],
-  "🇵🇹":["#ee3a26","#12a659"],"🇯🇵":["#e8203f","#f4f8fd"],"🇺🇾":["#95b6f0","#f4f8fd"],"🇭🇷":["#ee262e","#3038d8"],
-  "🇸🇪":["#2290d4","#ffd633"],"🇲🇽":["#12a866","#e82a3f"],"🇧🇪":["#ee2444","#ffe54d"],"🇩🇰":["#ee243f","#f4f8fd"],
+  "🇩🇪":["#2c2c2c","#ffcf1a"],"🇫🇷":["#2a72e0","#ff5347"],"🇬🇧":["#f4f8fd","#e8283f"],"🇳🇱":["#ff8a2a","#3a6ce0"],
+  "🇵🇹":["#ee3a26","#12a659"],"🇯🇵":["#e8203f","#f4f8fd"],"🇺🇾":["#f4f8fd","#6f9be8"],"🇭🇷":["#ee262e","#3038d8"],
+  "🇸🇪":["#2290d4","#ffd633"],"🇲🇽":["#0c7a44","#c8202f"],"🇧🇪":["#ffe54d","#ee2444"],"🇩🇰":["#b80c28","#f4f8fd"],
 };
 function natColors(flag){return NAT_COLORS[flag]||["#c9a24a","#2a3d56"];} // 既定=金/スチール
 // 国籍データ(flag → 国名)。カードの flag をキーに国名を導出する。
@@ -4657,10 +4661,11 @@ function cardEl(c,mini){
       :`<div class="sk">✦${c.skill.name}</div>`)
     :`<div class="sk" style="opacity:.35">スキルなし</div>`;
   const ovr=c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+  const grade=c.emo?"EMOTIONAL":c.sig?"Signature":RARS[c.rar]; // グレード表記(上中央・★★★★→Signature)
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
-  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span></div>
+  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="rar cgrade">${grade}</span><span class="cflag">${c.flag}</span></div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.flag} ${c.name}</div><div class="ovr">OVR<b>${ovr}</b><span class="rar">${c.emo?"EMOTIONAL":c.sig?"★★★★":RARS[c.rar]}</span></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n} <span class="age">${ageOf(c)}歳${agePhase(ageOf(c)).icon}</span></div>${sk}</div>`;
+  <div class="cinfo"><div class="pnm">${c.name}</div><div class="ovr">OVR<b>${ovr}</b></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n}</div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
   if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";

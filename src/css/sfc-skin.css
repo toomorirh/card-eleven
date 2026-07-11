@@ -95,7 +95,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     radial-gradient(circle at 50% 36%,rgba(6,10,20,.18),transparent 52%),
     linear-gradient(135deg,var(--c1,#c9a24a) 0%,var(--c1,#c9a24a) 22%,#f4f8fd 45%,#f4f8fd 55%,var(--c2,#2a3d56) 78%,var(--c2,#2a3d56) 100%)!important;
   box-shadow:0 0 16px rgba(247,216,120,.55),inset 0 0 0 2px rgba(255,244,200,.45)!important}
-.card.l.sig .rar{color:#fff;text-shadow:0 0 6px rgba(255,210,120,.9);font-size:9px}
+.card.l.sig .rar{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6),0 0 6px rgba(255,210,120,.9);font-size:9px}
 .card.l.sig .pnm{color:#fff6d8}
 .card.l.sig .sk{background:linear-gradient(90deg,#7a5f17,#b08c2e);color:#fff7dd}
 .card.l.sig::before{content:"";position:absolute;inset:0;pointer-events:none;
