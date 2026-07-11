@@ -93,7 +93,9 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .pos.GK{background:#f0c34e}.pos.DF{background:#6fc2f0}.pos.MF{background:#7fdb8e}.pos.FW{background:#f08080}
 .card .rar{font-family:'DotGothic16';font-size:11px;color:var(--gold)}
 /* 上部ヘッダー: ポジション(左)・グレード(中央)・国籍(右) */
-.card .cgrade{flex:1;min-width:0;text-align:center;font-size:9px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 1px rgba(0,0,0,.45)}
+.card .cgrade{flex:1;min-width:0;display:flex;justify-content:center;overflow:hidden}
+.card .cgrade .rar{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;
+  background:rgba(6,10,20,.5);border-radius:5px;padding:1px 4px;text-shadow:0 1px 1px rgba(0,0,0,.5)} /* OVR同様に暗い下地で視認性確保 */
 .card .cflag{flex:0 0 auto;font-size:13px;line-height:1}
 /* ===== レーダー(背景)+ 中央スプライト ===== */
 .card .radar{position:relative;width:100%;height:96px;margin-top:1px}
@@ -120,10 +122,18 @@ canvas.sprite{image-rendering:auto}
 .card .rl-st{top:24%;left:0}
 /* ===== 下部インフォ ===== */
 .card .cinfo{display:flex;flex-direction:column;align-items:center;gap:1px;width:100%;padding:1px 5px 0;margin-top:auto;z-index:3;position:relative}
-.card .pnm{max-width:100%;font-size:11px;font-weight:900;color:#eef4fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+/* 選手名: 枠内に収まらない場合は左右パン(中央基点)で全体を見せる。短い名前は中央固定 */
+.card .pnm{width:100%;font-size:11px;font-weight:900;color:#eef4fb;overflow:hidden;text-align:center;container-type:inline-size}
+.card .pnm-in{display:inline-block;white-space:nowrap;animation:pnmScroll 9s linear infinite}
+@keyframes pnmScroll{
+  0%,12%  {transform:translateX(max(0px,calc((100% - 100cqw)/2)))}
+  50%,62% {transform:translateX(min(0px,calc((100cqw - 100%)/2)))}
+  100%    {transform:translateX(max(0px,calc((100% - 100cqw)/2)))}
+}
 .card .ovr{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DotGothic16';font-size:8px;color:#8fa3b8;letter-spacing:1px}
 .card .ovr b{font-size:13px;color:var(--gold);line-height:1;text-shadow:0 0 6px rgba(232,194,90,.5)}
-.card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center}
+/* プレースタイル: ヘッダー(グレード/国籍)直下に配置し、情報帯がTE(技)に被らないようにする */
+.card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;position:relative;z-index:3;line-height:1.2;padding:1px 5px 0}
 .card .tp .age{color:#cdd6e6;opacity:.85}
 .card .sk{font-size:8px;font-weight:900;margin-top:1px;padding:1px 6px;border-radius:6px;background:#2a3d56;color:#cfdcea;max-width:98%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .card.r .sk{background:#43586e;color:#e8eef5}
@@ -748,7 +758,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     radial-gradient(circle at 50% 40%,rgba(6,10,20,.5),rgba(6,10,20,.06) 50%,transparent 66%),
     linear-gradient(180deg,var(--c1,#c9a24a) 0%,var(--c1,#c9a24a) 24%,#101d31 45%,#101d31 55%,var(--c2,#2a3d56) 76%,var(--c2,#2a3d56) 100%)!important;
   box-shadow:0 0 11px rgba(232,189,110,.45),inset 0 0 0 1px rgba(255,240,200,.35)!important}
-.card.l:not(.sig) .rar{color:#ffe7b0;text-shadow:0 0 6px rgba(255,200,110,.85);font-size:9px}
+.card.l:not(.sig) .rar{color:#ffe7b0;text-shadow:0 0 6px rgba(255,200,110,.85);font-size:8px}
 .card.l:not(.sig) .pnm{color:#fff1d6}
 .card.l:not(.sig) .sk{background:linear-gradient(90deg,#5a4a1e,#8a6c2e);color:#fff3dd}
 .card.l:not(.sig)::before{content:"";position:absolute;inset:0;pointer-events:none;
@@ -760,7 +770,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     radial-gradient(circle at 50% 36%,rgba(6,10,20,.18),transparent 52%),
     linear-gradient(135deg,var(--c1,#c9a24a) 0%,var(--c1,#c9a24a) 22%,#f4f8fd 45%,#f4f8fd 55%,var(--c2,#2a3d56) 78%,var(--c2,#2a3d56) 100%)!important;
   box-shadow:0 0 16px rgba(247,216,120,.55),inset 0 0 0 2px rgba(255,244,200,.45)!important}
-.card.l.sig .rar{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6),0 0 6px rgba(255,210,120,.9);font-size:9px}
+.card.l.sig .rar{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6),0 0 6px rgba(255,210,120,.9);font-size:8px}
 .card.l.sig .pnm{color:#fff6d8}
 .card.l.sig .sk{background:linear-gradient(90deg,#7a5f17,#b08c2e);color:#fff7dd}
 .card.l.sig::before{content:"";position:absolute;inset:0;pointer-events:none;
@@ -780,7 +790,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   animation:emoframe .6s steps(8) infinite}
 @keyframes emoframe{0%,100%{border-color:#ff5ea0}12%{border-color:#ffd25e}25%{border-color:#7dff9e}
   37%{border-color:#5ec8ff}50%{border-color:#b07dff}62%{border-color:#ff7de8}75%{border-color:#5effe0}87%{border-color:#ffae5e}}
-.card.emo .rar{color:#fff;font-size:8px;letter-spacing:1px;text-shadow:0 0 6px #b07dff,0 0 2px #fff}
+.card.emo .rar{color:#fff;font-size:8px;text-shadow:0 0 6px #b07dff,0 0 2px #fff}
 .card.emo .pnm{color:#f3e6ff}
 .card.emo .sk{background:linear-gradient(90deg,#5a1f8a,#a83e9e,#5a1f8a);color:#fff3ff}
 .card.emo .ovr b{color:#e6c8ff;text-shadow:0 0 7px rgba(180,120,255,.7)}
@@ -4661,11 +4671,13 @@ function cardEl(c,mini){
       :`<div class="sk">✦${c.skill.name}</div>`)
     :`<div class="sk" style="opacity:.35">スキルなし</div>`;
   const ovr=c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-  const grade=c.emo?"EMOTIONAL":c.sig?"Signature":RARS[c.rar]; // グレード表記(上中央・★★★★→Signature)
+  const grade=c.emo?"EMOTIONAL":c.sig?"SIGNATURE":RARS[c.rar]; // グレード表記(上中央・★★★★→SIGNATURE)
+  const cat=typeFlavor(c).cat||"atk";
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
-  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="rar cgrade">${grade}</span><span class="cflag">${c.flag}</span></div>
+  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
+  <div class="tp" style="color:${CAT_COL[cat]}">${CAT_ICON[cat]} ${typeOf(c).n}</div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.name}</div><div class="ovr">OVR<b>${ovr}</b></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n}</div>${sk}</div>`;
+  <div class="cinfo"><div class="ovr">OVR<b>${ovr}</b></div><div class="pnm"><span class="pnm-in">${c.name}</span></div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
   if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";

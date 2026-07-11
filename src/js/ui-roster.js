@@ -33,11 +33,13 @@ function cardEl(c,mini){
       :`<div class="sk">✦${c.skill.name}</div>`)
     :`<div class="sk" style="opacity:.35">スキルなし</div>`;
   const ovr=c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-  const grade=c.emo?"EMOTIONAL":c.sig?"Signature":RARS[c.rar]; // グレード表記(上中央・★★★★→Signature)
+  const grade=c.emo?"EMOTIONAL":c.sig?"SIGNATURE":RARS[c.rar]; // グレード表記(上中央・★★★★→SIGNATURE)
+  const cat=typeFlavor(c).cat||"atk";
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
-  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="rar cgrade">${grade}</span><span class="cflag">${c.flag}</span></div>
+  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
+  <div class="tp" style="color:${CAT_COL[cat]}">${CAT_ICON[cat]} ${typeOf(c).n}</div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
-  <div class="cinfo"><div class="pnm">${c.name}</div><div class="ovr">OVR<b>${ovr}</b></div><div class="tp" style="color:${CAT_COL[typeFlavor(c).cat||"atk"]}">${CAT_ICON[typeFlavor(c).cat||"atk"]} ${typeOf(c).n}</div>${sk}</div>`;
+  <div class="cinfo"><div class="ovr">OVR<b>${ovr}</b></div><div class="pnm"><span class="pnm-in">${c.name}</span></div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
   if(c.rar==="sr"||c.rar==="l"||c.rar==="emo"){
     const s1=document.createElement("span");s1.className="spark";s1.textContent="✦";
