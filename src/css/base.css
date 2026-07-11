@@ -92,7 +92,7 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   text-shadow:var(--txto),0 0 3px rgba(0,0,0,.55)} /* 背景箱ではなく縁取りで視認性確保 */
 .card .cflag{flex:0 0 auto;font-size:13px;line-height:1}
 /* ===== レーダー(背景)+ 中央スプライト ===== */
-.card .radar{position:relative;width:100%;height:96px;margin-top:1px}
+.card .radar{position:relative;width:100%;height:96px;margin:auto 0} /* 上下の余白を均等に取り、選手+能力グラフを中央の国籍色ゾーンに配置 */
 .card .radarsvg{position:absolute;inset:0;width:100%;height:100%}
 .card .radar .rgrid polygon{fill:none;stroke:rgba(255,255,255,.14);stroke-width:.8}
 .card .radar .rspoke line{stroke:rgba(255,255,255,.11);stroke-width:.6}
@@ -115,7 +115,7 @@ canvas.sprite{image-rendering:auto}
 .card .rl-sp{bottom:24%;left:0}
 .card .rl-st{top:24%;left:0}
 /* ===== 下部インフォ ===== */
-.card .cinfo{display:flex;flex-direction:column;align-items:center;gap:1px;width:100%;padding:1px 5px 0;margin-top:auto;z-index:3;position:relative}
+.card .cinfo{display:flex;flex-direction:column;align-items:center;gap:1px;width:100%;padding:1px 5px 0;z-index:3;position:relative}
 /* 選手名: 枠内に収まらない場合は左右パン(中央基点)で全体を見せる。短い名前は中央固定 */
 .card .pnm{width:100%;font-size:11px;font-weight:900;color:#eef4fb;overflow:hidden;text-align:center;container-type:inline-size}
 .card .pnm-in{display:inline-block;white-space:nowrap;animation:pnmScroll 9s linear infinite}
