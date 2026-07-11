@@ -891,6 +891,12 @@ const SIGNATURES=[
   {id:"beckenbauer", name:"フランツ・ベッケンバウアー", flag:"🇩🇪", pos:"DF", sub:"CB", type:"cover", age:28,
    stats:{off:16,def:20,pow:15,tec:18,spd:15,sta:16},
    skill:{name:"皇帝", desc:"守備から攻撃を組み立てる優雅なリベロ。チーム守備と支配率を大幅強化", fx:{teamDef:1.3,mid:1.25}}},
+  {id:"r9", name:"ロナウド・ナザーリオ", flag:"🇧🇷", pos:"FW", sub:"ST", type:"striker", age:23,
+   stats:{off:20,def:11,pow:16,tec:17,spd:20,sta:16},
+   skill:{name:"オ・フェノメーノ", desc:"爆発的なスピードと切り返しで守備を蹂躙する怪物。スピード・技術勝負とシュートを大幅強化", fx:{duelSpd:1.4,shoot:1.35,duelTec:1.25}}},
+  {id:"torres", name:"フェルナンド・トーレス", flag:"🇪🇸", pos:"FW", sub:"CF", type:"striker", age:26,
+   stats:{off:20,def:13,pow:16,tec:15,spd:19,sta:17},
+   skill:{name:"エル・ニーニョ", desc:"裏へ抜け出す一瞬のスピードで沈める金髪の申し子。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.35,shoot:1.4}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){
@@ -915,6 +921,12 @@ const EMOTIONALS=[
    skill:{name:"7番の継承者",
      desc:"7番を継いだ若き天才。仕掛けてファウルを誘い無回転FKを叩き込む。試合が熱いほど・終盤・ビハインドで感情が爆発する",
      fx:{freekick:2.4, duelTec:1.35, duelSpd:1.35, drawFoul:3, heat:1.6, clutch:1.4, losing:1.35}}},
+  {id:"zidane_ucl", name:"ジネディーヌ・ジダン", flag:"🇫🇷", pos:"MF", sub:"OMF", type:"maker", age:30,
+   moment:"GLASGOW 2002", momentSub:"伝説の左足ボレー",
+   stats:{off:17,def:14,pow:15,tec:20,spd:16,sta:18}, // 合計100 / tec20(至高のテクニック)
+   skill:{name:"ラ・ボレー",
+     desc:"CL決勝を撃ち抜いた芸術的な左足ボレー。テクニック勝負とシュートが冴え渡り、試合が熱いほど・終盤・ビハインドで感情が爆発する",
+     fx:{shoot:1.5, duelTec:1.45, heat:1.5, clutch:1.4, losing:1.35}}},
 ];
 function emotionalById(id){return EMOTIONALS.find(s=>s.id===id);}
 function makeEmotional(id){
