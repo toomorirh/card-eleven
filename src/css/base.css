@@ -44,7 +44,8 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 /* cards */
 .card{width:116px;height:190px;border-radius:9px;position:relative;overflow:hidden;flex-shrink:0;
   background:linear-gradient(165deg,#23344c,#101c2e);border:2px solid #3a4f6c;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;padding:6px 4px;user-select:none}
+  display:flex;flex-direction:column;align-items:center;padding:6px 4px;user-select:none;
+  --txto:-1px -1px 0 rgba(0,0,0,.9),1px -1px 0 rgba(0,0,0,.9),-1px 1px 0 rgba(0,0,0,.9),1px 1px 0 rgba(0,0,0,.9)} /* 文字の濃い縁取り(OVR/ステと同様) */
 /* 大量カードを並べるグリッドでは、画面外カードの描画・無限アニメをブラウザに自動スキップさせて軽量化 */
 #collGrid .card,#pickGrid .card{content-visibility:auto;contain-intrinsic-size:116px 190px}
 #pfFavGrid .card{content-visibility:auto;contain-intrinsic-size:96px 166px}
@@ -80,14 +81,15 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   font-size:11px;z-index:3;animation:tw 1.9s infinite}
 .card .spark.s2{animation-delay:.9s;font-size:9px}
 @keyframes tw{0%,100%{opacity:0;transform:scale(.4) rotate(0deg)}50%{opacity:1;transform:scale(1.15) rotate(25deg)}}
-.card .chead{display:flex;align-items:center;gap:2px;width:100%;padding:2px 3px 0;min-width:0;z-index:3;position:relative}
+.card .chead{display:flex;align-items:center;justify-content:space-between;gap:2px;width:100%;padding:2px 3px 0;min-width:0;z-index:3;position:relative}
 .card .pos{flex:0 0 auto;font-size:10px;font-weight:900;padding:1px 5px;border-radius:4px;color:#0c1626}
 .pos.GK{background:#f0c34e}.pos.DF{background:#6fc2f0}.pos.MF{background:#7fdb8e}.pos.FW{background:#f08080}
 .card .rar{font-family:'DotGothic16';font-size:11px;color:var(--gold)}
-/* 上部ヘッダー: ポジション(左)・グレード(中央)・国籍(右) */
-.card .cgrade{flex:1;min-width:0;display:flex;justify-content:center;overflow:hidden}
-.card .cgrade .rar{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;
-  background:rgba(6,10,20,.5);border-radius:5px;padding:1px 4px;text-shadow:0 1px 1px rgba(0,0,0,.5)} /* OVR同様に暗い下地で視認性確保 */
+/* 上部ヘッダー: ポジション(左)・グレード(カード中央に固定)・国籍(右)。
+   グレードは絶対配置でカード中央に置き、pos/国籍の幅差の影響を受けないようにする */
+.card .cgrade{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.card .cgrade .rar{max-width:62%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;
+  text-shadow:var(--txto),0 0 3px rgba(0,0,0,.55)} /* 背景箱ではなく縁取りで視認性確保 */
 .card .cflag{flex:0 0 auto;font-size:13px;line-height:1}
 /* ===== レーダー(背景)+ 中央スプライト ===== */
 .card .radar{position:relative;width:100%;height:96px;margin-top:1px}
@@ -106,10 +108,10 @@ canvas.sprite{image-rendering:auto}
 .card .rlab b.lb{color:#6fe7d0;text-shadow:-1px -1px 0 rgba(0,0,0,.9),1px -1px 0 rgba(0,0,0,.9),-1px 1px 0 rgba(0,0,0,.9),1px 1px 0 rgba(0,0,0,.9),0 0 6px rgba(80,220,195,.8)} /* 限界突破で強化した能力 */
 /* カード詳細モーダル(売却/限界突破) */
 #cardModal .cm-body{display:flex;justify-content:center;margin-top:6px}
-.card .rl-of{top:-2px;left:50%;transform:translateX(-50%)}
+.card .rl-of{top:3px;left:50%;transform:translateX(-50%)}
 .card .rl-df{top:24%;right:0}
 .card .rl-po{bottom:24%;right:0}
-.card .rl-te{bottom:-2px;left:50%;transform:translateX(-50%)}
+.card .rl-te{bottom:9px;left:50%;transform:translateX(-50%)}
 .card .rl-sp{bottom:24%;left:0}
 .card .rl-st{top:24%;left:0}
 /* ===== 下部インフォ ===== */
@@ -125,7 +127,7 @@ canvas.sprite{image-rendering:auto}
 .card .ovr{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DotGothic16';font-size:8px;color:#8fa3b8;letter-spacing:1px}
 .card .ovr b{font-size:13px;color:var(--gold);line-height:1;text-shadow:0 0 6px rgba(232,194,90,.5)}
 /* プレースタイル: ヘッダー(グレード/国籍)直下に配置し、情報帯がTE(技)に被らないようにする */
-.card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;position:relative;z-index:3;line-height:1.2;padding:1px 5px 0}
+.card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;position:relative;z-index:3;line-height:1.2;padding:1px 5px 0;text-shadow:var(--txto)}
 .card .tp .age{color:#cdd6e6;opacity:.85}
 .card .sk{font-size:8px;font-weight:900;margin-top:1px;padding:1px 6px;border-radius:6px;background:#2a3d56;color:#cfdcea;max-width:98%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .card.r .sk{background:#43586e;color:#e8eef5}
