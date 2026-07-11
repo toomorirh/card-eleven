@@ -125,7 +125,7 @@ canvas.sprite{image-rendering:auto}
   100%    {transform:translateX(max(0px,calc((100% - 100cqw)/2)))}
 }
 .card .ovr{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DotGothic16';font-size:8px;color:#8fa3b8;letter-spacing:1px}
-.card .ovr b{font-size:13px;color:var(--gold);line-height:1;text-shadow:0 0 6px rgba(232,194,90,.5)}
+.card .ovr b{font-size:13px;color:#fff;line-height:1;text-shadow:var(--txto)}
 /* プレースタイル: ヘッダー(グレード/国籍)直下に配置し、情報帯がTE(技)に被らないようにする */
 .card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;position:relative;z-index:3;line-height:1.2;padding:1px 5px 0;text-shadow:var(--txto)}
 .card .tp .age{color:#cdd6e6;opacity:.85}

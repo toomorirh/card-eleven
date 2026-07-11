@@ -133,7 +133,7 @@ canvas.sprite{image-rendering:auto}
   100%    {transform:translateX(max(0px,calc((100% - 100cqw)/2)))}
 }
 .card .ovr{display:flex;align-items:center;justify-content:center;gap:5px;font-family:'DotGothic16';font-size:8px;color:#8fa3b8;letter-spacing:1px}
-.card .ovr b{font-size:13px;color:var(--gold);line-height:1;text-shadow:0 0 6px rgba(232,194,90,.5)}
+.card .ovr b{font-size:13px;color:#fff;line-height:1;text-shadow:var(--txto)}
 /* プレースタイル: ヘッダー(グレード/国籍)直下に配置し、情報帯がTE(技)に被らないようにする */
 .card .tp{font-size:8px;color:#8fd8c4;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;position:relative;z-index:3;line-height:1.2;padding:1px 5px 0;text-shadow:var(--txto)}
 .card .tp .age{color:#cdd6e6;opacity:.85}
@@ -785,6 +785,9 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 /* Legend/Signatureの情報帯: 明るい国籍色の上でも文字が読めるよう暗いスクリムを敷く(色の主張は上部で確保) */
 .card.l .cinfo::before{content:"";position:absolute;left:-5px;right:-5px;top:0;bottom:-5px;z-index:-1;
   background:linear-gradient(rgba(8,12,22,.4),rgba(8,12,22,.82));border-radius:0 0 6px 6px}
+/* ヘッダー(ポジション〜プレースタイル)もフッターと同じく暗いレイヤーでトーンダウン(明るい国籍色でも文字が読める) */
+.card.l .chead::before{content:"";position:absolute;left:-5px;right:-5px;top:-8px;bottom:-15px;z-index:-1;
+  background:linear-gradient(rgba(8,12,22,.82),rgba(8,12,22,.34));border-radius:6px 6px 0 0}
 .card.l .pnm{text-shadow:0 1px 2px rgba(0,0,0,.65)}
 /* ===== エモーショナル(最上位): LEGENDより一段強い虹色イリディセント+宇宙的グロー ===== */
 .card.emo{border:3px solid #fff!important;background:linear-gradient(165deg,#241036,#0a0414)!important;
@@ -4677,7 +4680,7 @@ function cardEl(c,mini){
   const cat=typeFlavor(c).cat||"atk";
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
   d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
-  <div class="tp" style="color:${CAT_COL[cat]}">${CAT_ICON[cat]} ${typeOf(c).n}</div>
+  <div class="tp" style="color:${CAT_COL[cat]}">${typeOf(c).n}</div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
   <div class="cinfo"><div class="ovr">OVR<b>${ovr}</b></div><div class="pnm"><span class="pnm-in">${c.name}</span></div>${sk}</div>`;
   d.querySelector(".face").appendChild(spriteCanvas(c,mini?40:50));
