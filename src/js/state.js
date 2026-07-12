@@ -177,5 +177,20 @@ function show(s){
   if(s==="title")renderTitleHero();
   if(s==="team")renderPitch();if(s==="coll")renderColl();if(s==="home")renderHome();
   if(s==="gacha")renderGacha();if(s==="office")renderOffice();if(s==="career")renderCareer();
+  updateSubnav(s);
+}
+// フッター直上のサブメニュー切替: アクティブ画面に対応する1行だけ表示し、フッターの真上へ配置。
+function updateSubnav(s){
+  const sn=document.getElementById("subnav"); if(!sn)return;
+  const map={home:"modeRow", career:"careerSub", office:"ofTabs"};
+  const active=map[s]||null; let shown=false;
+  ["modeRow","careerSub","ofTabs"].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const use=(id===active)&&(id!=="careerSub"||el.childElementCount>0); // キャリア未開始はタブ無し→非表示
+    el.style.display=use?"":"none"; if(use)shown=true;
+  });
+  sn.classList.toggle("on",shown);
+  document.body.classList.toggle("has-subnav",shown);
+  const tabs=document.querySelector(".tabs"); if(tabs)sn.style.bottom=tabs.offsetHeight+"px"; // フッター実高の真上
 }
 

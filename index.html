@@ -37,6 +37,17 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   font-weight:700;font-family:inherit;cursor:pointer}
 .tabs button.on{color:var(--gold)}
 .tabs .ico{display:block;font-size:18px;margin-bottom:2px}
+/* フッター直上のサブメニュー(スマホ向け): フッターの真上に固定、アクティブ画面のものだけ表示 */
+.subnav{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:520px;bottom:56px;z-index:49;
+  background:var(--night2);border-top:1px solid #2a3d56;box-shadow:0 -3px 10px rgba(0,0,0,.35);padding:6px 8px;display:none}
+.subnav.on{display:block}
+.subnav .subrow{margin:0!important}
+.subnav .tactics{display:flex;gap:6px;width:100%}
+.subnav .tactics button{flex:1 1 0%;min-width:0;min-height:0;padding:9px 4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subnav .career-tabs{margin:0}
+.subnav .career-tabs .ctab{padding:8px 12px;min-height:0}
+.has-subnav .wrap{padding-bottom:148px}
+.on-title .subnav,.in-match .subnav{display:none!important}
 .screen{display:none}.screen.on{display:block;animation:fade .25s}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
 
@@ -1054,12 +1065,6 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   </div>
 
   <div id="scr-home" class="screen">
-    <div class="tactics" id="modeRow" style="margin-bottom:8px">
-      <button data-m="stage" class="on">🗺️ ステージ</button>
-      <button data-m="league">🏆 リーグ</button>
-      <button data-m="daily">📅 デイリー</button>
-      <button data-m="world" style="display:none">🌍 ツアー</button>
-    </div>
     <div id="dailyMode" style="display:none">
       <div id="dailyHead"></div>
       <div id="dailyList"></div>
@@ -1109,12 +1114,6 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   <div id="scr-office" class="screen">
     <div class="banner" style="font-size:16px">― 🎩 監督室 ―</div>
     <div id="officeHead"></div>
-    <div class="tactics" id="ofTabs" style="margin:8px 0">
-      <button data-o="match" class="on">🤝 対戦</button>
-      <button data-o="rec">📊 戦績</button>
-      <button data-o="mgr">🎯 監督</button>
-      <button data-o="ach">🏅 実績</button>
-    </div>
     <div id="ofMatch">
       <div id="friendHead"></div>
       <div id="friendBody"></div>
@@ -1218,6 +1217,22 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 <div class="toast" id="toast"></div>
 <div class="packov" id="packOverlay"><div class="packstage" id="packStage"></div></div>
 
+<!-- フッター直上のサブメニュー(スマホ向け): アクティブなフッタータブに応じて1つだけ表示 -->
+<div id="subnav" class="subnav">
+  <div class="tactics subrow" id="modeRow" style="display:none">
+    <button data-m="stage" class="on">🗺️ ステージ</button>
+    <button data-m="league">🏆 リーグ</button>
+    <button data-m="daily">📅 デイリー</button>
+    <button data-m="world" style="display:none">🌍 ツアー</button>
+  </div>
+  <div id="careerSub" class="subrow" style="display:none"></div>
+  <div class="tactics subrow" id="ofTabs" style="display:none">
+    <button data-o="match" class="on">🤝 対戦</button>
+    <button data-o="rec">📊 戦績</button>
+    <button data-o="mgr">🎯 監督</button>
+    <button data-o="ach">🏅 実績</button>
+  </div>
+</div>
 <div class="tabs">
   <button data-s="home" class="on"><span class="ico">🏆</span>リーグ</button>
   <button data-s="career"><span class="ico">🎓</span>キャリア</button>
@@ -4679,6 +4694,21 @@ function show(s){
   if(s==="title")renderTitleHero();
   if(s==="team")renderPitch();if(s==="coll")renderColl();if(s==="home")renderHome();
   if(s==="gacha")renderGacha();if(s==="office")renderOffice();if(s==="career")renderCareer();
+  updateSubnav(s);
+}
+// フッター直上のサブメニュー切替: アクティブ画面に対応する1行だけ表示し、フッターの真上へ配置。
+function updateSubnav(s){
+  const sn=document.getElementById("subnav"); if(!sn)return;
+  const map={home:"modeRow", career:"careerSub", office:"ofTabs"};
+  const active=map[s]||null; let shown=false;
+  ["modeRow","careerSub","ofTabs"].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const use=(id===active)&&(id!=="careerSub"||el.childElementCount>0); // キャリア未開始はタブ無し→非表示
+    el.style.display=use?"":"none"; if(use)shown=true;
+  });
+  sn.classList.toggle("on",shown);
+  document.body.classList.toggle("has-subnav",shown);
+  const tabs=document.querySelector(".tabs"); if(tabs)sn.style.bottom=tabs.offsetHeight+"px"; // フッター実高の真上
 }
 
 // ================= カード描画 =================
@@ -6074,20 +6104,24 @@ function careerCupsView(cr){
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
+  const csub=document.getElementById("careerSub");
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
   const cr=S.career;
   box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
   if(!cr){ // 未開始
+    if(csub)csub.replaceChildren(); // タブなし→サブナビ非表示
     box.appendChild(mk("div","lg","限られた任期(48週)で自分だけの<b>カスタム監督</b>を育成する最上位コンテンツ。詳しくは見出しの「?」。"));
     const b=mk("button","btn");b.textContent="🎓 監督キャリアを始める";b.onclick=()=>startCareer();box.appendChild(b);
     if((S.customMgrs||[]).length)box.appendChild(mk("div","lg",`これまで育てた監督: ${S.customMgrs.length}名(監督室で起用可)`));
+    if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
     return;
   }
   // ハブ(常時): ステータス + 今週の活動
   box.appendChild(careerStatusCard(cr));
   box.appendChild(careerCurrentActivity(cr));
-  // セクションタブ + 内容
-  box.appendChild(careerTabBar());
+  // セクションタブはフッター直上のサブナビへ配置(スマホ操作性)。内容は下の career-body に描画。
+  if(csub)csub.replaceChildren(careerTabBar());
+  if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
   const body=mk("div","career-body");box.appendChild(body);
   if(_careerTab==="schedule"){
     const list=careerScheduleList(cr,true);body.appendChild(list); // 操作はハブ側。ここは時系列のみ

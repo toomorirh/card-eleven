@@ -738,20 +738,24 @@ function careerCupsView(cr){
 }
 function renderCareer(){
   const box=document.getElementById("careerBox");if(!box)return;box.innerHTML="";
+  const csub=document.getElementById("careerSub");
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
   const cr=S.career;
   box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
   if(!cr){ // 未開始
+    if(csub)csub.replaceChildren(); // タブなし→サブナビ非表示
     box.appendChild(mk("div","lg","限られた任期(48週)で自分だけの<b>カスタム監督</b>を育成する最上位コンテンツ。詳しくは見出しの「?」。"));
     const b=mk("button","btn");b.textContent="🎓 監督キャリアを始める";b.onclick=()=>startCareer();box.appendChild(b);
     if((S.customMgrs||[]).length)box.appendChild(mk("div","lg",`これまで育てた監督: ${S.customMgrs.length}名(監督室で起用可)`));
+    if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
     return;
   }
   // ハブ(常時): ステータス + 今週の活動
   box.appendChild(careerStatusCard(cr));
   box.appendChild(careerCurrentActivity(cr));
-  // セクションタブ + 内容
-  box.appendChild(careerTabBar());
+  // セクションタブはフッター直上のサブナビへ配置(スマホ操作性)。内容は下の career-body に描画。
+  if(csub)csub.replaceChildren(careerTabBar());
+  if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
   const body=mk("div","career-body");box.appendChild(body);
   if(_careerTab==="schedule"){
     const list=careerScheduleList(cr,true);body.appendChild(list); // 操作はハブ側。ここは時系列のみ

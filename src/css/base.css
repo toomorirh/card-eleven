@@ -29,6 +29,17 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
   font-weight:700;font-family:inherit;cursor:pointer}
 .tabs button.on{color:var(--gold)}
 .tabs .ico{display:block;font-size:18px;margin-bottom:2px}
+/* フッター直上のサブメニュー(スマホ向け): フッターの真上に固定、アクティブ画面のものだけ表示 */
+.subnav{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:520px;bottom:56px;z-index:49;
+  background:var(--night2);border-top:1px solid #2a3d56;box-shadow:0 -3px 10px rgba(0,0,0,.35);padding:6px 8px;display:none}
+.subnav.on{display:block}
+.subnav .subrow{margin:0!important}
+.subnav .tactics{display:flex;gap:6px;width:100%}
+.subnav .tactics button{flex:1 1 0%;min-width:0;min-height:0;padding:9px 4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subnav .career-tabs{margin:0}
+.subnav .career-tabs .ctab{padding:8px 12px;min-height:0}
+.has-subnav .wrap{padding-bottom:148px}
+.on-title .subnav,.in-match .subnav{display:none!important}
 .screen{display:none}.screen.on{display:block;animation:fade .25s}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
 
