@@ -650,7 +650,7 @@ function careerLoanOffer(cr){
 }
 // ===== 育成メイン: ハブ(ステータス+今週の活動)+ セクションタブ切替 =====
 let _careerTab="schedule"; // 現在のセクションタブ
-const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"🏆 リーグ&カップ"},{id:"squad",lb:"👥 スカッド"},{id:"club",lb:"🏛 クラブ"},{id:"manager",lb:"🎓 監督"}];
+const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"club",lb:"🏛 施設"},{id:"manager",lb:"🎓 監督"}];
 // ステータスカード(監督名・週の進捗バー・ステージ・名声・OVR上限)。
 function careerStatusCard(cr){
   const contNow=cr.contId?continentById(cr.contId):null;
@@ -762,9 +762,10 @@ function renderCareer(){
     const cur=list.querySelector(".wt-card.cur");if(cur)setTimeout(()=>{try{cur.scrollIntoView({block:"center"});}catch(e){}},0);
   }else if(_careerTab==="league"){
     if(cr.stage!=="cont"&&!cr.contId){const st=careerStandingsTable(cr);if(st){body.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));body.appendChild(st);}}
+    if(cr.stage==="cont")body.appendChild(mk("div","lg",`🌐 大陸リーグ: 制覇済 ${(cr.contWon||[]).length}/${CONTINENTS.length}。${cr.contId?"進行中":"「今週の活動」から挑戦する大陸を選択"}`));
+  }else if(_careerTab==="cup"){
     body.appendChild(mk("div","banner","― 🏆 カップ/トーナメント ―"));
     body.appendChild(careerCupsView(cr));
-    if(cr.stage==="cont")body.appendChild(mk("div","lg",`🌐 大陸リーグ: 制覇済 ${(cr.contWon||[]).length}/${CONTINENTS.length}。${cr.contId?"進行中":"「今週の活動」から挑戦する大陸を選択"}`));
   }else if(_careerTab==="squad"){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
