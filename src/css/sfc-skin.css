@@ -180,6 +180,8 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 .career-status .cs-row{display:flex;justify-content:space-between;font-size:11px;color:#b8c6da}
 .career-now{background:#131f33;border:1px solid #35507a;border-radius:10px;padding:8px 10px;margin:6px 0}
 .career-now .cn-head{font-weight:900;font-size:13px;color:var(--gold);margin-bottom:2px}
+/* 日程タブ: 上部(サマリー+操作)を固定し、日程リストだけを独立スクロール */
+.career-sched{overflow-y:auto;-webkit-overflow-scrolling:touch;border-top:2px solid #2a3d56;margin-top:4px;padding-top:6px}
 .career-tabs{display:flex;gap:4px;overflow-x:auto;margin:8px 0 6px;-webkit-overflow-scrolling:touch}
 .career-tabs .ctab{flex:0 0 auto;padding:10px 13px;min-height:42px;border:1px solid #2a3d56;border-radius:14px;background:#111c2e;color:#9fb2c8;
   font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:'DotGothic16'}

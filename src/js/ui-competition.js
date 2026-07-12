@@ -650,6 +650,8 @@ function careerLoanOffer(cr){
 }
 // ===== 育成メイン: ハブ(ステータス+今週の活動)+ セクションタブ切替 =====
 let _careerTab="schedule"; // 現在のセクションタブ
+let _careerSchedFit=null;  // 日程タブ: 日程リストの高さをビューポートに合わせる関数(リサイズ時再計算)
+if(typeof window!=="undefined"&&window.addEventListener)window.addEventListener("resize",()=>{if(typeof _careerSchedFit==="function")_careerSchedFit();});
 const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"club",lb:"🏛 施設"},{id:"manager",lb:"🎓 監督"}];
 // ステータスカード(監督名・週の進捗バー・ステージ・名声・OVR上限)。
 function careerStatusCard(cr){
@@ -758,9 +760,17 @@ function renderCareer(){
   if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
   const body=mk("div","career-body");box.appendChild(body);
   if(_careerTab==="schedule"){
-    const list=careerScheduleList(cr,true);body.appendChild(list); // 操作はハブ側。ここは時系列のみ
-    const cur=list.querySelector(".wt-card.cur");if(cur)setTimeout(()=>{try{cur.scrollIntoView({block:"center"});}catch(e){}},0);
-  }else if(_careerTab==="league"){
+    // 上部(サマリー+操作)は固定のまま、日程リストだけを画面下部で独立スクロール(直近日程を見つつ操作できる)
+    const list=careerScheduleList(cr,true);list.classList.add("career-sched");body.appendChild(list); // 操作はハブ側。ここは時系列のみ
+    _careerSchedFit=()=>{ // 日程リストの高さ=ビューポート残り(フッター/サブナビの上まで)。ページ自体は伸ばさない
+      const r=list.getBoundingClientRect(), sn=document.getElementById("subnav"), tb=document.querySelector(".tabs");
+      const bars=((sn&&sn.classList.contains("on"))?sn.offsetHeight:0)+(tb?tb.offsetHeight:0)+10;
+      list.style.maxHeight=Math.max(150,window.innerHeight-r.top-bars)+"px";
+    };
+    requestAnimationFrame(_careerSchedFit);
+    const cur=list.querySelector(".wt-card.cur");if(cur)setTimeout(()=>{try{cur.scrollIntoView({block:"center"});}catch(e){}},40);
+  }else{ _careerSchedFit=null;
+  if(_careerTab==="league"){
     if(cr.stage!=="cont"&&!cr.contId){const st=careerStandingsTable(cr);if(st){body.appendChild(mk("div","banner",`― 📊 順位表(DIV${cr.div}) ―`));body.appendChild(st);}}
     if(cr.stage==="cont")body.appendChild(mk("div","lg",`🌐 大陸リーグ: 制覇済 ${(cr.contWon||[]).length}/${CONTINENTS.length}。${cr.contId?"進行中":"「今週の活動」から挑戦する大陸を選択"}`));
   }else if(_careerTab==="cup"){
@@ -793,6 +803,7 @@ function renderCareer(){
     body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
     if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.6">(獲得バフ ${cr.boosts.length}件を合算表示)</span>`));
     body.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
+  }
   }
 }
 // 相手クラブの偵察(名前付き・seed固定ロスターをXIプレビュー)。opp={name,lv,form,seed,boss}。
