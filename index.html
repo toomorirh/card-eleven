@@ -6120,9 +6120,12 @@ function renderCareer(){
     if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
     return;
   }
-  // ハブ(常時): ステータス + 今週の活動
-  box.appendChild(careerStatusCard(cr));
-  box.appendChild(careerCurrentActivity(cr));
+  // ハブ(ステータス + 今週の活動): 進行系タブ(日程/リーグ/カップ)のみ表示。
+  // 編成/施設/監督は進行に関わらないため、上部サマリー・操作枠は出さない。
+  if(_careerTab==="schedule"||_careerTab==="league"||_careerTab==="cup"){
+    box.appendChild(careerStatusCard(cr));
+    box.appendChild(careerCurrentActivity(cr));
+  }
   // セクションタブはフッター直上のサブナビへ配置(スマホ操作性)。内容は下の career-body に描画。
   if(csub)csub.replaceChildren(careerTabBar());
   if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
