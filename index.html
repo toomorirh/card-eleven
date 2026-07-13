@@ -4887,14 +4887,12 @@ function renderPitch(){
   const ov=document.getElementById("teamOvr");
   if(ov){
     const placed=FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);
-    const benchCards=(S.bench||[]).map(id=>S.coll.find(k=>k.id===id)).filter(Boolean);
     if(placed.length){
-      const xiTot=placed.reduce((s,c)=>s+total(c),0);
-      const base=xiTot+benchCards.reduce((s,c)=>s+total(c),0); // XI+ベンチ(=統制Cap判定と一致)
-      const avg=Math.round(xiTot/placed.length);
+      const base=placed.reduce((s,c)=>s+total(c),0); // 先発XIのみ(ベンチは統制対象外)
+      const avg=Math.round(base/placed.length);
       const mgr=effectiveManager(), cap=mgrCtrlOVR(mgr)+coachCtrlBonus(), mul=ovrOverloadMul(base,cap), over=mul<1, drop=Math.round((1-mul)*100);
       ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ 編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> ／ 🧭統制OVR <b>${cap}</b>`
-        +`<span class="ovsub">(${placed.length}/11${benchCards.length?`+控${benchCards.length}`:""})</span>`
+        +`<span class="ovsub">(${placed.length}/11・XIのみ)</span>`
         +(over?`<br><span style="color:#ff8e8e">⚠ 統制超過 → 全能力 -${drop}%（監督『${mgr.title}』の指揮が追いつかない）</span>`:``);
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
@@ -6452,8 +6450,7 @@ function careerTeam(cap){
   const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
   const cr=(typeof S!=="undefined")&&S.career, pool=careerPool(cr);
   const ex=careerBenchSet(cr);
-  const benchTot=[...ex].reduce((s,id)=>{const c=pool.find(k=>k.id===id);return s+(c?ovr(c):0);},0);
-  const xiCap=Math.max(0,cap-benchTot); // ベンチぶんを差し引いた先発の実効上限(=XI+ベンチ≤cap)
+  const xiCap=cap; // 統制はXIのみ対象(ベンチはCap外)。exでベンチ選手を先発の自動補完から除外
   const {picks,used}=careerPicks(cr,ex);
   // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
   const tot=()=>picks.reduce((s,p)=>s+(p.c?ovr(p.c):0),0);
@@ -6475,16 +6472,13 @@ function careerTeam(cap){
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
   return team;
 }
-// 現在の育成編成の素OVR合計(先発+ベンチ・上限判定/表示用・成長は非加算)。
+// 現在の育成編成の素OVR合計(先発XIのみ・上限判定/表示用・成長は非加算)。ベンチは統制対象外。
 // 先発は careerTeam の「トリム後(=実際に出場する)」合計を使う(最良XIではなく上限に収めた編成)。
 function careerBaseTotal(cr){
-  const pool=careerPool(cr);
   const team=careerTeam((typeof careerCap==="function")?careerCap(cr):(cr?cr.ovrCap:0));
-  let t=team.players.reduce((s,p)=>s+cardOvr(p.c),0);
-  ((cr&&cr.bench)||[]).forEach(id=>{if(id==null)return;const c=pool.find(k=>k.id===id);if(c)t+=cardOvr(c);}); // ベンチも上限内
-  return t;
+  return team.players.reduce((s,p)=>s+cardOvr(p.c),0); // 先発XIのみ(ベンチは統制対象外)
 }
-// 統制ペナルティ倍率: 編成OVR(素・XI+ベンチ)が統制可能OVR(careerCap)を超えた超過率ぶん全能力を低下。
+// 統制ペナルティ倍率: 編成OVR(素・先発XIのみ)が統制可能OVR(careerCap)を超えた超過率ぶん全能力を低下。
 // 例) 編成OVR/統制OVR=1.30 → 1-(1.30-1)*overloadK = -30%(overloadFloor でクランプ)。統制内は 1.0。
 // 統制超過のソフト減衰(汎用): 編成OVR total が 統制可能OVR cap を超えた超過率ぶん全能力を低下(floorでクランプ)。
 // キャリア/通常モードで共通に使う。統制内(r<=1)は 1.0。
@@ -6494,11 +6488,9 @@ function ovrOverloadMul(total, cap){
   return Math.max(CAREER.overloadFloor, 1-(r-1)*CAREER.overloadK);
 }
 function careerOverloadMul(cr){ return ovrOverloadMul(careerBaseTotal(cr), careerCap(cr)); }
-// 通常モードの編成OVR合計(実出場XI + 事前設定ベンチ)。監督の統制OVRとの比較に使う。
+// 通常モードの編成OVR合計(先発XIのみ・ベンチは統制対象外)。監督の統制OVRとの比較に使う。
 function homeBaseTotal(home){
-  let t=(home&&home.players?home.players:[]).reduce((s,p)=>s+cardOvr(p.c),0);
-  if(typeof S!=="undefined")(S.bench||[]).forEach(id=>{if(id==null)return;const c=S.coll.find(k=>k.id===id);if(c)t+=cardOvr(c);});
-  return t;
+  return (home&&home.players?home.players:[]).reduce((s,p)=>s+cardOvr(p.c),0);
 }
 // 通常モードの自チーム統制ペナルティ倍率(起用中監督=無ければ見習い のctrlOVR基準)。
 function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager())+coachCtrlBonus():9999);}
