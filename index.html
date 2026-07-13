@@ -1532,20 +1532,27 @@ const DUO_GATE=0.30;   // 名コンビのボルテージ閾値(両固有起用�
 // cost: 起用(交代)ごとのレンタル料(コイン)。tac: 采配シグネ(条件付き戦略アクション・Phase2で実装)。
 //   cond=[[subRole,stat,しきい値],…] 全て満たすと chance で発動。
 // 画像は src/assets/manager/ce_mg_managers.png(4列×2行=8名)。col/row=シート内グリッド位置。
+// ctrlOVR=統制可能OVR(この監督が破綻なく指揮できる編成OVR合計の上限。超過はソフト減衰)。名将は850〜1000帯。
 const MANAGERS=[
-  {id:"poss",      col:0,row:0, name:"ペップ・グアルディオラ",   title:"ポゼッションの巨匠",   cost:340, boost:{pos:"MF", stat:"tec", mul:1.07},
+  {id:"poss",      col:0,row:0, name:"ペップ・グアルディオラ",   title:"ポゼッションの巨匠",   cost:340, ctrlOVR:930, boost:{pos:"MF", stat:"tec", mul:1.07},
     tac:{name:"電光タクト",     from:"omf", cond:[["OMF","tec",20]], chance:0.50}},
-  {id:"press",     col:1,row:0, name:"ユルゲン・クロップ",       title:"情熱のゲーゲンプレス", cost:320, boost:{pos:"all", stat:"spd", mul:1.05},
+  {id:"press",     col:1,row:0, name:"ユルゲン・クロップ",       title:"情熱のゲーゲンプレス", cost:320, ctrlOVR:890, boost:{pos:"all", stat:"spd", mul:1.05},
     tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.55}},
-  {id:"maestro",   col:2,row:0, name:"カルロ・アンチェロッティ", title:"百戦錬磨の名匠",       cost:380, boost:{pos:"all", stat:"all", mul:1.03}},
-  {id:"specialist",col:3,row:0, name:"ジョゼ・モウリーニョ",     title:"守備の戦術家",         cost:340, boost:{pos:"DF", stat:"def", mul:1.07},
+  {id:"maestro",   col:2,row:0, name:"カルロ・アンチェロッティ", title:"百戦錬磨の名匠",       cost:380, ctrlOVR:1000, boost:{pos:"all", stat:"all", mul:1.03}},
+  {id:"specialist",col:3,row:0, name:"ジョゼ・モウリーニョ",     title:"守備の戦術家",         cost:340, ctrlOVR:930, boost:{pos:"DF", stat:"def", mul:1.07},
     tac:{name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",20]], chance:0.50}},
-  {id:"boss",      col:0,row:1, name:"アレックス・ファーガソン", title:"常勝の指揮官",         cost:300, boost:{pos:"all", stat:"sta", mul:1.08}},
-  {id:"galactico", col:1,row:1, name:"ジネディーヌ・ジダン",     title:"静かなる勝負師",       cost:320, boost:{pos:"FW", stat:"off", mul:1.07}},
-  {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, boost:{pos:"all", stat:"tec", mul:1.04}},
-  {id:"cholo",     col:3,row:1, name:"ディエゴ・シメオネ",       title:"闘将",                 cost:320, boost:{pos:"all", stat:"def", mul:1.05},
+  {id:"boss",      col:0,row:1, name:"アレックス・ファーガソン", title:"常勝の指揮官",         cost:300, ctrlOVR:850, boost:{pos:"all", stat:"sta", mul:1.08}},
+  {id:"galactico", col:1,row:1, name:"ジネディーヌ・ジダン",     title:"静かなる勝負師",       cost:320, ctrlOVR:890, boost:{pos:"FW", stat:"off", mul:1.07}},
+  {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, ctrlOVR:850, boost:{pos:"all", stat:"tec", mul:1.04}},
+  {id:"cholo",     col:3,row:1, name:"ディエゴ・シメオネ",       title:"闘将",                 cost:320, ctrlOVR:890, boost:{pos:"all", stat:"def", mul:1.05},
     tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
 ];
+// 無料の既定監督(未起用時のフォールバック=見習い)。統制OVRは控えめ、バフ無し。名将/カスタムで伸ばす。
+const DEFAULT_MGR={id:"rookie", name:"見習い監督", title:"見習い", cost:0, ctrlOVR:700, boosts:[], col:null};
+// 監督の統制可能OVR(未設定のレガシー/nullは既定へフォールバック)。
+function mgrCtrlOVR(m){return (m&&m.ctrlOVR)||DEFAULT_MGR.ctrlOVR;}
+// 統制判定に使う「実効監督」: 起用中が無ければ見習い監督。バフ適用の homeManager とは別(そちらはnull可)。
+function effectiveManager(){return activeManager()||DEFAULT_MGR;}
 const MGR_POS_JP={all:"全選手",FW:"FW",MF:"MF",DF:"DF",GK:"GK"};
 const MGR_STAT_JP={all:"全能力",off:"攻撃",def:"守備",pow:"パワー",tec:"テクニック",spd:"スピード",sta:"スタミナ"};
 // 監督の boost/tac を配列に正規化(名将=単数boost/tac、カスタム監督=boosts[]/tacs[] の両対応)。
@@ -1745,7 +1752,7 @@ function homeManager(){
 function createCustomManager(spec){
   spec=spec||{};
   const m={id:"cm"+(uid++), custom:true, name:spec.name||"あなたの監督", title:spec.title||"カスタム監督",
-    cost:0, boosts:spec.boosts||[], tacs:spec.tacs||[]};
+    cost:0, ctrlOVR:spec.ctrlOVR||900, boosts:spec.boosts||[], tacs:spec.tacs||[]}; // 統制OVR=キャリアで育てた最終値(既定900)
   if(typeof S!=="undefined"){S.customMgrs=S.customMgrs||[];S.customMgrs.push(m);}
   return m;
 }
@@ -4599,6 +4606,7 @@ async function loadGame(){                                       // つづきか
   S.mgrOwned=(S.mgrOwned||[]).filter(id=>MANAGERS.some(m=>m.id===id)); // 名将(v9据え置き・欠落補完/旧id除去)
   S.mgrActive=S.mgrActive||"";S.introLetters=S.introLetters||0;
   S.customMgrs=S.customMgrs||[]; // カスタム監督(監督キャリアモードで生成)
+  S.customMgrs.forEach(m=>{if(m&&m.ctrlOVR==null)m.ctrlOVR=900;}); // 旧カスタム監督に統制OVRを後付け(既定900)
   // 起用中監督が名将にもカスタムにも無ければ解任(旧データ整合)
   if(S.mgrActive&&!managerById(S.mgrActive))S.mgrActive="";
   if(S.v!==9){migrate();await save();}
@@ -5772,7 +5780,7 @@ function renderOffice(){
     +`<div class="wt-name">${myName()}</div>`
     +`<div class="lv">オーナー: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
-    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:"未契約"} ・ ✉️${S.introLetters||0}</div>`
+    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:`未起用(見習い)`} ・ 🧭統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(effectiveManager())}</b> ・ ✉️${S.introLetters||0}</div>`
     +`</div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
   card.appendChild(ed);head.appendChild(card);
@@ -5816,7 +5824,7 @@ function renderManagers(){
   owned.forEach(m=>{
     const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
     d.appendChild(mgrPortrait(m,62));
-    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.title}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div>`;
+    const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.title}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">${m.name} ・ 🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div><div class="lv">🧭 統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(m)}</b></div>`;
     d.appendChild(info);
     const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
     b.textContent=isAct?"起用中":`契約 🪙${m.cost}`;
@@ -5830,7 +5838,7 @@ function renderManagers(){
     customs.forEach(m=>{
       const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
       d.appendChild(mgrPortrait(m,62));
-      const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.name}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div>`;
+      const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.name}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div><div class="lv">🧭 統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(m)}</b></div>`;
       d.appendChild(info);
       const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
       b.textContent=isAct?"起用中":"起用";
@@ -7940,7 +7948,7 @@ function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCa
 }
 function careerFinalize(){ // カスタム監督を確定して登録
   const cr=S.career; if(!cr)return;
-  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs});
+  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs, ctrlOVR:careerCap(cr)}); // 任期最終の統制可能OVRを継承
   S.career=null; checkAchievements(); save(); // 初完走の実績(シグネチャー選択券)を判定
   toast(`🎓 任期満了! カスタム監督「${m.name}」誕生! 監督室で起用できます`);
   if(typeof gotoOffice==="function")gotoOffice("mgr");

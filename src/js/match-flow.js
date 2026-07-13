@@ -655,7 +655,7 @@ function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCa
 }
 function careerFinalize(){ // カスタム監督を確定して登録
   const cr=S.career; if(!cr)return;
-  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs});
+  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs, ctrlOVR:careerCap(cr)}); // 任期最終の統制可能OVRを継承
   S.career=null; checkAchievements(); save(); // 初完走の実績(シグネチャー選択券)を判定
   toast(`🎓 任期満了! カスタム監督「${m.name}」誕生! 監督室で起用できます`);
   if(typeof gotoOffice==="function")gotoOffice("mgr");

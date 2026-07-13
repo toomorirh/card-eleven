@@ -80,6 +80,7 @@ async function loadGame(){                                       // つづきか
   S.mgrOwned=(S.mgrOwned||[]).filter(id=>MANAGERS.some(m=>m.id===id)); // 名将(v9据え置き・欠落補完/旧id除去)
   S.mgrActive=S.mgrActive||"";S.introLetters=S.introLetters||0;
   S.customMgrs=S.customMgrs||[]; // カスタム監督(監督キャリアモードで生成)
+  S.customMgrs.forEach(m=>{if(m&&m.ctrlOVR==null)m.ctrlOVR=900;}); // 旧カスタム監督に統制OVRを後付け(既定900)
   // 起用中監督が名将にもカスタムにも無ければ解任(旧データ整合)
   if(S.mgrActive&&!managerById(S.mgrActive))S.mgrActive="";
   if(S.v!==9){migrate();await save();}

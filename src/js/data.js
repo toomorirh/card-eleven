@@ -283,20 +283,27 @@ const DUO_GATE=0.30;   // 名コンビのボルテージ閾値(両固有起用�
 // cost: 起用(交代)ごとのレンタル料(コイン)。tac: 采配シグネ(条件付き戦略アクション・Phase2で実装)。
 //   cond=[[subRole,stat,しきい値],…] 全て満たすと chance で発動。
 // 画像は src/assets/manager/ce_mg_managers.png(4列×2行=8名)。col/row=シート内グリッド位置。
+// ctrlOVR=統制可能OVR(この監督が破綻なく指揮できる編成OVR合計の上限。超過はソフト減衰)。名将は850〜1000帯。
 const MANAGERS=[
-  {id:"poss",      col:0,row:0, name:"ペップ・グアルディオラ",   title:"ポゼッションの巨匠",   cost:340, boost:{pos:"MF", stat:"tec", mul:1.07},
+  {id:"poss",      col:0,row:0, name:"ペップ・グアルディオラ",   title:"ポゼッションの巨匠",   cost:340, ctrlOVR:930, boost:{pos:"MF", stat:"tec", mul:1.07},
     tac:{name:"電光タクト",     from:"omf", cond:[["OMF","tec",20]], chance:0.50}},
-  {id:"press",     col:1,row:0, name:"ユルゲン・クロップ",       title:"情熱のゲーゲンプレス", cost:320, boost:{pos:"all", stat:"spd", mul:1.05},
+  {id:"press",     col:1,row:0, name:"ユルゲン・クロップ",       title:"情熱のゲーゲンプレス", cost:320, ctrlOVR:890, boost:{pos:"all", stat:"spd", mul:1.05},
     tac:{name:"アーリークロス", from:"sb",  cond:[["LSB","tec",20],["CF","pow",20]], chance:0.55}},
-  {id:"maestro",   col:2,row:0, name:"カルロ・アンチェロッティ", title:"百戦錬磨の名匠",       cost:380, boost:{pos:"all", stat:"all", mul:1.03}},
-  {id:"specialist",col:3,row:0, name:"ジョゼ・モウリーニョ",     title:"守備の戦術家",         cost:340, boost:{pos:"DF", stat:"def", mul:1.07},
+  {id:"maestro",   col:2,row:0, name:"カルロ・アンチェロッティ", title:"百戦錬磨の名匠",       cost:380, ctrlOVR:1000, boost:{pos:"all", stat:"all", mul:1.03}},
+  {id:"specialist",col:3,row:0, name:"ジョゼ・モウリーニョ",     title:"守備の戦術家",         cost:340, ctrlOVR:930, boost:{pos:"DF", stat:"def", mul:1.07},
     tac:{name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",20]], chance:0.50}},
-  {id:"boss",      col:0,row:1, name:"アレックス・ファーガソン", title:"常勝の指揮官",         cost:300, boost:{pos:"all", stat:"sta", mul:1.08}},
-  {id:"galactico", col:1,row:1, name:"ジネディーヌ・ジダン",     title:"静かなる勝負師",       cost:320, boost:{pos:"FW", stat:"off", mul:1.07}},
-  {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, boost:{pos:"all", stat:"tec", mul:1.04}},
-  {id:"cholo",     col:3,row:1, name:"ディエゴ・シメオネ",       title:"闘将",                 cost:320, boost:{pos:"all", stat:"def", mul:1.05},
+  {id:"boss",      col:0,row:1, name:"アレックス・ファーガソン", title:"常勝の指揮官",         cost:300, ctrlOVR:850, boost:{pos:"all", stat:"sta", mul:1.08}},
+  {id:"galactico", col:1,row:1, name:"ジネディーヌ・ジダン",     title:"静かなる勝負師",       cost:320, ctrlOVR:890, boost:{pos:"FW", stat:"off", mul:1.07}},
+  {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, ctrlOVR:850, boost:{pos:"all", stat:"tec", mul:1.04}},
+  {id:"cholo",     col:3,row:1, name:"ディエゴ・シメオネ",       title:"闘将",                 cost:320, ctrlOVR:890, boost:{pos:"all", stat:"def", mul:1.05},
     tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
 ];
+// 無料の既定監督(未起用時のフォールバック=見習い)。統制OVRは控えめ、バフ無し。名将/カスタムで伸ばす。
+const DEFAULT_MGR={id:"rookie", name:"見習い監督", title:"見習い", cost:0, ctrlOVR:700, boosts:[], col:null};
+// 監督の統制可能OVR(未設定のレガシー/nullは既定へフォールバック)。
+function mgrCtrlOVR(m){return (m&&m.ctrlOVR)||DEFAULT_MGR.ctrlOVR;}
+// 統制判定に使う「実効監督」: 起用中が無ければ見習い監督。バフ適用の homeManager とは別(そちらはnull可)。
+function effectiveManager(){return activeManager()||DEFAULT_MGR;}
 const MGR_POS_JP={all:"全選手",FW:"FW",MF:"MF",DF:"DF",GK:"GK"};
 const MGR_STAT_JP={all:"全能力",off:"攻撃",def:"守備",pow:"パワー",tec:"テクニック",spd:"スピード",sta:"スタミナ"};
 // 監督の boost/tac を配列に正規化(名将=単数boost/tac、カスタム監督=boosts[]/tacs[] の両対応)。
@@ -496,7 +503,7 @@ function homeManager(){
 function createCustomManager(spec){
   spec=spec||{};
   const m={id:"cm"+(uid++), custom:true, name:spec.name||"あなたの監督", title:spec.title||"カスタム監督",
-    cost:0, boosts:spec.boosts||[], tacs:spec.tacs||[]};
+    cost:0, ctrlOVR:spec.ctrlOVR||900, boosts:spec.boosts||[], tacs:spec.tacs||[]}; // 統制OVR=キャリアで育てた最終値(既定900)
   if(typeof S!=="undefined"){S.customMgrs=S.customMgrs||[];S.customMgrs.push(m);}
   return m;
 }
