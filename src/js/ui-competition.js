@@ -404,7 +404,7 @@ function renderOffice(){
     +`<div class="wt-name">${myName()}</div>`
     +`<div class="lv">オーナー: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
-    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:`未起用(見習い)`} ・ 🧭統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(effectiveManager())}</b> ・ ✉️${S.introLetters||0}</div>`
+    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:`未起用(見習い)`} ・ 🧭統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(effectiveManager())+coachCtrlBonus()}</b>${coachCtrlBonus()?`<span class="lv">(監督${mgrCtrlOVR(effectiveManager())}+🧭${coachCtrlBonus()})</span>`:""} ・ ✉️${S.introLetters||0}</div>`
     +`</div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
   card.appendChild(ed);head.appendChild(card);
@@ -417,11 +417,21 @@ function _selectOfTab(o){
   document.getElementById("ofMatch").style.display=o==="match"?"block":"none";
   document.getElementById("ofRec").style.display=o==="rec"?"block":"none";
   document.getElementById("ofMgr").style.display=o==="mgr"?"block":"none";
+  document.getElementById("ofFac").style.display=o==="fac"?"block":"none";
   document.getElementById("ofAch").style.display=o==="ach"?"block":"none";
   if(o==="match")renderFriend();
   else if(o==="rec")renderFriendRec();
   else if(o==="mgr")renderManagers();
+  else if(o==="fac")renderOfficeFacilities();
   else if(o==="ach")renderAchievements();
+}
+// 監督室の施設タブ: アカウント恒久の施設(助っ人なし)。非キャリア勢もここから統率OVR等を強化できる。
+function renderOfficeFacilities(){
+  const box=document.getElementById("ofFac"); if(!box)return; box.innerHTML="";
+  const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
+  box.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${S.prestige||0} ―`));
+  box.appendChild(mk("div","lg","名声はキャリアの勝利/制覇/昇格で上昇(他モードの勝利でも微増)。上位施設は名声で解禁し、コインで拡張。効果は全モードに永続。"));
+  box.appendChild(careerFacilities(null)); // 助っ人抜きの施設のみ
 }
 // ===== 監督(契約): 紹介済みの監督から起用する1名を選ぶ(契約=起用ごとにコイン・交代制)。監督スカウトはスカウト画面側。 =====
 function renderManagers(){

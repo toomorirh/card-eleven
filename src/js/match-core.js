@@ -86,6 +86,9 @@ function myTeam(){
 }
 // 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
 const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+function teamAvgOvr(t){const p=(t&&t.players)||[];return p.length?p.reduce((s,x)=>s+cardOvr(x.c),0)/p.length:0;}
+// ジャイアントキリング被弾: 自分の方が明確に格上(平均OVR差)なのに敗北した=番狂わせ。名声減の判定に使う。
+function wasGiantKilled(home,away,sh,sa){return sh<sa && teamAvgOvr(home)>teamAvgOvr(away)+2;}
 // 育成で選べる選手プール = 手持ち + 招へい中の助っ人(固有選手・シーズン限定)。
 function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
 // ベンチ(交代枠)に指定された cardId 集合。先発の自動補完から除外(先発と控えは重複しない)。

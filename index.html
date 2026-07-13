@@ -1122,6 +1122,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     </div>
     <div id="ofRec" style="display:none"></div>
     <div id="ofMgr" style="display:none"></div>
+    <div id="ofFac" style="display:none"></div>
     <div id="ofAch" style="display:none">
       <div class="lg" id="achCount"></div>
       <div id="achList"></div>
@@ -1232,6 +1233,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     <button data-o="match" class="on">🤝 対戦</button>
     <button data-o="rec">📊 戦績</button>
     <button data-o="mgr">🎯 監督</button>
+    <button data-o="fac">🏛 施設</button>
     <button data-o="ach">🏅 実績</button>
   </div>
 </div>
@@ -5808,7 +5810,7 @@ function renderOffice(){
     +`<div class="wt-name">${myName()}</div>`
     +`<div class="lv">オーナー: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
-    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:`未起用(見習い)`} ・ 🧭統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(effectiveManager())}</b> ・ ✉️${S.introLetters||0}</div>`
+    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:`未起用(見習い)`} ・ 🧭統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(effectiveManager())+coachCtrlBonus()}</b>${coachCtrlBonus()?`<span class="lv">(監督${mgrCtrlOVR(effectiveManager())}+🧭${coachCtrlBonus()})</span>`:""} ・ ✉️${S.introLetters||0}</div>`
     +`</div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
   card.appendChild(ed);head.appendChild(card);
@@ -5821,11 +5823,21 @@ function _selectOfTab(o){
   document.getElementById("ofMatch").style.display=o==="match"?"block":"none";
   document.getElementById("ofRec").style.display=o==="rec"?"block":"none";
   document.getElementById("ofMgr").style.display=o==="mgr"?"block":"none";
+  document.getElementById("ofFac").style.display=o==="fac"?"block":"none";
   document.getElementById("ofAch").style.display=o==="ach"?"block":"none";
   if(o==="match")renderFriend();
   else if(o==="rec")renderFriendRec();
   else if(o==="mgr")renderManagers();
+  else if(o==="fac")renderOfficeFacilities();
   else if(o==="ach")renderAchievements();
+}
+// 監督室の施設タブ: アカウント恒久の施設(助っ人なし)。非キャリア勢もここから統率OVR等を強化できる。
+function renderOfficeFacilities(){
+  const box=document.getElementById("ofFac"); if(!box)return; box.innerHTML="";
+  const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
+  box.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${S.prestige||0} ―`));
+  box.appendChild(mk("div","lg","名声はキャリアの勝利/制覇/昇格で上昇(他モードの勝利でも微増)。上位施設は名声で解禁し、コインで拡張。効果は全モードに永続。"));
+  box.appendChild(careerFacilities(null)); // 助っ人抜きの施設のみ
 }
 // ===== 監督(契約): 紹介済みの監督から起用する1名を選ぶ(契約=起用ごとにコイン・交代制)。監督スカウトはスカウト画面側。 =====
 function renderManagers(){
@@ -6411,6 +6423,9 @@ function myTeam(){
 }
 // 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
 const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
+function teamAvgOvr(t){const p=(t&&t.players)||[];return p.length?p.reduce((s,x)=>s+cardOvr(x.c),0)/p.length:0;}
+// ジャイアントキリング被弾: 自分の方が明確に格上(平均OVR差)なのに敗北した=番狂わせ。名声減の判定に使う。
+function wasGiantKilled(home,away,sh,sa){return sh<sa && teamAvgOvr(home)>teamAvgOvr(away)+2;}
 // 育成で選べる選手プール = 手持ち + 招へい中の助っ人(固有選手・シーズン限定)。
 function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
 // ベンチ(交代枠)に指定された cardId 集合。先発の自動補完から除外(先発と控えは重複しない)。
@@ -8136,6 +8151,9 @@ const MATCH_MODES={
     else{msg="😢 LOSE…";reward=TUNING.reward.lose;}
     reward=Math.round(reward*stadiumCoinMul()); // 🏟スタジアムでコイン獲得アップ
     S.coins+=reward;coinUI();
+    // 名声(全モード小トリクル): 勝利+1 / 格下相手にジャイキリ被弾で-1
+    if(sh>sa){S.prestige=(S.prestige||0)+1;feed(`🏛 名声 +1(計 ${S.prestige})`,"chance");}
+    else if(wasGiantKilled(M.home,M.away,sh,sa)){S.prestige=Math.max(0,(S.prestige||0)-1);feed(`💥 番狂わせ被弾… 名声 -1(計 ${S.prestige})`,"chance");}
     feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
     const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
     let dropMsg="";
@@ -8189,6 +8207,7 @@ const MATCH_MODES={
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
+    if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減
     const e=document.getElementById("matchEnd");
     let html="", champCup=null, headRes=(sh>sa?"W":sh===sa?"D":"L"), pkNote="";
     if(inCup){
@@ -8225,7 +8244,7 @@ const MATCH_MODES={
         }
       }
     }
-    if(cr&&pp){S.prestige=(S.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${S.prestige})</div>`;}
+    if(cr&&pp){S.prestige=Math.max(0,(S.prestige||0)+pp); html+=`<div class="banner" style="font-size:13px;color:${pp<0?"#ff8e8e":"#ffd24a"}">🏛 名声 ${pp>0?"+":""}${pp}(計 ${S.prestige})</div>`;}
     checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);

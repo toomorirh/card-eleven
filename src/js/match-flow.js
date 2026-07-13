@@ -793,6 +793,9 @@ const MATCH_MODES={
     else{msg="😢 LOSE…";reward=TUNING.reward.lose;}
     reward=Math.round(reward*stadiumCoinMul()); // 🏟スタジアムでコイン獲得アップ
     S.coins+=reward;coinUI();
+    // 名声(全モード小トリクル): 勝利+1 / 格下相手にジャイキリ被弾で-1
+    if(sh>sa){S.prestige=(S.prestige||0)+1;feed(`🏛 名声 +1(計 ${S.prestige})`,"chance");}
+    else if(wasGiantKilled(M.home,M.away,sh,sa)){S.prestige=Math.max(0,(S.prestige||0)-1);feed(`💥 番狂わせ被弾… 名声 -1(計 ${S.prestige})`,"chance");}
     feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
     const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
     let dropMsg="";
@@ -846,6 +849,7 @@ const MATCH_MODES={
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
+    if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減
     const e=document.getElementById("matchEnd");
     let html="", champCup=null, headRes=(sh>sa?"W":sh===sa?"D":"L"), pkNote="";
     if(inCup){
@@ -882,7 +886,7 @@ const MATCH_MODES={
         }
       }
     }
-    if(cr&&pp){S.prestige=(S.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${S.prestige})</div>`;}
+    if(cr&&pp){S.prestige=Math.max(0,(S.prestige||0)+pp); html+=`<div class="banner" style="font-size:13px;color:${pp<0?"#ff8e8e":"#ffd24a"}">🏛 名声 ${pp>0?"+":""}${pp}(計 ${S.prestige})</div>`;}
     checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
