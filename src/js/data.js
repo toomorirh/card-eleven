@@ -377,6 +377,7 @@ function facLv(id){return (typeof S!=="undefined"&&S.fac&&S.fac[id])||0;} // グ
 // 施設のコイン費用(二次関数的): Lv1(lv0→1)=100 … Lv5開放(lv4→5)=5000。全施設共通。
 function facCost(f,lv){return Math.round(100+306*lv*lv);}
 function facUnlocked(f){return (typeof S!=="undefined"?(S.prestige||0):0)>=(f.unlock||0);} // 名声しきい値で解禁
+function maxFacLv(){return FACILITIES.reduce((m,f)=>Math.max(m,facLv(f.id)),0);} // 最も高い施設Lv(実績判定用)
 function coachCtrlBonus(){return facLv("coaching")*60;}            // 統率(統制可能)OVR加算(全モード)
 function stadiumCoinMul(){return 1+facLv("stadium")*0.08;}         // コイン獲得倍率(全モード試合報酬)
 function scoutDropMul(){return 1+facLv("scouting")*0.2;}           // ワールドツアー固有ドロップ倍率(Lv5で2倍)
@@ -1007,5 +1008,35 @@ const ACHIEVEMENTS=[
   {id:"intlCup", icon:"🌐", title:"世界クラブの頂点", desc:"インターナショナルクラブカップで初優勝する",
    test:()=>!!(S.career&&(S.career.cupsWon||[]).includes("international")), prog:()=>`優勝 ${(S.career&&(S.career.cupsWon||[]).includes("international"))?1:0}/1`,
    reward:{sigSelect:1},                rewardLabel:"シグネチャー選択券"},
+  // 編成OVR(先発XI合計)のマイルストーン
+  {id:"ovr800",  icon:"🛡", title:"中堅クラブ",   desc:"編成の合計OVRを 800 まで引き上げる",
+   test:()=>squadTotalOVR()>=800,  prog:()=>`${squadTotalOVR()}/800 OVR`,
+   reward:{prestige:10},                rewardLabel:"名声+10"},
+  {id:"ovr900",  icon:"⚔️", title:"トップクラブ", desc:"編成の合計OVRを 900 まで引き上げる",
+   test:()=>squadTotalOVR()>=900,  prog:()=>`${squadTotalOVR()}/900 OVR`,
+   reward:{prestige:50},                rewardLabel:"名声+50"},
+  {id:"ovr1100", icon:"🌌", title:"銀河系軍団",   desc:"編成の合計OVRを 1100 まで引き上げる",
+   test:()=>squadTotalOVR()>=1100, prog:()=>`${squadTotalOVR()}/1100 OVR`,
+   reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
+  // 名声(プレステージ)のマイルストーン
+  {id:"prestige100",  icon:"🥉", title:"新人マネージャー",     desc:"名声を 100 まで高める",
+   test:()=>(S.prestige||0)>=100,  prog:()=>`${Math.min(S.prestige||0,100)}/100 名声`,
+   reward:{coins:10000},                rewardLabel:"10000コイン"},
+  {id:"prestige500",  icon:"🥈", title:"ベテランマネージャー", desc:"名声を 500 まで高める",
+   test:()=>(S.prestige||0)>=500,  prog:()=>`${Math.min(S.prestige||0,500)}/500 名声`,
+   reward:{coins:30000},                rewardLabel:"30000コイン"},
+  {id:"prestige1000", icon:"🥇", title:"代表監督",             desc:"名声を 1000 まで高める",
+   test:()=>(S.prestige||0)>=1000, prog:()=>`${Math.min(S.prestige||0,1000)}/1000 名声`,
+   reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
+  // クラブ施設のマイルストーン(いずれかの施設を初めてその Lv まで開放)
+  {id:"facL1", icon:"🏛", title:"クラブ運営 始動", desc:"いずれかの施設を Lv1 まで開放する",
+   test:()=>maxFacLv()>=1, prog:()=>`最高 Lv${maxFacLv()}/1`,
+   reward:{legendPacks:1},              rewardLabel:"レジェンドパック"},
+  {id:"facL3", icon:"🏛", title:"クラブ運営 拡充", desc:"いずれかの施設を Lv3 まで開放する",
+   test:()=>maxFacLv()>=3, prog:()=>`最高 Lv${maxFacLv()}/3`,
+   reward:{legendPacks:1},              rewardLabel:"レジェンドパック"},
+  {id:"facL5", icon:"🏛", title:"クラブ運営 完成", desc:"いずれかの施設を Lv5 まで開放する",
+   test:()=>maxFacLv()>=5, prog:()=>`最高 Lv${maxFacLv()}/5`,
+   reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
 ];
 

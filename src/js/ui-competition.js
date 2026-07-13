@@ -652,7 +652,7 @@ function careerFacilities(cr){
     const b=document.createElement("button");b.className="btn"+(maxed||locked||!afford?" ghost":"");b.style.cssText="flex:0 0 auto;padding:6px 10px";
     b.textContent=maxed?"MAX":locked?"🔒":`🪙${cost}`;
     if(maxed||locked||!afford){b.disabled=true;b.style.opacity=".5";}
-    else b.onclick=async()=>{S.fac[f.id]=lv+1;S.coins-=cost;coinUI();await save();toast(`${f.icon}${f.name}をLv${lv+1}に強化!`);refreshFacilities();};
+    else b.onclick=async()=>{S.fac[f.id]=lv+1;S.coins-=cost;coinUI();toast(`${f.icon}${f.name}をLv${lv+1}に強化!`);checkAchievements();await save();refreshFacilities();}; // 施設Lv実績を判定
     row.appendChild(b);wrap.appendChild(row);
   });
   if(!cr)return wrap; // 助っ人はキャリア中のみ

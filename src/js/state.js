@@ -117,6 +117,9 @@ function grantReward(r){
   if(r.sigPacks)S.sigPacks=(S.sigPacks||0)+r.sigPacks;
   if(r.sigSelect)S.sigSelect=(S.sigSelect||0)+r.sigSelect;
   if(r.championPacks)S.championPacks=(S.championPacks||0)+r.championPacks;
+  if(r.legendPacks)S.legendPacks=(S.legendPacks||0)+r.legendPacks;
+  if(r.prestige)S.prestige=(S.prestige||0)+r.prestige;
+  if(r.coins){S.coins=(S.coins||0)+r.coins; if(typeof coinUI==="function")coinUI();}
 }
 // 実績判定: 未達成かつ条件成立の実績に報酬を付与(達成済みは S.ms で記録=冪等)。何か付与したら true。
 function checkAchievements(){
