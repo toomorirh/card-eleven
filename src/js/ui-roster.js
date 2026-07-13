@@ -400,25 +400,13 @@ function sellCard(c,v){
 }
 document.getElementById("cardModalClose").onclick=()=>document.getElementById("cardModal").classList.remove("on");
 
-// ================= プロフィール(監督名・チーム名・お気に入り) =================
-let _pfFav=0; // 選択中のお気に入りカードid
+// ================= プロフィール(監督名・チーム名) =================
 function openProfile(isNew){
   const m=document.getElementById("profileModal");
   document.getElementById("profileTitle").textContent=isNew?"チーム設定(はじめに)":"プロフィール編集";
   document.getElementById("pfCoach").value=S.coach||"";
   document.getElementById("pfTeam").value=S.teamName||"";
-  _pfFav=S.favId||0;
-  const favWrap=document.getElementById("pfFavWrap"),grid=document.getElementById("pfFavGrid");
-  if(isNew||!S.coll.length){favWrap.style.display="none";}
-  else{
-    favWrap.style.display="";grid.innerHTML="";
-    const ord={l:0,sr:1,r:2,n:3};
-    [...S.coll].sort((a,b)=>ord[a.rar]-ord[b.rar]||total(b)-total(a)).forEach(c=>{
-      const el=cardEl(c,true);el._cid=c.id;if(c.id===_pfFav)el.classList.add("sel");
-      el.onclick=()=>{_pfFav=(_pfFav===c.id?0:c.id);[...grid.children].forEach(x=>x.classList.toggle("sel",x._cid===_pfFav));};
-      grid.appendChild(el);
-    });
-  }
+  const favWrap=document.getElementById("pfFavWrap"); if(favWrap)favWrap.style.display="none"; // お気に入り設定は廃止
   const sv=document.getElementById("pfSave");sv.textContent=isNew?"⚽ はじめる":"保存";
   sv.onclick=()=>saveProfile(isNew);
   m.classList.add("on");
@@ -433,7 +421,7 @@ async function saveProfile(isNew){
     coinUI();show("home");
     if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由ならフレンドへ
   }else{
-    S.coach=coach;S.teamName=team;S.favId=_pfFav||0;await save();
+    S.coach=coach;S.teamName=team;await save();
     toast("プロフィールを保存しました");
     if(document.getElementById("scr-home").classList.contains("on"))renderHome();
   }

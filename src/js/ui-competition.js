@@ -401,15 +401,12 @@ function renderOffice(){
   Object.keys(rec).forEach(k=>{const r=rec[k];w+=r.w||0;d+=r.d||0;l+=r.l||0;});
   const tot=w+d+l, wr=tot?Math.round(w/tot*100):0;
   const done=ACHIEVEMENTS.filter(a=>S.ms[a.id]).length;
-  const fav=S.favId&&S.coll.find(c=>c.id===S.favId);
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
   const head=document.getElementById("officeHead");head.innerHTML="";
   const card=mk("div","wt-card");
   card.innerHTML=`<div class="wt-info">`
     +`<div class="wt-name">${myName()}</div>`
-    +`<div class="lv">オーナー: <b>${S.coach||"未設定"}</b>${fav?` ・ ⭐${fav.name}`:""}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
-    +`<div class="lv">🎯 監督: ${activeManager()?`<b>${activeManager().title}</b>(${mgrBoostDesc(activeManager())})`:`未起用(見習い)`} ・ 🧭統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(effectiveManager())+coachCtrlBonus()}</b>${coachCtrlBonus()?`<span class="lv">(監督${mgrCtrlOVR(effectiveManager())}+🧭${coachCtrlBonus()})</span>`:""} ・ ✉️${S.introLetters||0}</div>`
     +`</div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
   card.appendChild(ed);head.appendChild(card);
