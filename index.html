@@ -5023,7 +5023,11 @@ function renderManagerAdvice(){
   const bub=document.createElement("div");bub.className="mgr-bubble";
   // 監督名を表示(カスタム/見習いは名前のみ・名将は肩書+氏名)。
   const nameLine=(m.custom||m.id==="rookie")?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
-  let html=`<div class="mgr-name">🎯 ${nameLine}</div>「${mgrBoostDesc(m)}を引き上げろ！」`;
+  const bd=mgrBoostDesc(m), hasBuff=bd&&bd!=="ブースト無し";
+  // 起用中監督が強化するポジション×能力(バフ)を明示。無バフ(見習い)は入手の導線を案内。
+  let html=`<div class="mgr-name">🎯 ${nameLine}</div>`
+    +(hasBuff?`<div class="lv">🔼 監督バフ: <b>${bd}</b></div>`
+             :`<div class="lv" style="opacity:.7">バフ無し(名将を起用 or キャリアで監督を育成すると強化)</div>`);
   mgrTacs(m).forEach(t=>{ // 全采配(カスタムは複数)を発動条件つきで提示
     const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(sub,st,th));
     const conds=(t.cond||[]).map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
