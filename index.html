@@ -6341,6 +6341,8 @@ function buildTeam(cards,side,form){
   recalcAuras(t);
   return t;
 }
+// 上位相手の監督バフ(仮置きの難度レバー): 全能力を僅かに底上げ。「強いチームに強い監督」の第一歩。
+function aiMgr(mul,title){return mul>1?{title:title||"敵将", boosts:[{pos:"all",stat:"all",mul}]}:null;}
 // 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
 //  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)
 //  ・離散イベント(ゴール/アシスト/デュエル/タックル/セーブ)をスパイクとして加減
@@ -6626,6 +6628,7 @@ function oppTeam(lv,club){
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
   const t=buildTeam(cards,"A",form);
+  if(lv>=8)t.mgr=aiMgr(1+Math.min(0.05,(lv-5)*0.01), lv>=10?"大陸の名将":lv>=9?"百戦の指揮官":"堅実な戦術家"); // 上位クラブ(ボス級)に監督バフ(仮)
   if(restore)restore();
   return t;
 }
@@ -6656,6 +6659,7 @@ function worldTeam(nation,idx){
     });
   }
   const t=buildTeam(cards,"A",form);
+  t.mgr=aiMgr(1+Math.min(0.04,Math.max(0,((idx||0)-8))*0.008),"代表監督"); // ツアー上位代表に監督バフ(仮)
   if(restore)restore();
   return t;
 }
@@ -7867,6 +7871,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
   if(home.mgr)feed(`🎯 監督『${home.mgr.title}』起用中! ${mgrBoostDesc(home.mgr)}`,"chance");
   if(MC.mode!=="career"&&home.ctrl<1)feed(`⚠ 統制超過! 編成OVRが監督の統制可能OVRを上回り 全能力 -${Math.round((1-home.ctrl)*100)}%(指揮が追いつかない)`,"chance");
+  if(away.mgr)feed(`⚠ 相手監督『${away.mgr.title}』! ${mgrBoostDesc(away.mgr)}`,"chance");
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   if(away.chemN>=3)feed(`⚠ 相手は ${away.chemNat}${natName(away.chemNat)}勢${away.chemN}人! 国籍ボーナス +${Math.round((away.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.sig||p.c.rar==="l");

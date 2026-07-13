@@ -47,6 +47,8 @@ function buildTeam(cards,side,form){
   recalcAuras(t);
   return t;
 }
+// 上位相手の監督バフ(仮置きの難度レバー): 全能力を僅かに底上げ。「強いチームに強い監督」の第一歩。
+function aiMgr(mul,title){return mul>1?{title:title||"敵将", boosts:[{pos:"all",stat:"all",mul}]}:null;}
 // 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
 //  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)
 //  ・離散イベント(ゴール/アシスト/デュエル/タックル/セーブ)をスパイクとして加減
@@ -332,6 +334,7 @@ function oppTeam(lv,club){
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
   const t=buildTeam(cards,"A",form);
+  if(lv>=8)t.mgr=aiMgr(1+Math.min(0.05,(lv-5)*0.01), lv>=10?"大陸の名将":lv>=9?"百戦の指揮官":"堅実な戦術家"); // 上位クラブ(ボス級)に監督バフ(仮)
   if(restore)restore();
   return t;
 }
@@ -362,6 +365,7 @@ function worldTeam(nation,idx){
     });
   }
   const t=buildTeam(cards,"A",form);
+  t.mgr=aiMgr(1+Math.min(0.04,Math.max(0,((idx||0)-8))*0.008),"代表監督"); // ツアー上位代表に監督バフ(仮)
   if(restore)restore();
   return t;
 }
