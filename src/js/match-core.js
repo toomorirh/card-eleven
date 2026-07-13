@@ -152,6 +152,12 @@ function ovrOverloadMul(total, cap){
   const r=total/cap; if(r<=1)return 1;
   return Math.max(CAREER.overloadFloor, 1-(r-1)*CAREER.overloadK);
 }
+// 統率サージ(隠し): 統制OVRが編成OVRを上回る余裕ぶんに応じて采配の発動率を上げるボーナス(0〜0.20)。
+// 余裕率=(cap-total)/cap。×0.5して最大+20%(cap40%以上の余裕でMAX)。統制内でない(total>=cap)なら0。
+function ctrlSurge(total, cap){
+  if(!cap||cap<=0||total>=cap)return 0;
+  return Math.min(0.20, ((cap-total)/cap)*0.5);
+}
 function careerOverloadMul(cr){ return ovrOverloadMul(careerBaseTotal(cr), careerCap(cr)); }
 // 通常モードの編成OVR合計(先発XIのみ・ベンチは統制対象外)。監督の統制OVRとの比較に使う。
 function homeBaseTotal(home){

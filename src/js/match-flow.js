@@ -114,11 +114,12 @@ const LINKS={
 function mgrCarryTac(A,carrier){
   if(!MC||(MC.volt||0)<TUNING.volt.tacGate)return null;       // ボルテージが一定以上
   if(A.side!=="H"||!A.mgr)return null;
+  const surge=1+(A.ctrlSurge||0); // 統率に余裕があるほど采配が出やすい(隠し・最大×1.20)
   for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
     if(tac.from==="cb")continue;                              // cb(密集ブロック)は守備采配=tryShot側
-    if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance)return tac; continue; } // 国際チームスキルはfrom不問
+    if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance*surge)return tac; continue; } // 国際チームスキルはfrom不問
     if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))continue; // 起点が采配のキープレイヤーか
-    if(Math.random()<tac.chance)return tac;
+    if(Math.random()<tac.chance*surge)return tac;
   }
   return null;
 }
@@ -392,7 +393,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
   // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら自チームCBがブロック(密集ブロック)
   if(A.side==="A"&&MC&&MC.home&&(MC.volt||0)>=TUNING.volt.tacGate){
     const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb)を1つ取得(カスタム監督の複数tacにも対応)
-    if(dtac&&Math.random()<dtac.chance){
+    if(dtac&&Math.random()<dtac.chance*(1+(MC.home.ctrlSurge||0))){ // 統率の余裕で発動率アップ(隠し)
       const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
       cb.stat.tkl++;cb.stat.inv++;
       feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
@@ -544,7 +545,10 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
-  if(MC.mode!=="career") home.ctrl=homeCtrlMul(home); // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
+  if(MC.mode!=="career"){ // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
+    const _b=homeBaseTotal(home), _cap=mgrCtrlOVR(effectiveManager())+coachCtrlBonus();
+    home.ctrl=ovrOverloadMul(_b,_cap); home.ctrlSurge=ctrlSurge(_b,_cap); // 余裕ぶんで采配の発動率アップ(隠し)
+  }
   { // 交代枠(ベンチ): 事前設定した控えのみ試合中に投入可(通常=S.bench / 育成=cr.bench)。
     const onF=new Set(home.players.map(p=>p.c.id));
     MC.bench=(MC.mode==="career")
@@ -611,6 +615,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   if(team.players.length<11){S._careerMatch=false;toast("手持ちが11人に足りません(編成できません)");return;}
   // 統制: 編成OVRが統制可能OVR(cap)を超えると超過率ぶん全能力が低下(eff の T.ctrl)。
   team.ctrl=careerOverloadMul(cr);
+  team.ctrlSurge=ctrlSurge(careerBaseTotal(cr),cap); // 統率に余裕があれば采配の発動率アップ(隠し)
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
