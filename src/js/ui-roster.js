@@ -69,8 +69,9 @@ function slotEffOVR(c,sub,i){
   ks.forEach(k=>{let v=c[k]*pen;if(keyStat===k)v*=KEY_MUL;sum+=v;});
   return Math.round(sum);
 }
-// 編成スロットが監督の采配条件(KP)に該当するか。一致したcond[sub,stat,th]を返す(無ければnull)。
-function slotTacCond(sub){const am=activeManager();const t=am&&am.tac;return t?t.cond.find(([cs])=>cs===sub)||null:null;}
+// 編成スロットが監督の采配条件(KP)に該当するか。全采配(名将=単数tac/カスタム=複数tacs)から
+// この枠subに合致する最初のcond[sub,stat,th]を返す(無ければnull)。
+function slotTacCond(sub){const am=activeManager();for(const t of mgrTacs(am)){const c=t.cond&&t.cond.find(([cs])=>cs===sub);if(c)return c;}return null;}
 // ===== ピッチ盤(スロット)描画 — 通常/育成で共通。ctx で編成データ源を差し替える =====
 // ctx: {squad(slot→id), find(id→card), onSlot(i,sub), slotOvr?(c,sub,i), tacCond?(sub)}
 function pitchSlots(pitchEl, ctx){
@@ -217,12 +218,14 @@ function renderManagerAdvice(){
   box.style.display="";
   box.appendChild(mgrPortrait(m,86));
   const bub=document.createElement("div");bub.className="mgr-bubble";
-  let html=`<div class="mgr-name">🎯 ${m.title}</div>「${mgrBoostDesc(m)}を引き上げろ！」`;
-  if(m.tac){
-    const ready=m.tac.cond.every(([sub,st,th])=>squadHasCond(sub,st,th));
-    const conds=m.tac.cond.map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
-    html+=`<div class="mgr-tac${ready?" met":""}">采配「${m.tac.name}」: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}</div>`;
-  }
+  // 監督名を表示(カスタム監督はユーザ名)。名将は肩書も併記。
+  const nameLine=m.custom?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
+  let html=`<div class="mgr-name">🎯 ${nameLine}</div>「${mgrBoostDesc(m)}を引き上げろ！」`;
+  mgrTacs(m).forEach(t=>{ // 全采配(カスタムは複数)を発動条件つきで提示
+    const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(sub,st,th));
+    const conds=(t.cond||[]).map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
+    html+=`<div class="mgr-tac${ready?" met":""}">采配「${t.name}」: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}</div>`;
+  });
   bub.innerHTML=html;box.appendChild(bub);
 }
 function openPicker(i,sub){
