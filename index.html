@@ -1225,7 +1225,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   <div class="tactics subrow" id="modeRow" style="display:none">
     <button data-m="stage" class="on">🗺️ ステージ</button>
     <button data-m="league">🏆 リーグ</button>
-    <button data-m="daily">📅 デイリー</button>
+    <button data-m="daily" style="display:none">📅 デイリー</button>
     <button data-m="world" style="display:none">🌍 ツアー</button>
   </div>
   <div id="careerSub" class="subrow" style="display:none"></div>
@@ -4682,6 +4682,8 @@ async function loadGame(){                                       // つづきか
   applyRookieViz();
   (S.customMgrs||[]).forEach(m=>{if(m&&m.col==null){const v=vizColRow(ri(0,7));m.col=v.col;m.row=v.row;}});
   if(S.career&&S.career.viz==null)S.career.viz=ri(0,7);
+  // デイリー解放フラグ(ワールドツアー1週完了)。既存プレイヤーは進行状況から寛容に補完(daily継続利用を妨げない)。
+  if(S.tourDone==null)S.tourDone=(S.tourPerfect||(S.tour&&(S.tour.res||[]).length>0)||S.cleared>=CLUBS.length)?1:0;
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換
@@ -5488,9 +5490,14 @@ function renderLeague(){
     const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!ワールドツアー解放!";
     l.prepend(w);
   }
-  // ワールドツアーは全クラブ制覇で解放
+  updateModeButtons(); // ワールドツアー(全クラブ制覇)/デイリー(ツアー1週完了)の解放を反映
+}
+// モードボタンの解放: ワールドツアー=全クラブ制覇 / デイリー=ワールドツアー1週完了(S.tourDone)。
+function updateModeButtons(){
   const wb=document.querySelector('#modeRow [data-m="world"]');
   if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none";
+  const db=document.querySelector('#modeRow [data-m="daily"]');
+  if(db)db.style.display=(S.tourDone)?"":"none";
 }
 // 偵察(事前調査): 相手の固定ロスターをフルサイズのフォーメーション図で表示(数値はOVRのみ)。
 // 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。ステージ/ワールド共用。
@@ -6385,9 +6392,9 @@ function gotoOffice(tab){ if(tab)_ofTab=tab; const b=document.querySelector('[da
 // ホーム表示時に「現在アクティブなモード」を再描画(タブ戻り時に古い表示が残らないように)。
 function renderHome(){
   const on=document.querySelector("#modeRow [data-m].on");
-  const m=on?on.dataset.m:"stage";
-  const wb=document.querySelector('#modeRow [data-m="world"]');
-  if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
+  let m=on?on.dataset.m:"stage";
+  updateModeButtons(); // 解放状態を常に反映
+  if(m==="daily"&&!S.tourDone)m="stage"; // 未解放のデイリーがアクティブなら通常へ
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
   else if(m==="daily")renderDaily();
@@ -8208,6 +8215,7 @@ const MATCH_MODES={
     }
     tour.i++;
     const last=tour.i>=WORLD_NATIONS.length;
+    if(last)S.tourDone=1; // ワールドツアー1週完了 → デイリー解放
     if(last&&tour.res.every(x=>x==="W"))S.tourPerfect=1; // 全勝で実績(選択券)
     e.innerHTML=`<div class="banner">${head} ${sh}-${sa}</div>`+drop;
     showStatOverlay(M.home,M.away);

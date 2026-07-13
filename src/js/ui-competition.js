@@ -31,9 +31,14 @@ function renderLeague(){
     const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!ワールドツアー解放!";
     l.prepend(w);
   }
-  // ワールドツアーは全クラブ制覇で解放
+  updateModeButtons(); // ワールドツアー(全クラブ制覇)/デイリー(ツアー1週完了)の解放を反映
+}
+// モードボタンの解放: ワールドツアー=全クラブ制覇 / デイリー=ワールドツアー1週完了(S.tourDone)。
+function updateModeButtons(){
   const wb=document.querySelector('#modeRow [data-m="world"]');
   if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none";
+  const db=document.querySelector('#modeRow [data-m="daily"]');
+  if(db)db.style.display=(S.tourDone)?"":"none";
 }
 // 偵察(事前調査): 相手の固定ロスターをフルサイズのフォーメーション図で表示(数値はOVRのみ)。
 // 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。ステージ/ワールド共用。
@@ -928,9 +933,9 @@ function gotoOffice(tab){ if(tab)_ofTab=tab; const b=document.querySelector('[da
 // ホーム表示時に「現在アクティブなモード」を再描画(タブ戻り時に古い表示が残らないように)。
 function renderHome(){
   const on=document.querySelector("#modeRow [data-m].on");
-  const m=on?on.dataset.m:"stage";
-  const wb=document.querySelector('#modeRow [data-m="world"]');
-  if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none"; // 解放状態を常に反映
+  let m=on?on.dataset.m:"stage";
+  updateModeButtons(); // 解放状態を常に反映
+  if(m==="daily"&&!S.tourDone)m="stage"; // 未解放のデイリーがアクティブなら通常へ
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
   else if(m==="daily")renderDaily();

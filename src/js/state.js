@@ -100,6 +100,8 @@ async function loadGame(){                                       // つづきか
   applyRookieViz();
   (S.customMgrs||[]).forEach(m=>{if(m&&m.col==null){const v=vizColRow(ri(0,7));m.col=v.col;m.row=v.row;}});
   if(S.career&&S.career.viz==null)S.career.viz=ri(0,7);
+  // デイリー解放フラグ(ワールドツアー1週完了)。既存プレイヤーは進行状況から寛容に補完(daily継続利用を妨げない)。
+  if(S.tourDone==null)S.tourDone=(S.tourPerfect||(S.tour&&(S.tour.res||[]).length>0)||S.cleared>=CLUBS.length)?1:0;
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換

@@ -781,6 +781,7 @@ const MATCH_MODES={
     }
     tour.i++;
     const last=tour.i>=WORLD_NATIONS.length;
+    if(last)S.tourDone=1; // ワールドツアー1週完了 → デイリー解放
     if(last&&tour.res.every(x=>x==="W"))S.tourPerfect=1; // 全勝で実績(選択券)
     e.innerHTML=`<div class="banner">${head} ${sh}-${sa}</div>`+drop;
     showStatOverlay(M.home,M.away);
