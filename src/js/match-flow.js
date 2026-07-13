@@ -544,6 +544,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  if(MC.mode!=="career") home.ctrl=homeCtrlMul(home); // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
   { // 交代枠(ベンチ): 事前設定した控えのみ試合中に投入可(通常=S.bench / 育成=cr.bench)。
     const onF=new Set(home.players.map(p=>p.c.id));
     MC.bench=(MC.mode==="career")
@@ -557,6 +558,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   if(FORM_DESC[form])feed(`📋 ${FORM_DESC[form]}`,"chance");
   feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
   if(home.mgr)feed(`🎯 監督『${home.mgr.title}』起用中! ${mgrBoostDesc(home.mgr)}`,"chance");
+  if(MC.mode!=="career"&&home.ctrl<1)feed(`⚠ 統制超過! 編成OVRが監督の統制可能OVRを上回り 全能力 -${Math.round((1-home.ctrl)*100)}%(指揮が追いつかない)`,"chance");
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   if(away.chemN>=3)feed(`⚠ 相手は ${away.chemNat}${natName(away.chemNat)}勢${away.chemN}人! 国籍ボーナス +${Math.round((away.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.sig||p.c.rar==="l");

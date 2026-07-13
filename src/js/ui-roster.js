@@ -135,14 +135,19 @@ function renderPitch(){
       ?`🤝 ケミストリー: ${nat} ${natName(nat)}勢 ${mx}人 → チーム能力 <b style="color:var(--gold)">+${pct}%</b>`
       :`🤝 ケミストリー: 同じ国籍を3人以上揃えるとチーム能力アップ(現在 最多${mx}人)`;
   }
-  // 自チームの戦力(平均OVR / TOTAL OVR)。配置済みカードの6ステ合計で算出。
+  // 自チームの戦力(平均OVR / 編成OVR / 監督の統制OVR)。統制超過はソフト減衰の警告を表示。
   const ov=document.getElementById("teamOvr");
   if(ov){
     const placed=FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);
+    const benchCards=(S.bench||[]).map(id=>S.coll.find(k=>k.id===id)).filter(Boolean);
     if(placed.length){
-      const tot=placed.reduce((s,c)=>s+total(c),0);
-      const avg=Math.round(tot/placed.length);
-      ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
+      const xiTot=placed.reduce((s,c)=>s+total(c),0);
+      const base=xiTot+benchCards.reduce((s,c)=>s+total(c),0); // XI+ベンチ(=統制Cap判定と一致)
+      const avg=Math.round(xiTot/placed.length);
+      const mgr=effectiveManager(), cap=mgrCtrlOVR(mgr), mul=ovrOverloadMul(base,cap), over=mul<1, drop=Math.round((1-mul)*100);
+      ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ 編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> ／ 🧭統制OVR <b>${cap}</b>`
+        +`<span class="ovsub">(${placed.length}/11${benchCards.length?`+控${benchCards.length}`:""})</span>`
+        +(over?`<br><span style="color:#ff8e8e">⚠ 統制超過 → 全能力 -${drop}%（監督『${mgr.title}』の指揮が追いつかない）</span>`:``);
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();

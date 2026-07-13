@@ -4858,14 +4858,19 @@ function renderPitch(){
       ?`🤝 ケミストリー: ${nat} ${natName(nat)}勢 ${mx}人 → チーム能力 <b style="color:var(--gold)">+${pct}%</b>`
       :`🤝 ケミストリー: 同じ国籍を3人以上揃えるとチーム能力アップ(現在 最多${mx}人)`;
   }
-  // 自チームの戦力(平均OVR / TOTAL OVR)。配置済みカードの6ステ合計で算出。
+  // 自チームの戦力(平均OVR / 編成OVR / 監督の統制OVR)。統制超過はソフト減衰の警告を表示。
   const ov=document.getElementById("teamOvr");
   if(ov){
     const placed=FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);
+    const benchCards=(S.bench||[]).map(id=>S.coll.find(k=>k.id===id)).filter(Boolean);
     if(placed.length){
-      const tot=placed.reduce((s,c)=>s+total(c),0);
-      const avg=Math.round(tot/placed.length);
-      ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ TOTAL <b>${tot}</b> <span class="ovsub">(${placed.length}/11人)</span>`;
+      const xiTot=placed.reduce((s,c)=>s+total(c),0);
+      const base=xiTot+benchCards.reduce((s,c)=>s+total(c),0); // XI+ベンチ(=統制Cap判定と一致)
+      const avg=Math.round(xiTot/placed.length);
+      const mgr=effectiveManager(), cap=mgrCtrlOVR(mgr), mul=ovrOverloadMul(base,cap), over=mul<1, drop=Math.round((1-mul)*100);
+      ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ 編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> ／ 🧭統制OVR <b>${cap}</b>`
+        +`<span class="ovsub">(${placed.length}/11${benchCards.length?`+控${benchCards.length}`:""})</span>`
+        +(over?`<br><span style="color:#ff8e8e">⚠ 統制超過 → 全能力 -${drop}%（監督『${mgr.title}』の指揮が追いつかない）</span>`:``);
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
@@ -6433,12 +6438,22 @@ function careerBaseTotal(cr){
 }
 // 統制ペナルティ倍率: 編成OVR(素・XI+ベンチ)が統制可能OVR(careerCap)を超えた超過率ぶん全能力を低下。
 // 例) 編成OVR/統制OVR=1.30 → 1-(1.30-1)*overloadK = -30%(overloadFloor でクランプ)。統制内は 1.0。
-function careerOverloadMul(cr){
-  const cap=careerCap(cr); if(cap<=0)return 1;
-  const r=careerBaseTotal(cr)/cap;
-  if(r<=1)return 1;
+// 統制超過のソフト減衰(汎用): 編成OVR total が 統制可能OVR cap を超えた超過率ぶん全能力を低下(floorでクランプ)。
+// キャリア/通常モードで共通に使う。統制内(r<=1)は 1.0。
+function ovrOverloadMul(total, cap){
+  if(!cap||cap<=0)return 1;
+  const r=total/cap; if(r<=1)return 1;
   return Math.max(CAREER.overloadFloor, 1-(r-1)*CAREER.overloadK);
 }
+function careerOverloadMul(cr){ return ovrOverloadMul(careerBaseTotal(cr), careerCap(cr)); }
+// 通常モードの編成OVR合計(実出場XI + 事前設定ベンチ)。監督の統制OVRとの比較に使う。
+function homeBaseTotal(home){
+  let t=(home&&home.players?home.players:[]).reduce((s,p)=>s+cardOvr(p.c),0);
+  if(typeof S!=="undefined")(S.bench||[]).forEach(id=>{if(id==null)return;const c=S.coll.find(k=>k.id===id);if(c)t+=cardOvr(c);});
+  return t;
+}
+// 通常モードの自チーム統制ペナルティ倍率(起用中監督=無ければ見習い のctrlOVR基準)。
+function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager()):9999);}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
   const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
@@ -7837,6 +7852,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  if(MC.mode!=="career") home.ctrl=homeCtrlMul(home); // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
   { // 交代枠(ベンチ): 事前設定した控えのみ試合中に投入可(通常=S.bench / 育成=cr.bench)。
     const onF=new Set(home.players.map(p=>p.c.id));
     MC.bench=(MC.mode==="career")
@@ -7850,6 +7866,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   if(FORM_DESC[form])feed(`📋 ${FORM_DESC[form]}`,"chance");
   feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
   if(home.mgr)feed(`🎯 監督『${home.mgr.title}』起用中! ${mgrBoostDesc(home.mgr)}`,"chance");
+  if(MC.mode!=="career"&&home.ctrl<1)feed(`⚠ 統制超過! 編成OVRが監督の統制可能OVRを上回り 全能力 -${Math.round((1-home.ctrl)*100)}%(指揮が追いつかない)`,"chance");
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   if(away.chemN>=3)feed(`⚠ 相手は ${away.chemNat}${natName(away.chemNat)}勢${away.chemN}人! 国籍ボーナス +${Math.round((away.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.sig||p.c.rar==="l");

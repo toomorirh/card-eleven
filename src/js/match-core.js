@@ -144,12 +144,22 @@ function careerBaseTotal(cr){
 }
 // 統制ペナルティ倍率: 編成OVR(素・XI+ベンチ)が統制可能OVR(careerCap)を超えた超過率ぶん全能力を低下。
 // 例) 編成OVR/統制OVR=1.30 → 1-(1.30-1)*overloadK = -30%(overloadFloor でクランプ)。統制内は 1.0。
-function careerOverloadMul(cr){
-  const cap=careerCap(cr); if(cap<=0)return 1;
-  const r=careerBaseTotal(cr)/cap;
-  if(r<=1)return 1;
+// 統制超過のソフト減衰(汎用): 編成OVR total が 統制可能OVR cap を超えた超過率ぶん全能力を低下(floorでクランプ)。
+// キャリア/通常モードで共通に使う。統制内(r<=1)は 1.0。
+function ovrOverloadMul(total, cap){
+  if(!cap||cap<=0)return 1;
+  const r=total/cap; if(r<=1)return 1;
   return Math.max(CAREER.overloadFloor, 1-(r-1)*CAREER.overloadK);
 }
+function careerOverloadMul(cr){ return ovrOverloadMul(careerBaseTotal(cr), careerCap(cr)); }
+// 通常モードの編成OVR合計(実出場XI + 事前設定ベンチ)。監督の統制OVRとの比較に使う。
+function homeBaseTotal(home){
+  let t=(home&&home.players?home.players:[]).reduce((s,p)=>s+cardOvr(p.c),0);
+  if(typeof S!=="undefined")(S.bench||[]).forEach(id=>{if(id==null)return;const c=S.coll.find(k=>k.id===id);if(c)t+=cardOvr(c);});
+  return t;
+}
+// 通常モードの自チーム統制ペナルティ倍率(起用中監督=無ければ見習い のctrlOVR基準)。
+function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager()):9999);}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
   const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
