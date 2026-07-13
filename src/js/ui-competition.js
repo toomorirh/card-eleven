@@ -607,25 +607,33 @@ function openCareerBenchPicker(j){
   document.getElementById("picker").classList.add("on");
 }
 // クラブ施設パネル(名声で段階解放): スタジアム/アカデミー/メディカル + 助っ人招へい。
+// クラブ施設パネル(アカウント恒久・全モードで有効)。上位は名声で解禁、コインで拡張。cr指定時のみ助っ人行を出す。
+function refreshFacilities(){ // 開いている画面を再描画
+  if(document.getElementById("scr-career")&&document.getElementById("scr-career").classList.contains("on"))renderCareer();
+  else if(document.getElementById("scr-office")&&document.getElementById("scr-office").classList.contains("on"))renderOffice();
+}
 function careerFacilities(cr){
   const wrap=document.createElement("div");
+  if(S._facWelcome){ const g=S._facWelcome; const w=document.createElement("div");w.className="banner";w.style.cssText="font-size:12px;color:#ffd24a";
+    w.innerHTML=`🎉 クラブ運営 解禁! これまでの実績で 名声+${g.p}${g.coach?` ・ 🧭コーチング Lv${g.coach}`:""} を獲得`; wrap.appendChild(w); S._facWelcome=null; save(); }
   FACILITIES.forEach(f=>{
-    const lv=facLv(cr,f.id), cost=facCost(f,lv), maxed=lv>=f.max, afford=(cr.prestige||0)>=cost;
+    const lv=facLv(f.id), cost=facCost(f,lv), maxed=lv>=f.max, locked=!facUnlocked(f), afford=S.coins>=cost;
     const row=document.createElement("div");row.className="fac-row";
-    row.innerHTML=`<div class="fac-info"><b>${f.icon} ${f.name}</b> <span class="lv">Lv${lv}/${f.max}</span><br>`
+    row.innerHTML=`<div class="fac-info"><b>${f.icon} ${f.name}</b> <span class="lv">Lv${lv}/${f.max}</span>${locked?` <span class="lv" style="color:#ff8e8e">🔒名声${f.unlock}</span>`:""}<br>`
       +`<span class="lg" style="font-size:10px">${f.descL(lv)}${maxed?"":` → 次Lv: ${f.descL(lv+1)}`}</span></div>`;
-    const b=document.createElement("button");b.className="btn"+(maxed||!afford?" ghost":"");b.style.cssText="flex:0 0 auto;padding:6px 10px";
-    b.textContent=maxed?"MAX":`🏛${cost}`;
-    if(maxed||!afford){b.disabled=true;b.style.opacity=".5";}
-    else b.onclick=async()=>{cr.fac[f.id]=lv+1;cr.prestige-=cost;await save();toast(`${f.icon}${f.name}をLv${lv+1}に強化!`);renderCareer();};
+    const b=document.createElement("button");b.className="btn"+(maxed||locked||!afford?" ghost":"");b.style.cssText="flex:0 0 auto;padding:6px 10px";
+    b.textContent=maxed?"MAX":locked?"🔒":`🪙${cost}`;
+    if(maxed||locked||!afford){b.disabled=true;b.style.opacity=".5";}
+    else b.onclick=async()=>{S.fac[f.id]=lv+1;S.coins-=cost;coinUI();await save();toast(`${f.icon}${f.name}をLv${lv+1}に強化!`);refreshFacilities();};
     row.appendChild(b);wrap.appendChild(row);
   });
+  if(!cr)return wrap; // 助っ人はキャリア中のみ
   // 助っ人(固有選手)招へい: 名声を払い、シーズン限定で固有選手をプールへ追加。
   const loanRow=document.createElement("div");loanRow.className="fac-row";
   if(cr.loan){
     loanRow.innerHTML=`<div class="fac-info"><b>💫 招へい中: ${cr.loan.flag||""}${cr.loan.name}</b><br><span class="lg" style="font-size:10px">シーズン終了で契約満了。編成盤で先発起用できる</span></div>`;
   }else{
-    const afford=(cr.prestige||0)>=CAREER.loanCost;
+    const afford=(S.prestige||0)>=CAREER.loanCost;
     loanRow.innerHTML=`<div class="fac-info"><b>💫 助っ人を招へい</b><br><span class="lg" style="font-size:10px">固有選手をシーズン限定でプールへ(🏛${CAREER.loanCost})</span></div>`;
     const b=document.createElement("button");b.className="btn"+(afford?"":" ghost");b.style.cssText="flex:0 0 auto;padding:6px 10px";b.textContent=`🏛${CAREER.loanCost}`;
     if(!afford){b.disabled=true;b.style.opacity=".5";}else b.onclick=()=>careerLoanOffer(cr);
@@ -644,7 +652,7 @@ function careerLoanOffer(cr){
   pick.forEach(id=>{const s=signatureById(id);if(!s)return;
     const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
     b.innerHTML=`<b>${s.flag} ${s.name}</b> <span class="lv">${s.age}歳${agePhase(s.age).icon} ${s.pos}</span><br><span class="lg" style="font-size:10px">✦${s.skill.name}</span>`;
-    b.onclick=async()=>{cr.loan=makeSignature(id);cr.prestige-=CAREER.loanCost;await save();ov.remove();toast(`💫 ${s.name}が加入! 編成盤で起用しよう`);renderCareer();};
+    b.onclick=async()=>{cr.loan=makeSignature(id);S.prestige-=CAREER.loanCost;await save();ov.remove();toast(`💫 ${s.name}が加入! 編成盤で起用しよう`);renderCareer();};
     inn.appendChild(b);});
   ov.appendChild(inn);document.body.appendChild(ov);
 }
@@ -659,7 +667,7 @@ function careerStatusCard(cr){
   const stageTxt=contNow?`${contNow.emoji}${contNow.name}リーグ`:cr.stage==="cont"?"大陸リーグ(選択待ち)":`DIV${cr.div}`;
   const stepsMax=cr.stepsMax||CAREER.steps, pct=Math.min(100,Math.round(cr.step/stepsMax*100));
   const d=document.createElement("div");d.className="career-status";
-  d.innerHTML=`<div class="cs-top"><span>👤 <b>${cr.name}</b> 監督</span><span>🏛 名声 <b>${cr.prestige||0}</b></span></div>
+  d.innerHTML=`<div class="cs-top"><span>👤 <b>${cr.name}</b> 監督</span><span>🏛 名声 <b>${S.prestige||0}</b></span></div>
     <div class="cs-bar"><div class="cs-fill" style="width:${pct}%"></div><span class="cs-bar-lb">${cr.step}/${stepsMax}週${(cr.term||0)?` (延長${cr.term})`:""}</span></div>
     <div class="cs-row"><span><b>${stageTxt}</b> 第${cr.node+1}/${CAREER.nodes}節 ・ 勝点${cr.pts||0}</span><span>統制OVR <b>${careerCap(cr)}</b>${careerOverloadMul(cr)<1?` <span style="color:#ff8e8e">⚠-${Math.round((1-careerOverloadMul(cr))*100)}%</span>`:""}${cr.season?` ・ ${cr.season}季`:""}</span></div>`;
   return d;
@@ -782,7 +790,7 @@ function renderCareer(){
   }else if(_careerTab==="squad"){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
-    body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${facLv(cr,"stadium")?`(基本${cr.ovrCap}+🏟)`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
+    body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${coachCtrlBonus()?`(基本${cr.ovrCap}+🧭${coachCtrlBonus()})`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
     const rowb=mk("div");rowb.style.cssText="display:flex;gap:6px;margin:4px 0";
     const fmB=mk("button","btn ghost");fmB.style.flex="1";fmB.style.whiteSpace="nowrap";fmB.textContent=`陣形 ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
     const autoB=mk("button","btn ghost");autoB.style.flex="1";autoB.style.whiteSpace="nowrap";autoB.textContent="自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
@@ -799,7 +807,7 @@ function renderCareer(){
     const sq=careerSquadView(cr); // 育成固有の詳細(年齢/調子/成長)
     if(sq){body.appendChild(mk("div","banner","― 詳細: 年齢/調子/成長 ―"));body.appendChild(sq);}
   }else if(_careerTab==="club"){
-    body.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${cr.prestige||0} ―`));
+    body.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${S.prestige||0} ―`));
     body.appendChild(careerFacilities(cr));
   }else if(_careerTab==="manager"){
     body.appendChild(mk("div","banner","― 🎓 監督の能力 ―"));

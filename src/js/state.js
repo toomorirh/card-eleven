@@ -62,11 +62,18 @@ function migrate(){ // 旧カード → 6パラメータ+スキル+ドット絵�
       }
     });
   }
-  S.v=9;
+  // v10: 名声/施設をアカウント恒久化(キャリアの現行値を引き継ぎ + 進捗に応じた開設ボーナスを実績風に一度だけ付与)
+  if(S.v<10){
+    if(S.prestige==null)S.prestige=(S.career&&S.career.prestige)||0;
+    S.fac=S.fac||((S.career&&S.career.fac)||{});
+    ["stadium","academy","medical","coaching","scouting"].forEach(k=>{if(S.fac[k]==null)S.fac[k]=0;});
+    if(!S._facGranted){ const g=facilityWelcomeGrant(); S.prestige+=g.p; S.fac.coaching=Math.max(S.fac.coaching,g.coach); S._facWelcome=g; S._facGranted=1; }
+  }
+  S.v=10;
 }
 // 新規データ(初期デッキ)を構築。はじめから用。固有選手は実績(マイルストーン)で入手する。
 function applyDefaults(){
-  S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:9,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[]};
+  S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:10,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[],prestige:0,fac:{stadium:0,academy:0,medical:0,coaching:0,scouting:0},_facGranted:1};
   FORMS["4-4-2"].forEach((sl,i)=>{
     const sub=sl[0],c=makeCard(subGroup(sub),i===9?"r":"n",null,sub);
     S.coll.push(c);S.squad[i]=c.id;});
@@ -83,7 +90,10 @@ async function loadGame(){                                       // つづきか
   S.customMgrs.forEach(m=>{if(m&&m.ctrlOVR==null)m.ctrlOVR=900;}); // 旧カスタム監督に統制OVRを後付け(既定900)
   // 起用中監督が名将にもカスタムにも無ければ解任(旧データ整合)
   if(S.mgrActive&&!managerById(S.mgrActive))S.mgrActive="";
-  if(S.v!==9){migrate();await save();}
+  if(S.v<10){migrate();await save();}
+  // 施設/名声の後方互換(版に依らず欠落補完)
+  if(S.prestige==null)S.prestige=0;
+  S.fac=S.fac||{}; ["stadium","academy","medical","coaching","scouting"].forEach(k=>{if(S.fac[k]==null)S.fac[k]=0;});
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換

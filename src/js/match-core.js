@@ -161,7 +161,7 @@ function homeBaseTotal(home){
   return t;
 }
 // 通常モードの自チーム統制ペナルティ倍率(起用中監督=無ければ見習い のctrlOVR基準)。
-function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager()):9999);}
+function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager())+coachCtrlBonus():9999);}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
   const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
@@ -175,7 +175,7 @@ function growthStatsFor(p){
 // 調子(コンディション): 前節評価(好調継続)+フェーズの波×乱数。±約12〜15%。{mul,key,label,icon}。
 function careerCondition(cr,c,phase){
   const f=(cr.form&&cr.form[c.id])||{}, lastR=(f.lastR!=null)?f.lastR:6.0, vol=(phase&&phase.condVol)||1;
-  let v=(lastR-6.0)*0.06+(Math.random()*2-1)*0.09*vol+facCondShift(cr); // メディカル施設で底上げ
+  let v=(lastR-6.0)*0.06+(Math.random()*2-1)*0.09*vol+facCondShift(); // メディカル施設で底上げ
   v=Math.max(-0.12,Math.min(0.18,v));
   let key,label,icon;
   if(v>=0.10){key="peak";label="絶好調";icon="⤴";}
@@ -193,7 +193,7 @@ function careerApplyGrowth(cr,homeTeam,awayTeam){
     const f=cr.form[id]||(cr.form[id]={apps:0,lastR:6}); f.apps++; f.lastR=r;
     const g=cr.growth[id]||(cr.growth[id]={off:0,def:0,pow:0,tec:0,spd:0,sta:0});
     if(r>=CAREER.growthThresh){ // 高評価→主ステが伸びる(若手ほど大きい・アカデミーで加速)
-      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8)*facGrowthMul(cr), ks=growthStatsFor(p);
+      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8)*facGrowthMul(), ks=growthStatsFor(p);
       ks.forEach(k=>{ g[k]=Math.min(CAREER.growthCap,(g[k]||0)+amt/ks.length); });
     }
     if((phase.decline||0)>0 && r<5.0){ // 老雄/ベテランの低調な酷使→spd/staが微減

@@ -144,7 +144,7 @@ function renderPitch(){
       const xiTot=placed.reduce((s,c)=>s+total(c),0);
       const base=xiTot+benchCards.reduce((s,c)=>s+total(c),0); // XI+ベンチ(=統制Cap判定と一致)
       const avg=Math.round(xiTot/placed.length);
-      const mgr=effectiveManager(), cap=mgrCtrlOVR(mgr), mul=ovrOverloadMul(base,cap), over=mul<1, drop=Math.round((1-mul)*100);
+      const mgr=effectiveManager(), cap=mgrCtrlOVR(mgr)+coachCtrlBonus(), mul=ovrOverloadMul(base,cap), over=mul<1, drop=Math.round((1-mul)*100);
       ov.innerHTML=`自チーム 平均OVR <b>${avg}</b> ／ 編成OVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> ／ 🧭統制OVR <b>${cap}</b>`
         +`<span class="ovsub">(${placed.length}/11${benchCards.length?`+控${benchCards.length}`:""})</span>`
         +(over?`<br><span style="color:#ff8e8e">⚠ 統制超過 → 全能力 -${drop}%（監督『${mgr.title}』の指揮が追いつかない）</span>`:``);

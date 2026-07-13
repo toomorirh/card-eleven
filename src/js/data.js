@@ -357,17 +357,30 @@ const CAREER={
 };
 // ===== クラブの格(名声/プレステージ)→ 施設で段階解放(キャリア限定・ローグライク) =====
 // prestige=勝利/タイトル/昇格で貯まる。施設をLv上げして編成上限/成長速度/コンディションを強化。
+// クラブ施設(アカウント恒久・S.facに保存)。上位は名声(unlock)で解禁し、コイン(base+lv*step)で拡張。
+// stadium/coaching/scouting=全モード効果 / academy/medical=キャリア内効果(成長・調子)。
 const FACILITIES=[
-  {id:"stadium",name:"スタジアム",icon:"🏟",max:5,base:20,step:15,descL:l=>`編成OVR上限 +${l*40}`},
-  {id:"academy",name:"アカデミー",icon:"🎓",max:5,base:25,step:15,descL:l=>`選手の成長速度 +${l*15}%`},
-  {id:"medical",name:"メディカル",icon:"🏥",max:5,base:20,step:12,descL:l=>`コンディション底上げ Lv${l}`},
+  {id:"stadium", name:"スタジアム",       icon:"🏟", max:5, base:120, step:90, unlock:0,  descL:l=>`コイン獲得 +${l*8}%`},
+  {id:"academy", name:"アカデミー",       icon:"🎓", max:5, base:100, step:80, unlock:0,  descL:l=>`(キャリア)選手の成長速度 +${l*15}%`},
+  {id:"medical", name:"メディカル",       icon:"🏥", max:5, base:100, step:70, unlock:0,  descL:l=>`(キャリア)コンディション底上げ Lv${l}`},
+  {id:"coaching",name:"コーチングスタッフ", icon:"🧭", max:5, base:160, step:130,unlock:30, descL:l=>`統率(統制可能)OVR +${l*60}`},
+  {id:"scouting",name:"スカウティング",   icon:"🔭", max:5, base:150, step:120,unlock:30, descL:l=>`ワールドツアー固有ドロップ率 +${l*50}%`},
 ];
 function facById(id){return FACILITIES.find(f=>f.id===id);}
-function facLv(cr,id){return (cr&&cr.fac&&cr.fac[id])||0;}
-function facCost(f,lv){return f.base+lv*f.step;}                 // 現Lv→次Lvの費用
-function careerCap(cr){return (cr?cr.ovrCap:0)+facLv(cr,"stadium")*40;} // スタジアムぶんを含む実効OVR上限
-function facGrowthMul(cr){return 1+facLv(cr,"academy")*0.15;}    // アカデミー: 成長速度
-function facCondShift(cr){return facLv(cr,"medical")*0.02;}      // メディカル: コンディション底上げ
+function facLv(id){return (typeof S!=="undefined"&&S.fac&&S.fac[id])||0;} // グローバル施設Lv
+function facCost(f,lv){return f.base+lv*f.step;}                    // 現Lv→次Lvのコイン費用
+function facUnlocked(f){return (typeof S!=="undefined"?(S.prestige||0):0)>=(f.unlock||0);} // 名声しきい値で解禁
+function coachCtrlBonus(){return facLv("coaching")*60;}            // 統率(統制可能)OVR加算(全モード)
+function stadiumCoinMul(){return 1+facLv("stadium")*0.08;}         // コイン獲得倍率(全モード試合報酬)
+function scoutDropMul(){return 1+facLv("scouting")*0.5;}           // ワールドツアー固有ドロップ倍率
+function facGrowthMul(){return 1+facLv("academy")*0.15;}           // (キャリア)成長速度
+function facCondShift(){return facLv("medical")*0.02;}             // (キャリア)コンディション底上げ
+function careerCap(cr){return (cr?cr.ovrCap:0)+coachCtrlBonus();}  // 統制可能OVR(スタジアム→コーチングへ移設)
+// 移行時の開設ボーナス(進捗に応じて一度だけ・実績風に付与): 名声 と コーチングLv。
+function facilityWelcomeGrant(){
+  const p=(S.cleared||0)*4+Math.floor((S.coll||[]).length/8)+(S.customMgrs||[]).length*20+(S.leagueWins||0)*3+(S.tourPerfect||0)*5;
+  return {p, coach:Math.min(3,Math.floor(p/40))};
+}
 // カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
 const CAREER_TACS={
   basic:[

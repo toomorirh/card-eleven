@@ -598,7 +598,7 @@ function startCareer(){
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
     growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], // 成長/調子/加齢＋手動編成(空=自動)＋交代枠
-    prestige:0, fac:{stadium:0,academy:0,medical:0}, loan:null}; // クラブの格(名声→施設解放)＋助っ人
+    loan:null}; // 名声/施設はアカウント恒久(S.prestige/S.fac)に移行
   save(); gotoCareer();
 }
 function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合。上限内編成で相応の相手と対戦。
@@ -765,7 +765,7 @@ const MATCH_MODES={
     let drop="";
     if(r==="W"){ // 署名保有国に勝利 → 低確率で固有選手ドロップ(未所持優先)
       const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
-      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop){ // 満員(最大500)では固有ドロップをスキップ
+      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop*scoutDropMul()){ // 満員(最大500)では固有ドロップをスキップ
         const own=new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));
         const pool=sigs.filter(s=>!own.has(s.id)); const cand=pool.length?pool:sigs;
         const pick=cand[ri(0,cand.length-1)];
@@ -791,6 +791,7 @@ const MATCH_MODES={
     if(sh>sa){msg="🏆 WIN!!";reward=TUNING.reward.base+lv*TUNING.reward.perLv;if(M.idx===S.cleared)S.cleared++;}
     else if(sh===sa){msg="🤝 DRAW";reward=TUNING.reward.draw;}
     else{msg="😢 LOSE…";reward=TUNING.reward.lose;}
+    reward=Math.round(reward*stadiumCoinMul()); // 🏟スタジアムでコイン獲得アップ
     S.coins+=reward;coinUI();
     feed(`試合終了 ${sh}-${sa} ${msg} 報酬🪙${reward}`,"goal");
     const dropP=sh>sa?TUNING.drop.win:sh===sa?TUNING.drop.draw:TUNING.drop.lose;
@@ -824,7 +825,7 @@ const MATCH_MODES={
     if(win&&d&&nation){
       d.done[k]=true;
       const sigs=SIGNATURES.filter(s=>s.flag===nation.flag);
-      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop){ // 10%固有ドロップ(未所持優先)
+      if(sigs.length&&S.coll.length<COLL_CAP&&Math.random()<TUNING.worldSigDrop*scoutDropMul()){ // 10%固有ドロップ(未所持優先)
         const own=new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));
         const pool=sigs.filter(s=>!own.has(s.id)); const cand=pool.length?pool:sigs; const pick=cand[ri(0,cand.length-1)];
         S.coll.push(makeSignature(pick.id));
@@ -881,7 +882,7 @@ const MATCH_MODES={
         }
       }
     }
-    if(cr&&pp){cr.prestige=(cr.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${cr.prestige})</div>`;}
+    if(cr&&pp){S.prestige=(S.prestige||0)+pp; html+=`<div class="banner" style="font-size:13px;color:#ffd24a">🏛 名声 +${pp}(計 ${S.prestige})</div>`;}
     checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
