@@ -213,13 +213,13 @@ function renderChemLines(pitch, squad, find){
 function squadHasCond(sub,st,th){return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=S.coll.find(k=>k.id===S.squad[i]);return c&&c[st]>=th;});}
 function renderManagerAdvice(){
   const box=document.getElementById("mgrAdvice");if(!box)return;box.innerHTML="";
-  const m=activeManager();
+  const m=effectiveManager(); // 起用中(無ければ見習い監督)。見た目・名前を編成画面にも表示
   if(!m){box.style.display="none";return;}
   box.style.display="";
   box.appendChild(mgrPortrait(m,86));
   const bub=document.createElement("div");bub.className="mgr-bubble";
-  // 監督名を表示(カスタム監督はユーザ名)。名将は肩書も併記。
-  const nameLine=m.custom?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
+  // 監督名を表示(カスタム/見習いは名前のみ・名将は肩書+氏名)。
+  const nameLine=(m.custom||m.id==="rookie")?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
   let html=`<div class="mgr-name">🎯 ${nameLine}</div>「${mgrBoostDesc(m)}を引き上げろ！」`;
   mgrTacs(m).forEach(t=>{ // 全采配(カスタムは複数)を発動条件つきで提示
     const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(sub,st,th));

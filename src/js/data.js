@@ -299,7 +299,13 @@ const MANAGERS=[
     tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
 ];
 // 無料の既定監督(未起用時のフォールバック=見習い)。統制OVRは控えめ、バフ無し。名将/カスタムで伸ばす。
-const DEFAULT_MGR={id:"rookie", name:"見習い監督", title:"見習い", cost:0, ctrlOVR:700, boosts:[], col:null};
+// col/row は起動時に S.rookieViz(0〜7のシートセル)から設定(applyRookieViz)。
+const DEFAULT_MGR={id:"rookie", name:"見習い監督", title:"見習い", cost:0, ctrlOVR:700, boosts:[], col:null, row:null};
+// 監督ビジュアル: シート(4列×2行=8名)のセルindex(0〜7)→{col,row}。カスタム/見習い/育成監督の見た目に使う。
+const MGR_VIZ_COUNT=8;
+function vizColRow(v){v=((v|0)%MGR_VIZ_COUNT+MGR_VIZ_COUNT)%MGR_VIZ_COUNT;return {col:v%4,row:Math.floor(v/4)};}
+function vizIndex(col,row){return ((row||0)*4+(col||0))%MGR_VIZ_COUNT;}
+function applyRookieViz(){const v=vizColRow((typeof S!=="undefined"&&S.rookieViz)||0);DEFAULT_MGR.col=v.col;DEFAULT_MGR.row=v.row;} // 見習いの見た目をSから反映
 // 監督の統制可能OVR(未設定のレガシー/nullは既定へフォールバック)。
 function mgrCtrlOVR(m){return (m&&m.ctrlOVR)||DEFAULT_MGR.ctrlOVR;}
 // 統制判定に使う「実効監督」: 起用中が無ければ見習い監督。バフ適用の homeManager とは別(そちらはnull可)。
@@ -509,15 +515,18 @@ function cupEntryWeek(cup,step){return ((step+1)%cup.period)===0;}
 function cupEnterable(cup,cr){return cupEntryWeek(cup,cr.step)&&cup.cond(cr);}
 // キャリア中の試合では「育成中の監督(その時点のboosts/tacs)」を自チームに適用する。
 function homeManager(){
-  if(typeof S!=="undefined"&&S._careerMatch&&S.career)
-    return {custom:true, name:S.career.name, title:"育成中の監督", boosts:S.career.boosts||[], tacs:S.career.tacs||[]};
+  if(typeof S!=="undefined"&&S._careerMatch&&S.career){
+    const v=vizColRow(S.career.viz||0); // 育成中監督の見た目(キャリアのviz)
+    return {custom:true, name:S.career.name, title:"育成中の監督", boosts:S.career.boosts||[], tacs:S.career.tacs||[], col:v.col, row:v.row};
+  }
   return activeManager();
 }
 // カスタム監督を生成して S.customMgrs に登録(監督キャリアモードが boosts/tacs を積んで使う)。
 function createCustomManager(spec){
   spec=spec||{};
+  const v=vizColRow(spec.viz||0); // ビジュアル(キャリアのvizを踏襲・後で監督室から変更可)
   const m={id:"cm"+(uid++), custom:true, name:spec.name||"あなたの監督", title:spec.title||"カスタム監督",
-    cost:0, ctrlOVR:spec.ctrlOVR||900, boosts:spec.boosts||[], tacs:spec.tacs||[]}; // 統制OVR=キャリアで育てた最終値(既定900)
+    cost:0, ctrlOVR:spec.ctrlOVR||900, boosts:spec.boosts||[], tacs:spec.tacs||[], col:v.col, row:v.row}; // 統制OVR=キャリアで育てた最終値(既定900)
   if(typeof S!=="undefined"){S.customMgrs=S.customMgrs||[];S.customMgrs.push(m);}
   return m;
 }
@@ -529,8 +538,8 @@ function mgrPortrait(m,h){
   h=h||72; const w=Math.round(h*MGR_CELL_W/MGR_CELL_H);
   const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.className="mgrpic";
   const ctx=cv.getContext("2d");ctx.imageSmoothingQuality="high";
-  // カスタム監督(シート位置なし)はプレースホルダ・バッジを描く
-  if(m&&(m.custom||m.col==null)){
+  // ビジュアル未設定(col==null)のみプレースホルダ・バッジ。col/row があればカスタムでもシート絵を描く
+  if(!m||m.col==null){
     const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,"#5a3f9e");g.addColorStop(1,"#23314e");
     ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
     ctx.fillStyle="#fff";ctx.textAlign="center";ctx.textBaseline="middle";

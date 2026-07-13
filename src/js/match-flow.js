@@ -598,7 +598,7 @@ function startFriendMatch(team,coach,tn,form){
 // ===== 監督キャリア(WCCF風・カスタム監督育成) =====
 function startCareer(){
   const nm=((typeof S.coach==="string"&&S.coach.trim())||myName()||"オーナー").slice(0,16); // 監督名はオーナー名を踏襲
-  S.career={name:nm, step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league",
+  S.career={name:nm, viz:ri(0,7), step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league", // viz=育成監督のビジュアル(開始時ランダム)
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
     growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], // 成長/調子/加齢＋手動編成(空=自動)＋交代枠
@@ -663,7 +663,7 @@ function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCa
 }
 function careerFinalize(){ // カスタム監督を確定して登録
   const cr=S.career; if(!cr)return;
-  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs, ctrlOVR:cr.ovrCap}); // 任期最終の統制OVRを継承(施設バフ分は含めない=起用時に別途加算)
+  const m=createCustomManager({name:cr.name, title:"育成監督", boosts:cr.boosts, tacs:cr.tacs, ctrlOVR:cr.ovrCap, viz:cr.viz}); // 統制OVR/ビジュアルを継承(施設バフ分は含めない=起用時に別途加算)
   S.career=null; checkAchievements(); save(); // 初完走の実績(シグネチャー選択券)を判定
   toast(`🎓 任期満了! カスタム監督「${m.name}」誕生! 監督室で起用できます`);
   if(typeof gotoOffice==="function")gotoOffice("mgr");

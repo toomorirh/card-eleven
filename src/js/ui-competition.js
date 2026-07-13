@@ -471,8 +471,9 @@ function renderManagers(){
     const ch2=mk("div","banner");ch2.style.cssText="font-size:13px;margin-top:14px";ch2.textContent="― 🎓 あなたのカスタム監督 ―";box.appendChild(ch2);
     customs.forEach(m=>{
       const d=mk("div","wt-card");const isAct=S.mgrActive===m.id;
-      d.appendChild(mgrPortrait(m,62));
-      const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.name}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div><div class="lv">🧭 統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(m)}</b></div>`;
+      const pic=mgrPortrait(m,62); pic.style.cursor="pointer"; pic.title="タップでビジュアル変更"; pic.onclick=()=>openMgrVizPicker(m); // 監督絵タップで見た目変更
+      d.appendChild(pic);
+      const info=mk("div","wt-info");info.innerHTML=`<div class="wt-name">${m.name}${isAct?' <span class="lv" style="color:var(--gold)">起用中</span>':''}</div><div class="lv">🔼 ${mgrBoostDesc(m)}${mgrTacDesc(m)?` ・ ${mgrTacDesc(m)}`:""}</div><div class="lv">🧭 統制OVR <b style="color:var(--gold)">${mgrCtrlOVR(m)}</b> ・ <span style="color:var(--cyan)">🎨見た目変更</span></div>`;
       d.appendChild(info);
       const b=mk("button","btn"+(isAct?" ghost":""));b.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";
       b.textContent=isAct?"起用中":"起用";
@@ -480,6 +481,23 @@ function renderManagers(){
       d.appendChild(b);box.appendChild(d);
     });
   }
+}
+// カスタム監督のビジュアル選択(8種のシートセルから選ぶ)。選択で col/row を更新。
+function openMgrVizPicker(m){
+  const ov=document.createElement("div");ov.className="tac-offer";
+  const inn=document.createElement("div");inn.className="tac-offer-in";
+  inn.innerHTML=`<div class="banner">🎨 ${m.name} のビジュアル</div><div class="lg">好きな見た目を選択</div>`;
+  const grid=document.createElement("div");grid.style.cssText="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px";
+  for(let v=0;v<MGR_VIZ_COUNT;v++){
+    const cr=vizColRow(v), cell=document.createElement("div");
+    cell.style.cssText=`border:2px solid ${vizIndex(m.col,m.row)===v?"var(--gold)":"#2a3d56"};border-radius:8px;padding:2px;cursor:pointer;background:#0e1826`;
+    cell.appendChild(mgrPortrait({col:cr.col,row:cr.row},64));
+    cell.onclick=async()=>{m.col=cr.col;m.row=cr.row;await save();ov.remove();renderOffice();};
+    grid.appendChild(cell);
+  }
+  inn.appendChild(grid);
+  const bk=document.createElement("button");bk.className="btn ghost";bk.style.marginTop="8px";bk.textContent="閉じる";bk.onclick=()=>ov.remove();
+  inn.appendChild(bk);ov.appendChild(inn);document.body.appendChild(ov);
 }
 // ===== 監督キャリア(リーグ内モード) =====
 // 監督育成の独立画面(下部メニュー「🎓 育成」= scr-career)を開く。試合終了後の復帰などから呼ぶ。
