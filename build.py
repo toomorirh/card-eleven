@@ -117,6 +117,16 @@ def _mgr_block():
     return 'window.MGR_SHEET="data:image/png;base64,%s";' % b64
 
 
+def _sec_block():
+    """src/assets/secretary/ce_secretaries_01.png(4x2グリッド・5キャラ)を base64 データURI化し
+    `window.SEC_SHEET="data:..."` を生成。無ければ空文字。"""
+    f = ROOT / "src" / "assets" / "secretary" / "ce_secretaries_01.png"
+    if not f.is_file():
+        return 'window.SEC_SHEET="";'
+    b64 = base64.b64encode(f.read_bytes()).decode("ascii")
+    return 'window.SEC_SHEET="data:image/png;base64,%s";' % b64
+
+
 DEV_JS = ROOT / "src" / "js" / "_dev.js"  # ローカル検証専用(gitignore)。--dev の時だけ末尾に連結。
 
 
@@ -127,7 +137,7 @@ def _assemble_js(dev=False):
     body = _join("js", JS_FILES)
     if dev and DEV_JS.is_file():
         body += "\n\n" + DEV_JS.read_text(encoding="utf-8").strip()
-    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block()
+    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block() + "\n" + _sec_block()
     first_nl = body.find("\n")
     if first_nl == -1:
         return body + "\n" + inject

@@ -553,6 +553,20 @@ function mgrPortrait(m,h){
   if(MGR_IMG.complete&&MGR_IMG.naturalWidth)draw();else MGR_IMG.addEventListener("load",draw);
   return cv;
 }
+// ===== 秘書イラスト(4列×2行のシート・5キャラ)。監督シートと同形式でセルを切り出す =====
+const SEC_IMG=new Image(); if(typeof window!=="undefined"&&window.SEC_SHEET)SEC_IMG.src=window.SEC_SHEET;
+const SEC_VIZ_COUNT=5; // シートに5キャラ(上段4+下段左1)
+function secColRow(v){v=((v|0)%SEC_VIZ_COUNT+SEC_VIZ_COUNT)%SEC_VIZ_COUNT;return {col:v%4,row:Math.floor(v/4)};}
+function secretaryPortrait(v,h){
+  h=h||96; const cw0=959/4, ch0=1120/2, w=Math.round(h*cw0/ch0); // セル比(幅=高さ×セル縦横比)
+  const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.className="mgrpic";
+  const ctx=cv.getContext("2d");ctx.imageSmoothingQuality="high";
+  const cr=secColRow(v);
+  const draw=()=>{const W=SEC_IMG.naturalWidth,H=SEC_IMG.naturalHeight;if(!W)return;
+    const cw=W/4,ch=H/2;ctx.clearRect(0,0,w,h);ctx.drawImage(SEC_IMG,cr.col*cw,cr.row*ch,cw,ch,0,0,w,h);};
+  if(SEC_IMG.complete&&SEC_IMG.naturalWidth)draw();else SEC_IMG.addEventListener("load",draw);
+  return cv;
+}
 
 // スキル定義: fxキー => 試合エンジン内で参照
 // save:GKセーブ / duelD:守備マッチアップ / duelSpd等:該当タイプの攻撃マッチアップ

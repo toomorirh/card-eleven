@@ -145,6 +145,7 @@ async function openPackById(id){
   while(again){
     const cards=drawPack(id);
     if(!cards){toast(`クラブが満員です(最大${COLL_CAP}名)。図鑑で不要なカードを売却してください`);break;} // 連続開封中に満員へ到達
+    S.hasScouted=1; if(typeof advanceGuide==="function")advanceGuide(); // 秘書ガイド: 初スカウト達成
     coinUI();await save();renderGacha();
     again=await runReveal(p,cards);
   }

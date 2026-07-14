@@ -73,7 +73,7 @@ function migrate(){ // 旧カード → 6パラメータ+スキル+ドット絵�
 }
 // 新規データ(初期デッキ)を構築。はじめから用。固有選手は実績(マイルストーン)で入手する。
 function applyDefaults(){
-  S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:10,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[],prestige:0,fac:{stadium:0,academy:0,medical:0,coaching:0,scouting:0},_facGranted:1,rookieViz:ri(0,7)};
+  S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:10,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[],prestige:0,fac:{stadium:0,academy:0,medical:0,coaching:0,scouting:0},_facGranted:1,rookieViz:ri(0,7),secViz:ri(0,4),guideStep:0,hasScouted:0,leagueDone:0};
   applyRookieViz();
   FORMS["4-4-2"].forEach((sl,i)=>{
     const sub=sl[0],c=makeCard(subGroup(sub),i===9?"r":"n",null,sub);
@@ -102,6 +102,12 @@ async function loadGame(){                                       // つづきか
   if(S.career&&S.career.viz==null)S.career.viz=ri(0,7);
   // デイリー解放フラグ(ワールドツアー1週完了)。既存プレイヤーは進行状況から寛容に補完(daily継続利用を妨げない)。
   if(S.tourDone==null)S.tourDone=(S.tourPerfect||(S.tour&&(S.tour.res||[]).length>0)||S.cleared>=CLUBS.length)?1:0;
+  // 秘書ガイド(ナラティブ導入)の後方互換補完。既存進行者は各フラグを寛容に補完し、advanceGuideで現在位置へ自動前進。
+  if(S.secViz==null)S.secViz=ri(0,4);
+  if(S.hasScouted==null)S.hasScouted=((S.coll||[]).length>14||(S.legendPacks||0)+(S.sigPacks||0)>0)?1:0;
+  if(S.leagueDone==null)S.leagueDone=((S.leagueWins||0)>0||(S.league&&(S.league.round||0)>0))?1:0;
+  if(S.guideStep==null)S.guideStep=0;
+  if(typeof advanceGuide==="function")advanceGuide();
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換

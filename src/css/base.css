@@ -318,6 +318,16 @@ canvas.sprite{image-rendering:auto}
 .contract .btn{background:linear-gradient(#4a3a1c,#6a5528)!important;color:#f7ecca!important;border:1px solid #3a2d12!important;
   box-shadow:0 2px 0 #2f2510;text-shadow:0 1px 1px rgba(0,0,0,.4)}
 .contract .btn:active{transform:translateY(2px);box-shadow:0 0 0 #2f2510}
+/* ===== 秘書ガイド枠(監督室上部) ===== */
+.sec-card{display:flex;gap:10px;align-items:flex-end;background:linear-gradient(160deg,#17253d,#101a2c);
+  border:1px solid #35507a;border-radius:12px;padding:8px 10px 6px;margin-bottom:8px}
+.sec-card .mgrpic{flex:0 0 auto;align-self:flex-end;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.sec-bubble{flex:1;position:relative;align-self:center;background:#0e1826;border:1px solid #2a3d56;border-radius:10px;padding:9px 11px}
+.sec-bubble::before{content:"";position:absolute;left:-7px;top:50%;transform:translateY(-50%);
+  border:7px solid transparent;border-right-color:#2a3d56}
+.sec-name{font-size:11px;color:var(--gold);font-weight:900;margin-bottom:3px}
+.sec-say{font-size:13px;color:#eaf1fb;line-height:1.55}
+.sec-cta{width:auto!important;margin-top:9px;padding:8px 16px!important;font-size:13px}
 
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);

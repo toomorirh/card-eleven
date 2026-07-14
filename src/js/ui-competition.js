@@ -158,6 +158,7 @@ function renderLeagueMode(){
     b.onclick=()=>{startSeason();};  // 報酬は下の自動付与で1回だけ。ここでは再付与しない(二重付与バグ修正)
     fb.appendChild(b);
     if(!lg.claimed){claimSeason(meRank);lg.claimed=true;save();}
+    S.leagueDone=1; if(typeof advanceGuide==="function")advanceGuide(); // 秘書ガイド: リーグ1シーズン完走
     return;
   }
   // 今節の対戦カード
@@ -393,6 +394,27 @@ function renderFriend(){
   };
   add(go);add(prev);
 }
+// ===== 秘書ガイド(ナラティブ導入): 監督室上部に秘書が「次にやること」を1つずつ誘導 =====
+// 一本道の進行ポインタ S.guideStep。各ステップの done() は既存stateを流用。CTAで該当画面へ即遷移。
+function gotoScreen(s){const b=document.querySelector('.tabs [data-s="'+s+'"]');if(b)b.click();}
+function gotoMode(m){const hb=document.querySelector('.tabs [data-s="home"]');if(hb)hb.click();const mb=document.querySelector('#modeRow [data-m="'+m+'"]');if(mb)mb.click();}
+const GUIDE_STEPS=[
+ {id:"stage1",   say:"ようこそ監督。まずはステージで他クラブを視察しましょう。",           cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=1},
+ {id:"scout",    say:"選手をスカウトしてクラブを補強し、編成を組み替えましょう。",         cta:{lb:"スカウトへ", go:()=>gotoScreen("gacha")}, done:()=>!!S.hasScouted},
+ {id:"stageAll", say:"ステージを完走して、全クラブの視察を終わらせましょう。",           cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=CLUBS.length},
+ {id:"league",   say:"リーグ戦へ参加して、クラブの活躍を見てみましょう。",               cta:{lb:"リーグへ",  go:()=>gotoMode("league")},  done:()=>!!S.leagueDone},
+ {id:"contract", say:"名将と契約して、その采配を体感しましょう。",                       cta:{lb:"監督室へ",  go:()=>gotoOffice("mgr")},   done:()=>{const m=activeManager();return !!(m&&!m.custom);}},
+ {id:"champ",    say:"名将と共にリーグ優勝を目指しましょう！",                           cta:{lb:"リーグへ",  go:()=>gotoMode("league")},  done:()=>(S.leagueWins||0)>=1},
+ {id:"tour",     say:"ワールドツアーへの招待が届きました。世界の強豪へ挑みましょう。",   cta:{lb:"ツアーへ",  go:()=>gotoMode("world")},   done:()=>!!S.tourDone},
+ {id:"career",   say:"さぁ、次はあなたの番です。監督としてのキャリアを始めましょう。",   cta:{lb:"キャリアへ", go:()=>gotoScreen("career")},done:()=>!!S.career},
+];
+function guideCurrent(){return (S.guideStep<GUIDE_STEPS.length)?GUIDE_STEPS[S.guideStep]:null;}
+function advanceGuide(){ // 現在ステップが達成済みなら次へ(達成済みは飛ばす)。前進したら保存。
+  let moved=false;
+  while(S.guideStep<GUIDE_STEPS.length && GUIDE_STEPS[S.guideStep].done()){S.guideStep++;moved=true;}
+  if(moved&&typeof save==="function")save();
+  return moved;
+}
 // ===== 監督室(プロフィール集約 + サブタブ: 対戦/戦績/実績) =====
 let _ofTab="match"; // 監督室の現在サブタブ
 function renderOffice(){
@@ -403,11 +425,18 @@ function renderOffice(){
   const done=ACHIEVEMENTS.filter(a=>S.ms[a.id]).length;
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
   const head=document.getElementById("officeHead");head.innerHTML="";
+  // 秘書ガイド枠(上部共有枠): 秘書イラスト + 現在の誘導セリフ + 該当画面へのCTA
+  advanceGuide(); // 達成済みステップを飛ばして現在位置へ
+  const sec=mk("div","sec-card");
+  sec.appendChild(secretaryPortrait(S.secViz,100));
+  const bub=mk("div","sec-bubble"); const step=guideCurrent();
+  bub.innerHTML=`<div class="sec-name">👩‍💼 秘書</div><div class="sec-say">${step?`「${step.say}」`:"「順調ですね、監督。あとはお好きに采配を。」"}</div>`;
+  if(step){const cta=mk("button","btn sec-cta");cta.textContent="▶ "+step.cta.lb;cta.onclick=()=>step.cta.go();bub.appendChild(cta);}
+  sec.appendChild(bub);head.appendChild(sec);
+  // チーム情報 + プロフィール編集
   const card=mk("div","wt-card");
-  card.innerHTML=`<div class="wt-info">`
-    +`<div class="wt-name">${myName()}</div>`
-    +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div>`
-    +`</div>`;
+  card.innerHTML=`<div class="wt-info"><div class="wt-name">${myName()}</div>`
+    +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div></div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
   card.appendChild(ed);head.appendChild(card);
   document.querySelectorAll('#ofTabs [data-o]').forEach(b=>b.onclick=()=>_selectOfTab(b.dataset.o));
