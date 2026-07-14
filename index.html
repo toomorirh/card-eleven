@@ -327,15 +327,15 @@ canvas.sprite{image-rendering:auto}
   box-shadow:0 2px 0 #2f2510;text-shadow:0 1px 1px rgba(0,0,0,.4)}
 .contract .btn:active{transform:translateY(2px);box-shadow:0 0 0 #2f2510}
 /* ===== 秘書ガイド枠(監督室上部) ===== */
-.sec-card{display:flex;gap:10px;align-items:flex-end;background:linear-gradient(160deg,#17253d,#101a2c);
-  border:1px solid #35507a;border-radius:12px;padding:8px 10px 6px;margin-bottom:8px}
+.sec-card{display:flex;gap:10px;align-items:center;background:linear-gradient(160deg,#17253d,#101a2c);
+  border:1px solid #35507a;border-radius:12px;padding:8px 10px;margin-bottom:8px}
 .sec-card .mgrpic{flex:0 0 auto;align-self:flex-end;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
-.sec-bubble{flex:1;position:relative;align-self:center;background:#0e1826;border:1px solid #2a3d56;border-radius:10px;padding:9px 11px}
+.sec-bubble{flex:1;min-width:0;position:relative;background:#0e1826;border:1px solid #2a3d56;border-radius:10px;padding:9px 11px}
 .sec-bubble::before{content:"";position:absolute;left:-7px;top:50%;transform:translateY(-50%);
   border:7px solid transparent;border-right-color:#2a3d56}
 .sec-name{font-size:11px;color:var(--gold);font-weight:900;margin-bottom:3px}
 .sec-say{font-size:13px;color:#eaf1fb;line-height:1.55}
-.sec-cta{width:auto!important;margin-top:9px;padding:8px 16px!important;font-size:13px}
+.sec-cta{flex:0 0 auto;align-self:center;width:auto!important;padding:10px 14px!important;font-size:13px;white-space:nowrap}
 
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);
@@ -5286,8 +5286,8 @@ async function saveProfile(isNew){
   if(isNew){
     await newGame();                       // 初期デッキ生成(Sをリセット)後に名前を載せる
     S.coach=coach;S.teamName=team;await save();
-    coinUI();show("home");
-    if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由ならフレンドへ
+    coinUI();gotoOffice("ach"); // 契約後は監督室の実績ページへ(秘書が導線を案内)
+    if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由なら監督室の対戦へ上書き
   }else{
     S.coach=coach;S.teamName=team;await save();
     toast("プロフィールを保存しました");
@@ -5915,7 +5915,7 @@ function renderFriend(){
 function gotoScreen(s){const b=document.querySelector('.tabs [data-s="'+s+'"]');if(b)b.click();}
 function gotoMode(m){const hb=document.querySelector('.tabs [data-s="home"]');if(hb)hb.click();const mb=document.querySelector('#modeRow [data-m="'+m+'"]');if(mb)mb.click();}
 const GUIDE_STEPS=[
- {id:"stage1",   say:"ようこそ監督。まずはステージで他クラブを視察しましょう。",           cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=1},
+ {id:"stage1",   say:"ようこそ監督。新監督のもと私たちのクラブはインターナショナルクラブカップをめざします。まずは視察に向かいましょう。もし困ったらガイドするので監督室にもどってきてくださいね。", cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=1},
  {id:"scout",    say:"選手をスカウトしてクラブを補強し、編成を組み替えましょう。",         cta:{lb:"スカウトへ", go:()=>gotoScreen("gacha")}, done:()=>!!S.hasScouted},
  {id:"stageAll", say:"ステージを完走して、全クラブの視察を終わらせましょう。",           cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=CLUBS.length},
  {id:"league",   say:"リーグ戦へ参加して、クラブの活躍を見てみましょう。",               cta:{lb:"リーグへ",  go:()=>gotoMode("league")},  done:()=>!!S.leagueDone},
@@ -5947,8 +5947,9 @@ function renderOffice(){
   sec.appendChild(secretaryPortrait(S.secViz,100));
   const bub=mk("div","sec-bubble"); const step=guideCurrent();
   bub.innerHTML=`<div class="sec-name">👩‍💼 秘書</div><div class="sec-say">${step?`「${step.say}」`:"「順調ですね、監督。あとはお好きに采配を。」"}</div>`;
-  if(step){const cta=mk("button","btn sec-cta");cta.textContent="▶ "+step.cta.lb;cta.onclick=()=>step.cta.go();bub.appendChild(cta);}
-  sec.appendChild(bub);head.appendChild(sec);
+  sec.appendChild(bub);
+  if(step){const cta=mk("button","btn sec-cta");cta.textContent="▶ "+step.cta.lb;cta.onclick=()=>step.cta.go();sec.appendChild(cta);} // CTAは吹き出しの外・秘書枠の右側
+  head.appendChild(sec);
   // チーム情報 + プロフィール編集
   const card=mk("div","wt-card");
   card.innerHTML=`<div class="wt-info"><div class="wt-name">${myName()}</div>`

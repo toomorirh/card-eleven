@@ -430,8 +430,8 @@ async function saveProfile(isNew){
   if(isNew){
     await newGame();                       // 初期デッキ生成(Sをリセット)後に名前を載せる
     S.coach=coach;S.teamName=team;await save();
-    coinUI();show("home");
-    if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由ならフレンドへ
+    coinUI();gotoOffice("ach"); // 契約後は監督室の実績ページへ(秘書が導線を案内)
+    if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由なら監督室の対戦へ上書き
   }else{
     S.coach=coach;S.teamName=team;await save();
     toast("プロフィールを保存しました");

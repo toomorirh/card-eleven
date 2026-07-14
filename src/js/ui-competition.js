@@ -399,7 +399,7 @@ function renderFriend(){
 function gotoScreen(s){const b=document.querySelector('.tabs [data-s="'+s+'"]');if(b)b.click();}
 function gotoMode(m){const hb=document.querySelector('.tabs [data-s="home"]');if(hb)hb.click();const mb=document.querySelector('#modeRow [data-m="'+m+'"]');if(mb)mb.click();}
 const GUIDE_STEPS=[
- {id:"stage1",   say:"ようこそ監督。まずはステージで他クラブを視察しましょう。",           cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=1},
+ {id:"stage1",   say:"ようこそ監督。新監督のもと私たちのクラブはインターナショナルクラブカップをめざします。まずは視察に向かいましょう。もし困ったらガイドするので監督室にもどってきてくださいね。", cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=1},
  {id:"scout",    say:"選手をスカウトしてクラブを補強し、編成を組み替えましょう。",         cta:{lb:"スカウトへ", go:()=>gotoScreen("gacha")}, done:()=>!!S.hasScouted},
  {id:"stageAll", say:"ステージを完走して、全クラブの視察を終わらせましょう。",           cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=CLUBS.length},
  {id:"league",   say:"リーグ戦へ参加して、クラブの活躍を見てみましょう。",               cta:{lb:"リーグへ",  go:()=>gotoMode("league")},  done:()=>!!S.leagueDone},
@@ -431,8 +431,9 @@ function renderOffice(){
   sec.appendChild(secretaryPortrait(S.secViz,100));
   const bub=mk("div","sec-bubble"); const step=guideCurrent();
   bub.innerHTML=`<div class="sec-name">👩‍💼 秘書</div><div class="sec-say">${step?`「${step.say}」`:"「順調ですね、監督。あとはお好きに采配を。」"}</div>`;
-  if(step){const cta=mk("button","btn sec-cta");cta.textContent="▶ "+step.cta.lb;cta.onclick=()=>step.cta.go();bub.appendChild(cta);}
-  sec.appendChild(bub);head.appendChild(sec);
+  sec.appendChild(bub);
+  if(step){const cta=mk("button","btn sec-cta");cta.textContent="▶ "+step.cta.lb;cta.onclick=()=>step.cta.go();sec.appendChild(cta);} // CTAは吹き出しの外・秘書枠の右側
+  head.appendChild(sec);
   // チーム情報 + プロフィール編集
   const card=mk("div","wt-card");
   card.innerHTML=`<div class="wt-info"><div class="wt-name">${myName()}</div>`
