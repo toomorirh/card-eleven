@@ -813,13 +813,20 @@ const MATCH_MODES={
     const e=document.getElementById("matchEnd");
     e.innerHTML=`<div class="banner">${msg}</div>`+dropMsg;
     showStatOverlay(M.home,M.away);
-    const idx=M.idx;
+    const idx=M.idx, win=sh>sa, hasNext=idx+1<CLUBS.length;
     const row=document.createElement("div");row.className="row";
-    const rt=document.createElement("button");rt.className="btn";rt.textContent="リトライ";
-    rt.onclick=()=>startMatch(idx);                 // 同じ相手とその場で再戦
+    if(win&&hasNext){ // 勝利 → 次のステージへ進む
+      const nx=document.createElement("button");nx.className="btn";nx.textContent="▶ 次のステージへ";
+      nx.onclick=()=>startMatch(idx+1);
+      row.appendChild(nx);
+    }else if(!win){ // 引分/敗北 → 同じ相手と再戦
+      const rt=document.createElement("button");rt.className="btn";rt.textContent="リトライ";
+      rt.onclick=()=>startMatch(idx);
+      row.appendChild(rt);
+    } // 勝利かつ次が無い(最終ステージ制覇) → ホームのみ
     const bk=document.createElement("button");bk.className="btn ghost";bk.textContent="ホームへ戻る";
     bk.onclick=()=>{document.querySelector('[data-s="home"]').click();};
-    row.appendChild(rt);row.appendChild(bk);
+    row.appendChild(bk);
     e.appendChild(row);
     MC=null;
     checkAchievements(); // ステージ攻略の達成で実績報酬を付与
