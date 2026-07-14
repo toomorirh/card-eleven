@@ -404,14 +404,22 @@ function sellCard(c,v){
 }
 document.getElementById("cardModalClose").onclick=()=>document.getElementById("cardModal").classList.remove("on");
 
-// ================= プロフィール(監督名・チーム名) =================
+// ================= 監督契約書(監督名・チーム名) =================
+// はじめから時は契約書風のイントロ。約款テキストでゲームの遊び方を示し、署名(監督名)で契約成立。
+const CONTRACT_TERMS=`第一条  本契約をもって、上記クラブは下記の者を新たな監督として迎え入れる。
+第二条  監督は限られた統率の内(統制可能OVR)で最強の11人を編成し、あらゆる大会で栄冠を目指す責を負う。
+第三条  選手は「スカウト」により獲得し、育成と采配をもってクラブを勝利へ導くこと。
+第四条  「名声」を高めてクラブ施設を拡張し、常勝軍団を築くべし。
+以上の条項に同意の上、末尾に署名するものとする。`;
 function openProfile(isNew){
   const m=document.getElementById("profileModal");
-  document.getElementById("profileTitle").textContent=isNew?"チーム設定(はじめに)":"プロフィール編集";
+  document.getElementById("profileTitle").textContent=isNew?"監督契約書":"契約内容の変更";
+  const sub=document.getElementById("profileSub"); if(sub)sub.textContent=isNew?"MANAGER CONTRACT":"EDIT CONTRACT";
   document.getElementById("pfCoach").value=S.coach||"";
   document.getElementById("pfTeam").value=S.teamName||"";
+  const terms=document.getElementById("pfTerms"); if(terms){terms.textContent=isNew?CONTRACT_TERMS:"";terms.style.display=isNew?"":"none";}
   const favWrap=document.getElementById("pfFavWrap"); if(favWrap)favWrap.style.display="none"; // お気に入り設定は廃止
-  const sv=document.getElementById("pfSave");sv.textContent=isNew?"⚽ はじめる":"保存";
+  const sv=document.getElementById("pfSave");sv.textContent=isNew?"✍ 契約する":"保存";
   sv.onclick=()=>saveProfile(isNew);
   m.classList.add("on");
 }

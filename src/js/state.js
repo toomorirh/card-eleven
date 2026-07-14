@@ -139,10 +139,10 @@ function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}
 function coinUI(){const e=document.getElementById("coinN");if(e)e.textContent=S.coins;}
 function myName(){return (S.teamName||"").trim()||"マイチーム";} // 自チーム表示名(プロフィール)
-// 共通ヘッダー(オーナー名・チーム名)を更新。コインは coinUI()。
+// 共通ヘッダー(監督名・チーム名)を更新。コインは coinUI()。
 function renderHeader(){
   const o=document.getElementById("ahOwner"), t=document.getElementById("ahTeam");
-  if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"オーナー"));
+  if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"監督"));
   if(t)t.textContent=myName();
 }
 // ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====

@@ -305,6 +305,27 @@ canvas.sprite{image-rendering:auto}
 .sheet h3{font-size:14px;margin-bottom:6px}
 .sheet .close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#2a3d56;border-radius:50%;color:#cfdcea;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}
 .sheet .close-btn:active{background:#3d5070}
+/* ===== 監督契約書(はじめから/プロフィール編集) — 羊皮紙風の書面レイアウト ===== */
+.sheet.contract{background:linear-gradient(160deg,#f5edd6,#e7dab9);color:#2c2414;border:2px solid #b7a577;
+  box-shadow:0 10px 34px rgba(0,0,0,.6),inset 0 0 44px rgba(150,120,60,.14);font-family:'Times New Roman','M PLUS 1p',serif;padding:16px 18px}
+.contract .close-btn{background:rgba(90,74,40,.15);color:#5a4a28}
+.contract .close-btn:active{background:rgba(90,74,40,.3)}
+.ct-head{text-align:center;border-bottom:3px double #8a7647;padding-bottom:8px;margin:2px 0 12px}
+.ct-title{font-size:22px;font-weight:900;letter-spacing:4px;color:#33280f}
+.ct-sub{font-size:10px;letter-spacing:5px;color:#8a7647;margin-top:2px}
+.ct-field{margin:10px 0}
+.ct-field label{display:block;font-size:11px;letter-spacing:1px;color:#6a5a2f;margin-bottom:3px}
+.ct-input{width:100%;background:transparent;border:none;border-bottom:1.5px solid #9a8752;color:#2c2414;
+  font-size:16px;font-family:inherit;padding:5px 2px;outline:none;box-sizing:border-box}
+.ct-input::placeholder{color:#b7a678}
+.ct-input:focus{border-bottom-color:#6a5a2f}
+.ct-terms{font-size:11px;line-height:1.85;text-align:justify;color:#463a1e;background:rgba(255,255,255,.28);
+  border:1px solid #cdbb8c;border-radius:4px;padding:9px 11px;margin:12px 0;max-height:32vh;overflow:auto;white-space:pre-line}
+.ct-sign{margin-top:14px}
+.ct-sign-input{font-size:22px;font-style:italic;text-align:center;letter-spacing:2px;border-bottom:2px solid #6a5a2f}
+.contract .btn{background:linear-gradient(#4a3a1c,#6a5528)!important;color:#f7ecca!important;border:1px solid #3a2d12!important;
+  box-shadow:0 2px 0 #2f2510;text-shadow:0 1px 1px rgba(0,0,0,.4)}
+.contract .btn:active{transform:translateY(2px);box-shadow:0 0 0 #2f2510}
 
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);
@@ -1039,7 +1060,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 </script>
 <div class="wrap">
   <div class="apphead" id="apphead">
-    <div class="ah-l"><span class="ah-owner" id="ahOwner">👤 オーナー</span><b class="ah-team" id="ahTeam">マイチーム</b></div>
+    <div class="ah-l"><span class="ah-owner" id="ahOwner">👤 監督</span><b class="ah-team" id="ahTeam">マイチーム</b></div>
     <div class="coins">🪙 <span id="coinN">0</span></div>
   </div>
   <h1>p football</h1>
@@ -1208,13 +1229,14 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
   </div>
 </div>
 <div class="modal" id="profileModal">
-  <div class="sheet">
+  <div class="sheet contract">
     <button class="close-btn" id="profileClose">☒</button>
-    <h3 id="profileTitle">プロフィール</h3>
-    <div class="lg">オーナー名</div><input id="pfCoach" class="ci-input" maxlength="16" placeholder="オーナー名">
-    <div class="lg" style="margin-top:6px">チーム名</div><input id="pfTeam" class="ci-input" maxlength="16" placeholder="チーム名">
-    <div id="pfFavWrap" style="margin-top:8px"><div class="lg">お気に入り選手(所持から選択)</div><div class="grid" id="pfFavGrid" style="max-height:40vh;overflow:auto"></div></div>
-    <div class="row" style="margin-top:8px"><button class="btn" id="pfSave">保存</button></div>
+    <div class="ct-head"><div class="ct-title" id="profileTitle">監督契約書</div><div class="ct-sub" id="profileSub">MANAGER CONTRACT</div></div>
+    <div class="ct-field"><label>所属クラブ</label><input id="pfTeam" class="ct-input" maxlength="16" placeholder="クラブ名を記入"></div>
+    <div class="ct-terms" id="pfTerms"></div>
+    <div class="ct-field ct-sign"><label>署名（監督名）</label><input id="pfCoach" class="ct-input ct-sign-input" maxlength="16" placeholder="ここに署名"></div>
+    <div id="pfFavWrap" style="display:none"><div id="pfFavGrid"></div></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="pfSave">契約する</button></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -1261,7 +1283,7 @@ const HELP={
   world:"強豪国代表(平均OVR90↑・国籍ボーナス満タン)との連戦。勝敗に関わらず次の国へ進みます。🔍で偵察。",
   friend:"自分のチームをURL/コードで共有し、相手のコードを貼って非同期で対戦(サーバ不要のカジュアル対戦)。",
   office:"監督を起用すると自チームが強化(起用は1名・交代制)。名将はスカウト画面の「監督スカウト」、自作監督は下部メニューの「🎓育成」で育成。",
-  career:"限られた任期(48週=12ヶ月×4週)で監督を育成する最上位コンテンツ。①リーグ制覇でバフ / ②カップ優勝で采配 / ③練習で編成OVR上限が緩む。満了でオーナー名を冠した<b>カスタム監督</b>が完成し他モードで起用可。DIV1制覇で大陸リーグ解禁、好成績で契約延長も。",
+  career:"限られた任期(48週=12ヶ月×4週)で監督を育成する最上位コンテンツ。①リーグ制覇でバフ / ②カップ優勝で采配 / ③練習で編成OVR上限が緩む。満了で監督名を冠した<b>カスタム監督</b>が完成し他モードで起用可。DIV1制覇で大陸リーグ解禁、好成績で契約延長も。",
   careerFlow:"「今週」の箱のボタンで次の実施を選択(①リーグ/大陸 ②カップ ③練習)。カップ中は決着まで他は選べません。🔍偵察で相手を下見して戦術を合わせよう。",
   statLegend:"★=MOM(最優秀選手) / 関与=試合に絡んだ回数 / 評価5.0未満は次戦の入れ替え候補。",
   daily:"毎日ランダムに2チーム(強豪国代表)が出題されます。撃破すると10%で固有選手ドロップ、<b>2チーム全勝でシグネチャースカウトチケットを1日1枚</b>獲得(スカウトで未所持の固有選手を優先確定)。日付が変わると更新。",
@@ -4724,10 +4746,10 @@ function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}
 function coinUI(){const e=document.getElementById("coinN");if(e)e.textContent=S.coins;}
 function myName(){return (S.teamName||"").trim()||"マイチーム";} // 自チーム表示名(プロフィール)
-// 共通ヘッダー(オーナー名・チーム名)を更新。コインは coinUI()。
+// 共通ヘッダー(監督名・チーム名)を更新。コインは coinUI()。
 function renderHeader(){
   const o=document.getElementById("ahOwner"), t=document.getElementById("ahTeam");
-  if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"オーナー"));
+  if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"監督"));
   if(t)t.textContent=myName();
 }
 // ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====
@@ -5207,14 +5229,22 @@ function sellCard(c,v){
 }
 document.getElementById("cardModalClose").onclick=()=>document.getElementById("cardModal").classList.remove("on");
 
-// ================= プロフィール(監督名・チーム名) =================
+// ================= 監督契約書(監督名・チーム名) =================
+// はじめから時は契約書風のイントロ。約款テキストでゲームの遊び方を示し、署名(監督名)で契約成立。
+const CONTRACT_TERMS=`第一条  本契約をもって、上記クラブは下記の者を新たな監督として迎え入れる。
+第二条  監督は限られた統率の内(統制可能OVR)で最強の11人を編成し、あらゆる大会で栄冠を目指す責を負う。
+第三条  選手は「スカウト」により獲得し、育成と采配をもってクラブを勝利へ導くこと。
+第四条  「名声」を高めてクラブ施設を拡張し、常勝軍団を築くべし。
+以上の条項に同意の上、末尾に署名するものとする。`;
 function openProfile(isNew){
   const m=document.getElementById("profileModal");
-  document.getElementById("profileTitle").textContent=isNew?"チーム設定(はじめに)":"プロフィール編集";
+  document.getElementById("profileTitle").textContent=isNew?"監督契約書":"契約内容の変更";
+  const sub=document.getElementById("profileSub"); if(sub)sub.textContent=isNew?"MANAGER CONTRACT":"EDIT CONTRACT";
   document.getElementById("pfCoach").value=S.coach||"";
   document.getElementById("pfTeam").value=S.teamName||"";
+  const terms=document.getElementById("pfTerms"); if(terms){terms.textContent=isNew?CONTRACT_TERMS:"";terms.style.display=isNew?"":"none";}
   const favWrap=document.getElementById("pfFavWrap"); if(favWrap)favWrap.style.display="none"; // お気に入り設定は廃止
-  const sv=document.getElementById("pfSave");sv.textContent=isNew?"⚽ はじめる":"保存";
+  const sv=document.getElementById("pfSave");sv.textContent=isNew?"✍ 契約する":"保存";
   sv.onclick=()=>saveProfile(isNew);
   m.classList.add("on");
 }
@@ -5838,7 +5868,7 @@ function renderFriend(){
   go.onclick=()=>{ let r;try{r=importTeam(imp.value);}catch(e){toast("コードを読み取れませんでした(送信側・受信側を同じ最新版で開いてください)");return;}
     prev.innerHTML="";
     const h=mk("div","banner");h.style.fontSize="14px";h.textContent=`🆚 ${r.teamName}`;prev.appendChild(h);
-    const ci=mk("div","lg");ci.innerHTML=`オーナー: <b>${r.coach}</b>`;prev.appendChild(ci);
+    const ci=mk("div","lg");ci.innerHTML=`監督: <b>${r.coach}</b>`;prev.appendChild(ci);
     if(r.fav){const fl=mk("div","lg");fl.textContent="お気に入り選手:";prev.appendChild(fl);
       const fc=mk("div");fc.style.cssText="display:flex;justify-content:center";fc.appendChild(cardEl(r.fav));prev.appendChild(fc);}
     const ko=mk("button","btn");ko.style.marginTop="6px";ko.textContent="⚔️ キックオフ";
@@ -8023,7 +8053,7 @@ function startFriendMatch(team,coach,tn,form){
 }
 // ===== 監督キャリア(WCCF風・カスタム監督育成) =====
 function startCareer(){
-  const nm=((typeof S.coach==="string"&&S.coach.trim())||myName()||"オーナー").slice(0,16); // 監督名はオーナー名を踏襲
+  const nm=((typeof S.coach==="string"&&S.coach.trim())||myName()||"監督").slice(0,16); // 監督名はオーナー名を踏襲
   S.career={name:nm, viz:ri(0,7), step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league", // viz=育成監督のビジュアル(開始時ランダム)
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,

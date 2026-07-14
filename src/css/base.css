@@ -297,6 +297,27 @@ canvas.sprite{image-rendering:auto}
 .sheet h3{font-size:14px;margin-bottom:6px}
 .sheet .close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border:none;background:#2a3d56;border-radius:50%;color:#cfdcea;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}
 .sheet .close-btn:active{background:#3d5070}
+/* ===== 監督契約書(はじめから/プロフィール編集) — 羊皮紙風の書面レイアウト ===== */
+.sheet.contract{background:linear-gradient(160deg,#f5edd6,#e7dab9);color:#2c2414;border:2px solid #b7a577;
+  box-shadow:0 10px 34px rgba(0,0,0,.6),inset 0 0 44px rgba(150,120,60,.14);font-family:'Times New Roman','M PLUS 1p',serif;padding:16px 18px}
+.contract .close-btn{background:rgba(90,74,40,.15);color:#5a4a28}
+.contract .close-btn:active{background:rgba(90,74,40,.3)}
+.ct-head{text-align:center;border-bottom:3px double #8a7647;padding-bottom:8px;margin:2px 0 12px}
+.ct-title{font-size:22px;font-weight:900;letter-spacing:4px;color:#33280f}
+.ct-sub{font-size:10px;letter-spacing:5px;color:#8a7647;margin-top:2px}
+.ct-field{margin:10px 0}
+.ct-field label{display:block;font-size:11px;letter-spacing:1px;color:#6a5a2f;margin-bottom:3px}
+.ct-input{width:100%;background:transparent;border:none;border-bottom:1.5px solid #9a8752;color:#2c2414;
+  font-size:16px;font-family:inherit;padding:5px 2px;outline:none;box-sizing:border-box}
+.ct-input::placeholder{color:#b7a678}
+.ct-input:focus{border-bottom-color:#6a5a2f}
+.ct-terms{font-size:11px;line-height:1.85;text-align:justify;color:#463a1e;background:rgba(255,255,255,.28);
+  border:1px solid #cdbb8c;border-radius:4px;padding:9px 11px;margin:12px 0;max-height:32vh;overflow:auto;white-space:pre-line}
+.ct-sign{margin-top:14px}
+.ct-sign-input{font-size:22px;font-style:italic;text-align:center;letter-spacing:2px;border-bottom:2px solid #6a5a2f}
+.contract .btn{background:linear-gradient(#4a3a1c,#6a5528)!important;color:#f7ecca!important;border:1px solid #3a2d12!important;
+  box-shadow:0 2px 0 #2f2510;text-shadow:0 1px 1px rgba(0,0,0,.4)}
+.contract .btn:active{transform:translateY(2px);box-shadow:0 0 0 #2f2510}
 
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);

@@ -384,7 +384,7 @@ function renderFriend(){
   go.onclick=()=>{ let r;try{r=importTeam(imp.value);}catch(e){toast("コードを読み取れませんでした(送信側・受信側を同じ最新版で開いてください)");return;}
     prev.innerHTML="";
     const h=mk("div","banner");h.style.fontSize="14px";h.textContent=`🆚 ${r.teamName}`;prev.appendChild(h);
-    const ci=mk("div","lg");ci.innerHTML=`オーナー: <b>${r.coach}</b>`;prev.appendChild(ci);
+    const ci=mk("div","lg");ci.innerHTML=`監督: <b>${r.coach}</b>`;prev.appendChild(ci);
     if(r.fav){const fl=mk("div","lg");fl.textContent="お気に入り選手:";prev.appendChild(fl);
       const fc=mk("div");fc.style.cssText="display:flex;justify-content:center";fc.appendChild(cardEl(r.fav));prev.appendChild(fc);}
     const ko=mk("button","btn");ko.style.marginTop="6px";ko.textContent="⚔️ キックオフ";
