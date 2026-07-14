@@ -428,7 +428,8 @@ function renderOffice(){
   // 秘書ガイド枠(上部共有枠): 秘書イラスト + 現在の誘導セリフ + 該当画面へのCTA
   advanceGuide(); // 達成済みステップを飛ばして現在位置へ
   const sec=mk("div","sec-card");
-  sec.appendChild(secretaryPortrait(S.secViz,100));
+  const secPic=secretaryPortrait(S.secViz,100); secPic.style.cursor="pointer"; secPic.title="タップで秘書を変更"; secPic.onclick=()=>openSecVizPicker(); // 秘書絵タップで見た目変更
+  sec.appendChild(secPic);
   const bub=mk("div","sec-bubble"); const step=guideCurrent();
   bub.innerHTML=`<div class="sec-name">👩‍💼 秘書</div><div class="sec-say">${step?`「${step.say}」`:"「順調ですね、監督。あとはお好きに采配を。」"}</div>`;
   sec.appendChild(bub);
@@ -513,6 +514,23 @@ function renderManagers(){
       d.appendChild(b);box.appendChild(d);
     });
   }
+}
+// 秘書のビジュアル選択(5キャラから選ぶ)。選択で S.secViz を更新。
+function openSecVizPicker(){
+  const ov=document.createElement("div");ov.className="tac-offer";
+  const inn=document.createElement("div");inn.className="tac-offer-in";
+  inn.innerHTML=`<div class="banner">🎨 秘書のビジュアル</div><div class="lg">好きな秘書を選択</div>`;
+  const grid=document.createElement("div");grid.style.cssText="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px";
+  for(let v=0;v<SEC_VIZ_COUNT;v++){
+    const cell=document.createElement("div");
+    cell.style.cssText=`border:2px solid ${(S.secViz||0)===v?"var(--gold)":"#2a3d56"};border-radius:8px;padding:2px;cursor:pointer;background:#0e1826`;
+    cell.appendChild(secretaryPortrait(v,80));
+    cell.onclick=async()=>{S.secViz=v;await save();ov.remove();renderOffice();};
+    grid.appendChild(cell);
+  }
+  inn.appendChild(grid);
+  const bk=document.createElement("button");bk.className="btn ghost";bk.style.marginTop="8px";bk.textContent="閉じる";bk.onclick=()=>ov.remove();
+  inn.appendChild(bk);ov.appendChild(inn);document.body.appendChild(ov);
 }
 // カスタム監督のビジュアル選択(8種のシートセルから選ぶ)。選択で col/row を更新。
 function openMgrVizPicker(m){
