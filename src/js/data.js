@@ -19,11 +19,12 @@ const NAMES=["バルデロ","シュナイト","ロッカ","カミナリオ","ド
 const FLAGS=["🇧🇷","🇦🇷","🇮🇹","🇪🇸","🇩🇪","🇫🇷","🇬🇧","🇳🇱","🇵🇹","🇯🇵","🇺🇾","🇭🇷","🇸🇪","🇲🇽","🇧🇪","🇩🇰"];
 // 国籍カラー(2色): Legend/Signatureカードの背景を国籍で表現。白は視認性のため淡グレー寄りに。
 const NAT_COLORS={
-  // 全16か国で (c1,c2) の組が一意になるよう配色(中段は常に白/暗)。同色2国は鏡像(順番反転)か色調差で区別。
+  // 全18か国で (c1,c2) の組が一意になるよう配色(中段は常に白/暗)。同色2国は鏡像(順番反転)か色調差で区別。
   "🇧🇷":["#12cc59","#ffe62e"],"🇦🇷":["#8ec9f2","#f4f8fd"],"🇮🇹":["#12b866","#e8394f"],"🇪🇸":["#e81a30","#ffd21a"],
   "🇩🇪":["#2c2c2c","#ffcf1a"],"🇫🇷":["#2a72e0","#ff5347"],"🇬🇧":["#f4f8fd","#e8283f"],"🇳🇱":["#ff8a2a","#3a6ce0"],
   "🇵🇹":["#ee3a26","#12a659"],"🇯🇵":["#e8203f","#f4f8fd"],"🇺🇾":["#f4f8fd","#6f9be8"],"🇭🇷":["#ee262e","#3038d8"],
   "🇸🇪":["#2290d4","#ffd633"],"🇲🇽":["#0c7a44","#c8202f"],"🇧🇪":["#ffe54d","#ee2444"],"🇩🇰":["#b80c28","#f4f8fd"],
+  "🇺🇦":["#ffd21a","#0d5cd8"],"🇳🇴":["#c8102e","#00256e"], // ウクライナ=黄白青(瑞西の鏡像) / ノルウェー=赤白青(克国と色調差)
 };
 function natColors(flag){return NAT_COLORS[flag]||["#c9a24a","#2a3d56"];} // 既定=金/スチール
 // 国籍データ(flag → 国名)。カードの flag をキーに国名を導出する。
@@ -949,6 +950,21 @@ const SIGNATURES=[
   {id:"torres", name:"フェルナンド・トーレス", flag:"🇪🇸", pos:"FW", sub:"CF", type:"striker", age:26,
    stats:{off:20,def:13,pow:16,tec:15,spd:19,sta:17},
    skill:{name:"エル・ニーニョ", desc:"裏へ抜け出す一瞬のスピードで沈める金髪の申し子。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.35,shoot:1.4}}},
+  {id:"bellingham", name:"ジュード・ベリンガム", flag:"🇬🇧", pos:"MF", sub:"CMF", type:"b2b", age:21,
+   stats:{off:18,def:14,pow:16,tec:20,spd:16,sta:16},
+   skill:{name:"イングランドの至宝", desc:"広大な運動量でボックスまで駆け上がり自ら沈める新世代の中核。技術勝負とシュートを大幅強化", fx:{duelTec:1.35,shoot:1.3}}},
+  {id:"shevchenko", name:"アンドリー・シェフチェンコ", flag:"🇺🇦", pos:"FW", sub:"CF", type:"striker", age:28,
+   stats:{off:20,def:11,pow:18,tec:15,spd:19,sta:17},
+   skill:{name:"ウクライナの矢", desc:"爆発的なスピードと威力を兼ね備え確実に沈める東欧の点取り屋。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.3,shoot:1.4}}},
+  {id:"vannistelrooij", name:"ファン・ニステルローイ", flag:"🇳🇱", pos:"FW", sub:"CF", type:"striker", age:28,
+   stats:{off:20,def:12,pow:18,tec:16,spd:15,sta:19},
+   skill:{name:"ボックスの捕食者", desc:"エリア内の一瞬の反応から寸分違わず沈めるゴールハンター。シュートを最大強化し球際も強化", fx:{shoot:1.5,duelPow:1.2}}},
+  {id:"forlan", name:"ディエゴ・フォルラン", flag:"🇺🇾", pos:"FW", sub:"ST", type:"striker", age:30,
+   stats:{off:20,def:14,pow:18,tec:16,spd:15,sta:17},
+   skill:{name:"無回転の弾道", desc:"強烈な無回転ロングシュートと献身でチームを牽引する闘将。シュートと球際の力勝負を大幅強化", fx:{shoot:1.4,duelPow:1.3}}},
+  {id:"odegaard", name:"マルティン・ウーデゴール", flag:"🇳🇴", pos:"MF", sub:"OMF", type:"maker", age:25,
+   stats:{off:17,def:14,pow:14,tec:20,spd:17,sta:18},
+   skill:{name:"アーセナルの司令塔", desc:"柔らかいタッチと視野で決定機を演出しつづける現代の指揮者。チャンス創出と技術勝負を大幅強化", fx:{teamChance:1.4,duelTec:1.2}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 function makeSignature(id){
