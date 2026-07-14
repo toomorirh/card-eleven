@@ -690,7 +690,7 @@ function careerLoanOffer(cr){
 let _careerTab="schedule"; // 現在のセクションタブ
 let _careerSchedFit=null;  // 日程タブ: 日程リストの高さをビューポートに合わせる関数(リサイズ時再計算)
 if(typeof window!=="undefined"&&window.addEventListener)window.addEventListener("resize",()=>{if(typeof _careerSchedFit==="function")_careerSchedFit();});
-const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"club",lb:"🏛 施設"},{id:"manager",lb:"🎓 監督"}];
+const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"manager",lb:"🎓 監督"}]; // 施設は監督室に統合(キャリアからは削除)
 // ステータスカード(監督名・週の進捗バー・ステージ・名声・OVR上限)。
 function careerStatusCard(cr){
   const contNow=cr.contId?continentById(cr.contId):null;
@@ -785,7 +785,7 @@ function renderCareer(){
   if(!cr){ // 未開始
     if(csub)csub.replaceChildren(); // タブなし→サブナビ非表示
     box.appendChild(mk("div","lg","限られた任期(48週)で自分だけの<b>カスタム監督</b>を育成する最上位コンテンツ。詳しくは見出しの「?」。"));
-    const b=mk("button","btn");b.textContent="🎓 監督キャリアを始める";b.onclick=()=>startCareer();box.appendChild(b);
+    const b=mk("button","btn");b.textContent="シーズンを開始する";b.onclick=()=>startCareer();box.appendChild(b);
     if((S.customMgrs||[]).length)box.appendChild(mk("div","lg",`これまで育てた監督: ${S.customMgrs.length}名(監督室で起用可)`));
     if(typeof updateSubnav==="function"&&document.getElementById("scr-career").classList.contains("on"))updateSubnav("career");
     return;
