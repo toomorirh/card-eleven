@@ -85,11 +85,12 @@ def main():
     except ImportError:
         sys.exit("ERROR: Pillow が必要です。`pip install Pillow` を実行してください。")
 
-    src = pathlib.Path(args.src)
-    if not src.exists():
-        src = SIG_DIR / args.src
-    if not src.exists():
-        sys.exit(f"ERROR: ソース画像が見つかりません: {args.src}")
+    # 生ソースは signatures/raw/ (エモーショナルは emotionals/raw/) に集約。バレ名でも解決できるよう順に探す。
+    _cands = [pathlib.Path(args.src), SIG_DIR / args.src, SIG_DIR / "raw" / args.src,
+              ROOT / "src" / "assets" / "emotionals" / "raw" / args.src]
+    src = next((p for p in _cands if p.exists()), None)
+    if src is None:
+        sys.exit(f"ERROR: ソース画像が見つかりません: {args.src} (signatures/raw か emotionals/raw に置いてください)")
 
     im = Image.open(src).convert("RGBA")
     segs = detect_segments(im)
