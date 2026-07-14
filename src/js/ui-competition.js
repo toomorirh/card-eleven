@@ -28,17 +28,20 @@ function renderLeague(){
     l.appendChild(d);
   });
   if(S.cleared>=CLUBS.length){
-    const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!ワールドツアー解放!";
+    const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!リーグ戦が解放!(リーグ優勝でワールドツアー解放)";
     l.prepend(w);
   }
   updateModeButtons(); // ワールドツアー(全クラブ制覇)/デイリー(ツアー1週完了)の解放を反映
 }
 // モードボタンの解放: ワールドツアー=全クラブ制覇 / デイリー=ワールドツアー1週完了(S.tourDone)。
 function updateModeButtons(){
-  const wb=document.querySelector('#modeRow [data-m="world"]');
-  if(wb)wb.style.display=(S.cleared>=CLUBS.length)?"":"none";
-  const db=document.querySelector('#modeRow [data-m="daily"]');
-  if(db)db.style.display=(S.tourDone)?"":"none";
+  // 解放チェーン: ステージ完走→リーグ戦 / リーグ首位完走(優勝)→ワールドツアー / ツアー1週完了→デイリー。
+  // ()内は既存プレイヤーの据え置き(以前解放済みだった導線を奪わない)。
+  const leagueOK=S.cleared>=CLUBS.length||(S.leagueWins||0)>=1||S.leagueDone;
+  const worldOK=(S.leagueWins||0)>=1||S.tourDone||(S.tour&&(S.tour.res||[]).length>0);
+  const lb=document.querySelector('#modeRow [data-m="league"]'); if(lb)lb.style.display=leagueOK?"":"none";
+  const wb=document.querySelector('#modeRow [data-m="world"]');  if(wb)wb.style.display=worldOK?"":"none";
+  const db=document.querySelector('#modeRow [data-m="daily"]');  if(db)db.style.display=(S.tourDone)?"":"none";
 }
 // 偵察(事前調査): 相手の固定ロスターをフルサイズのフォーメーション図で表示(数値はOVRのみ)。
 // 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。ステージ/ワールド共用。
@@ -178,7 +181,7 @@ function renderLeagueMode(){
 // シーズン報酬: コインは順位別に毎回付与。パック類は実績(初優勝など)に一本化(checkAchievements)。
 function claimSeason(rank){
   let reward=100,msg=`${rank}位 参加賞🪙100`;
-  if(rank===1){reward=500;msg="🏆 優勝賞金🪙500!";S.leagueWins=(S.leagueWins||0)+1;}
+  if(rank===1){reward=500;msg="🏆 優勝賞金🪙500!";const first=(S.leagueWins||0)===0;S.leagueWins=(S.leagueWins||0)+1;if(first)setTimeout(()=>toast("🌍 リーグ制覇! ワールドツアーが解放されました!"),700);} // 初優勝でツアー解放
   else if(rank<=3){reward=250;msg=`${rank}位入賞🪙250`;}
   S.coins+=reward;coinUI();toast(msg);
   const letters=rank===1?2:1; // 周回報酬: シーズン完了で紹介状(優勝は2枚)→スカウト画面の監督スカウトに使う
@@ -416,7 +419,7 @@ function advanceGuide(){ // 現在ステップが達成済みなら次へ(達成
   return moved;
 }
 // ===== 監督室(プロフィール集約 + サブタブ: 対戦/戦績/実績) =====
-let _ofTab="match"; // 監督室の現在サブタブ
+let _ofTab="ach"; // 監督室の現在サブタブ(既定=実績)
 function renderOffice(){
   S.ms=S.ms||{};
   const rec=S.friendRec||{}; let w=0,d=0,l=0;
@@ -980,7 +983,8 @@ function renderHome(){
   const on=document.querySelector("#modeRow [data-m].on");
   let m=on?on.dataset.m:"stage";
   updateModeButtons(); // 解放状態を常に反映
-  if(m==="daily"&&!S.tourDone)m="stage"; // 未解放のデイリーがアクティブなら通常へ
+  const mb0=document.querySelector('#modeRow [data-m="'+m+'"]'); // 未解放(非表示)モードがアクティブならステージへ
+  if(mb0&&mb0.style.display==="none")m="stage";
   if(m==="league")renderLeagueMode();
   else if(m==="world")renderWorld();
   else if(m==="daily")renderDaily();
