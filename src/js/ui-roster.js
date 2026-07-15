@@ -24,7 +24,7 @@ function radarSVG(c){
 }
 function cardEl(c,mini){
   const d=document.createElement("div");
-  d.className="card "+c.rar+(c.sig&&!c.emo?" sig":"")+(mini?" mini":"");
+  d.className="card "+c.rar+(c.sig&&!c.emo?" sig":"")+(c.par?" par-"+c.par:"")+(mini?" mini":"");
   if(c.rar==="l"){const nc=natColors(c.flag);d.style.setProperty("--c1",nc[0]);d.style.setProperty("--c2",nc[1]);} // Legend/Signatureは国籍カラー背景
   // エモーショナルはスキル枠で「スキル名 ⇄ モーメント」をクロスフェード表示(専用帯は使わない=視認性改善)
   const sk=c.skill

@@ -1043,6 +1043,16 @@ const SIGNATURES=[
    skill:{name:"アーセナルの司令塔", desc:"柔らかいタッチと視野で決定機を演出しつづける現代の指揮者。チャンス創出と技術勝負を大幅強化", fx:{teamChance:1.4,duelTec:1.2}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
+// ===== パラレルカード(ガチャ限定・シグネチャ当選時に稀に上位化) =====
+// 種類は今後追加予定。apply(c) がカードへ隠し効果を付与し、c.par にID記録(券面の見た目も par-<id> で分岐)。
+const PARALLELS={
+  // DANGER ZONE: 得意能力(20)が21(デンジャーゾーン)へ。券面は 枠=赤/レーダー=赤/SIGNATURE文字=赤/21=赤。
+  danger:{ id:"danger", name:"DANGER ZONE",
+    apply(c){ ["off","def","pow","tec","spd","sta"].forEach(k=>{ if(c[k]===20)c[k]=21; }); } },
+};
+// シグネチャ当選時のパラレル抽選。現状 DangerZone のみ 1/50。将来は複数種を各レートで判定(最初に当たったもの)。
+function rollParallel(){ if(Math.random()<1/50)return "danger"; return null; }
+function applyParallel(c,parId){ const p=PARALLELS[parId]; if(!p||!c)return c; c.par=parId; p.apply(c); return c; }
 function makeSignature(id){
   const s=signatureById(id);if(!s)return null;
   const st=s.stats;

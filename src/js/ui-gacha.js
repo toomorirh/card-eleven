@@ -30,7 +30,9 @@ function drawSignatureCard(){
   if(typeof EMOTIONALS!=="undefined"&&EMOTIONALS.length&&Math.random()<0.01){
     const ep=unownedEmotionals();return makeEmotional(rnd(ep.length?ep:EMOTIONALS).id);
   }
-  const pool=unownedSignatures();return makeSignature(rnd(pool.length?pool:SIGNATURES).id);
+  const pool=unownedSignatures();const card=makeSignature(rnd(pool.length?pool:SIGNATURES).id);
+  const par=(typeof rollParallel==="function")&&rollParallel(); if(par)applyParallel(card,par); // ガチャ限定: シグネチャ当選時に稀にパラレル化
+  return card;
 }
 // 既に所持している固有選手のid集合(コレクション内に同じ sig を持つカードがあるか)。
 function ownedSigSet(){return new Set(S.coll.filter(c=>c.sig).map(c=>c.sig));}

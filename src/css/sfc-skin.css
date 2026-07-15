@@ -104,6 +104,12 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 .card.l.sig::after{content:"";position:absolute;inset:-60%;pointer-events:none;
   background:linear-gradient(115deg,transparent 36%,rgba(255,246,205,.42) 48%,transparent 60%);
   animation:holo 3.2s linear infinite}
+/* ===== パラレル: DANGER ZONE(枠=赤/レーダー=赤/SIGNATURE文字=赤/得意能力21=赤) ===== */
+.card.l.sig.par-danger{border-color:#ff3a3a!important;box-shadow:0 0 12px rgba(255,40,40,.55)!important}
+.card.l.sig.par-danger .rar{color:#ff6a6a!important;text-shadow:var(--txto),0 0 8px rgba(255,45,45,.95)}
+.card.par-danger .radar .rfill{fill:rgba(255,58,58,.28);stroke:#ff3a3a;filter:drop-shadow(0 0 4px rgba(255,55,55,.7))}
+.card.par-danger .rlab b.mx{color:#ff4d4d;text-shadow:-1px -1px 0 rgba(0,0,0,.9),1px -1px 0 rgba(0,0,0,.9),-1px 1px 0 rgba(0,0,0,.9),1px 1px 0 rgba(0,0,0,.9),0 0 7px rgba(255,60,60,.9)}
+.card.l.sig.par-danger::after{background:linear-gradient(115deg,transparent 36%,rgba(255,120,120,.42) 48%,transparent 60%)} /* ホロ光沢も赤系へ */
 .slot .scard.l{border-color:#d8ad63}
 /* Legend/Signatureの情報帯: 明るい国籍色の上でも文字が読めるよう暗いスクリムを敷く(色の主張は上部で確保) */
 .card.l .cinfo::before{content:"";position:absolute;left:-5px;right:-5px;top:0;bottom:-5px;z-index:-1;
