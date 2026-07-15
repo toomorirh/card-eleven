@@ -6088,13 +6088,13 @@ function _decCard(r,sigBits,typeBits,ageBits){
 function exportTeam(){
   const coach=_u8((S.coach||"名無し監督").slice(0,16)), team=_u8((S.teamName||"マイチーム").slice(0,16));
   const w=_BW();
-  w.push(Math.max(0,_FORMS.indexOf(S.form)),3);
+  w.push(Math.max(0,_FORMS.indexOf(S.form)),4); // フォメindexは4bit(最大16種・旧3bitのQRとは非互換)
   const favC=S.favId&&S.coll.find(k=>k.id===S.favId);
   w.push(favC?1:0,1);
   FORMS[S.form].forEach((sl,i)=>{const c=S.coll.find(k=>k.id===S.squad[i]);_encCard(w,c||makeCard(subGroup(sl[0]),"n",null,sl[0]),_SIGBITS,_TYPEBITS,_AGEBITS);});
   if(favC)_encCard(w,favC,_SIGBITS,_TYPEBITS,_AGEBITS);
   const bits=w.done();
-  const head=[0xC5,coach.length,...coach,team.length,...team]; // 0xC5=v5(age 5bit)。0xC4/0xC3/0xC2は読込互換
+  const head=[0xC6,coach.length,...coach,team.length,...team]; // 0xC6=v6(フォメ4bit)。0xC5/0xC4/0xC3/0xC2は読込互換
   return _b64u(Uint8Array.from(head.concat(bits)));
 }
 function challengeURL(){return location.origin+location.pathname+"#team="+exportTeam();}
@@ -6102,14 +6102,15 @@ function importTeam(raw){
   let code=(raw||"").trim();
   const m=code.match(/team=([A-Za-z0-9_-]+)/); if(m)code=m[1]; // URL貼り付けにも対応
   const bytes=_unb64u(code);
-  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3&&ver!==0xC4&&ver!==0xC5)throw new Error("bad");
-  const sigBits=(ver===0xC3||ver===0xC4||ver===0xC5)?10:5; // sig ビット幅(v2=5/v3以降=10)
-  const typeBits=(ver===0xC4||ver===0xC5)?3:2;             // type ビット幅(v4以降=3で最大8種/ポジション)
-  const ageBits=ver===0xC5?5:0;                            // age ビット幅(v5=5。以前は非同梱→AGE_DEF)
+  const ver=bytes[0]; if(ver!==0xC2&&ver!==0xC3&&ver!==0xC4&&ver!==0xC5&&ver!==0xC6)throw new Error("bad");
+  const sigBits=(ver===0xC3||ver===0xC4||ver===0xC5||ver===0xC6)?10:5; // sig ビット幅(v2=5/v3以降=10)
+  const typeBits=(ver===0xC4||ver===0xC5||ver===0xC6)?3:2;             // type ビット幅(v4以降=3で最大8種/ポジション)
+  const ageBits=(ver===0xC5||ver===0xC6)?5:0;                          // age ビット幅(v5以降=5。以前は非同梱→AGE_DEF)
+  const formBits=(ver===0xC6)?4:3;                                     // フォメ index 幅(v6以降=4bitで最大16種・旧版は3bit)
   let p=1; const cl=bytes[p++], coach=_us(bytes.slice(p,p+cl)); p+=cl;
   const tl=bytes[p++], team=_us(bytes.slice(p,p+tl)); p+=tl;
   const r=_BR(bytes.slice(p));
-  const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
+  const form=_FORMS[r.read(formBits)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
   const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits,typeBits,ageBits);
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const fav=favFlag?_decCard(r,sigBits,typeBits,ageBits):null;
