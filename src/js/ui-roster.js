@@ -153,7 +153,7 @@ function renderPitch(){
   }
   renderBenchSlots();
   renderRoleTiles(p, ctxN);
-  renderManagerAdvice();
+  renderManagerAdvice(document.getElementById("mgrAdvice"), effectiveManager(), ctxN);
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
 }
@@ -276,13 +276,13 @@ function renderChemLines(pitch, squad, find){
   if(svg.childNodes.length)pitch.appendChild(svg);
 }
 // 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
-function squadHasCond(sub,st,th){return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=S.coll.find(k=>k.id===S.squad[i]);return c&&c[st]>=th;});}
-function renderManagerAdvice(){
-  const box=document.getElementById("mgrAdvice");if(!box)return;box.innerHTML="";
-  const m=effectiveManager(); // 起用中(無ければ見習い監督)。見た目・名前を編成画面にも表示
-  if(!m){box.style.display="none";return;}
-  box.style.display="";
-  box.appendChild(mgrPortrait(m,86));
+function squadHasCond(ctx,sub,st,th){const sq=ctx.squad();return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=ctx.find(sq[i]);return c&&c[st]>=th;});}
+// 監督アドバイス札(全身絵+バフ+采配の発動条件)。通常/キャリアで共通: host(描画先)・m(監督)・ctx(編成ソース)を渡す。
+function renderManagerAdvice(host,m,ctx){
+  if(!host)return;host.innerHTML="";
+  if(!m){host.style.display="none";return;}
+  host.style.display="";
+  host.appendChild(mgrPortrait(m,86));
   const bub=document.createElement("div");bub.className="mgr-bubble";
   // 監督名を表示(カスタム/見習いは名前のみ・名将は肩書+氏名)。
   const nameLine=(m.custom||m.id==="rookie")?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
@@ -292,11 +292,11 @@ function renderManagerAdvice(){
     +(hasBuff?`<div class="lv">🔼 監督バフ: <b>${bd}</b></div>`
              :`<div class="lv" style="opacity:.7">バフ無し(名将を起用 or キャリアで監督を育成すると強化)</div>`);
   mgrTacs(m).forEach(t=>{ // 全采配(カスタムは複数)を発動条件つきで提示
-    const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(sub,st,th));
+    const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(ctx,sub,st,th));
     const conds=(t.cond||[]).map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
     html+=`<div class="mgr-tac${ready?" met":""}">采配「${t.name}」: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}</div>`;
   });
-  bub.innerHTML=html;box.appendChild(bub);
+  bub.innerHTML=html;host.appendChild(bub);
 }
 function openPicker(i,sub){
   pickSlot=i;

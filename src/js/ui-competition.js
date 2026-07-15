@@ -788,6 +788,7 @@ function careerTabBar(){
   const bar=document.createElement("div");bar.className="career-tabs";
   CAREER_TABS.forEach(t=>{const b=document.createElement("button");b.className="ctab"+(_careerTab===t.id?" on":"");b.textContent=t.lb;
     b.onclick=()=>{_careerTab=t.id;renderCareer();};bar.appendChild(b);});
+  bar.insertAdjacentHTML("beforeend", helpIcon("career")); // 見出し撤去に伴い、ヘルプ「?」はタブバー端に配置
   return bar;
 }
 // 次にこのカップにエントリーできる週(period の倍数・1基点)。
@@ -832,8 +833,8 @@ function renderCareer(){
   const csub=document.getElementById("careerSub");
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
   const cr=S.career;
-  box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
   if(!cr){ // 未開始
+    box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
     if(csub)csub.replaceChildren(); // タブなし→サブナビ非表示
     box.appendChild(mk("div","lg","限られた任期(48週)で自分だけの<b>カスタム監督</b>を育成する最上位コンテンツ。詳しくは見出しの「?」。"));
     const b=mk("button","btn");b.textContent="シーズンを開始する";b.onclick=()=>startCareer();box.appendChild(b);
@@ -872,9 +873,11 @@ function renderCareer(){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[]; if(!cr.kickers)cr.kickers={pk:null,fk:null,ck:null}; if(cr.captain===undefined)cr.captain=null;
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
     body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${coachCtrlBonus()?`(基本${cr.ovrCap}+🧭${coachCtrlBonus()})`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
-    // 通常編成と同一UI: ピッチ盤(ロールタイル+徽章) → ベンチ → 陣形/自動編成ボタン(ベンチ下)
+    // 通常編成と同一UI: 監督アドバイス → ピッチ盤(ロールタイル+徽章) → ベンチ → 陣形/自動編成ボタン(ベンチ下)
     const ctxC=roleCtxCareer(cr);
     const find=id=>careerPool(cr).find(k=>k.id===id);
+    const adv=mk("div","mgr-advice");body.appendChild(adv);
+    renderManagerAdvice(adv, careerAdviceMgr(cr), ctxC); // 育成中監督を通常編成と同じ札で表示
     const pitch=mk("div","pitch");
     pitch.innerHTML='<div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div>';
     body.appendChild(pitch);

@@ -1889,6 +1889,9 @@ function homeManager(){
   }
   return activeManager();
 }
+// 編成画面で育成中監督を表示するための manager オブジェクト(homeManagerのキャリア分岐と同形・試合外でも使える)。
+function careerAdviceMgr(cr){ if(!cr)return null; const v=vizColRow(cr.viz||0);
+  return {custom:true, name:cr.name, title:"育成中の監督", boosts:cr.boosts||[], tacs:cr.tacs||[], col:v.col, row:v.row}; }
 // カスタム監督を生成して S.customMgrs に登録(監督キャリアモードが boosts/tacs を積んで使う)。
 function createCustomManager(spec){
   spec=spec||{};
@@ -5115,7 +5118,7 @@ function renderPitch(){
   }
   renderBenchSlots();
   renderRoleTiles(p, ctxN);
-  renderManagerAdvice();
+  renderManagerAdvice(document.getElementById("mgrAdvice"), effectiveManager(), ctxN);
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
 }
@@ -5238,13 +5241,13 @@ function renderChemLines(pitch, squad, find){
   if(svg.childNodes.length)pitch.appendChild(svg);
 }
 // 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
-function squadHasCond(sub,st,th){return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=S.coll.find(k=>k.id===S.squad[i]);return c&&c[st]>=th;});}
-function renderManagerAdvice(){
-  const box=document.getElementById("mgrAdvice");if(!box)return;box.innerHTML="";
-  const m=effectiveManager(); // 起用中(無ければ見習い監督)。見た目・名前を編成画面にも表示
-  if(!m){box.style.display="none";return;}
-  box.style.display="";
-  box.appendChild(mgrPortrait(m,86));
+function squadHasCond(ctx,sub,st,th){const sq=ctx.squad();return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=ctx.find(sq[i]);return c&&c[st]>=th;});}
+// 監督アドバイス札(全身絵+バフ+采配の発動条件)。通常/キャリアで共通: host(描画先)・m(監督)・ctx(編成ソース)を渡す。
+function renderManagerAdvice(host,m,ctx){
+  if(!host)return;host.innerHTML="";
+  if(!m){host.style.display="none";return;}
+  host.style.display="";
+  host.appendChild(mgrPortrait(m,86));
   const bub=document.createElement("div");bub.className="mgr-bubble";
   // 監督名を表示(カスタム/見習いは名前のみ・名将は肩書+氏名)。
   const nameLine=(m.custom||m.id==="rookie")?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
@@ -5254,11 +5257,11 @@ function renderManagerAdvice(){
     +(hasBuff?`<div class="lv">🔼 監督バフ: <b>${bd}</b></div>`
              :`<div class="lv" style="opacity:.7">バフ無し(名将を起用 or キャリアで監督を育成すると強化)</div>`);
   mgrTacs(m).forEach(t=>{ // 全采配(カスタムは複数)を発動条件つきで提示
-    const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(sub,st,th));
+    const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(ctx,sub,st,th));
     const conds=(t.cond||[]).map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
     html+=`<div class="mgr-tac${ready?" met":""}">采配「${t.name}」: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}</div>`;
   });
-  bub.innerHTML=html;box.appendChild(bub);
+  bub.innerHTML=html;host.appendChild(bub);
 }
 function openPicker(i,sub){
   pickSlot=i;
@@ -6476,6 +6479,7 @@ function careerTabBar(){
   const bar=document.createElement("div");bar.className="career-tabs";
   CAREER_TABS.forEach(t=>{const b=document.createElement("button");b.className="ctab"+(_careerTab===t.id?" on":"");b.textContent=t.lb;
     b.onclick=()=>{_careerTab=t.id;renderCareer();};bar.appendChild(b);});
+  bar.insertAdjacentHTML("beforeend", helpIcon("career")); // 見出し撤去に伴い、ヘルプ「?」はタブバー端に配置
   return bar;
 }
 // 次にこのカップにエントリーできる週(period の倍数・1基点)。
@@ -6520,8 +6524,8 @@ function renderCareer(){
   const csub=document.getElementById("careerSub");
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
   const cr=S.career;
-  box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
   if(!cr){ // 未開始
+    box.appendChild(mk("div","banner",'― 🎓 監督キャリア ― '+helpIcon("career")));
     if(csub)csub.replaceChildren(); // タブなし→サブナビ非表示
     box.appendChild(mk("div","lg","限られた任期(48週)で自分だけの<b>カスタム監督</b>を育成する最上位コンテンツ。詳しくは見出しの「?」。"));
     const b=mk("button","btn");b.textContent="シーズンを開始する";b.onclick=()=>startCareer();box.appendChild(b);
@@ -6560,9 +6564,11 @@ function renderCareer(){
     if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[]; if(!cr.kickers)cr.kickers={pk:null,fk:null,ck:null}; if(cr.captain===undefined)cr.captain=null;
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
     body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${coachCtrlBonus()?`(基本${cr.ovrCap}+🧭${coachCtrlBonus()})`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
-    // 通常編成と同一UI: ピッチ盤(ロールタイル+徽章) → ベンチ → 陣形/自動編成ボタン(ベンチ下)
+    // 通常編成と同一UI: 監督アドバイス → ピッチ盤(ロールタイル+徽章) → ベンチ → 陣形/自動編成ボタン(ベンチ下)
     const ctxC=roleCtxCareer(cr);
     const find=id=>careerPool(cr).find(k=>k.id===id);
+    const adv=mk("div","mgr-advice");body.appendChild(adv);
+    renderManagerAdvice(adv, careerAdviceMgr(cr), ctxC); // 育成中監督を通常編成と同じ札で表示
     const pitch=mk("div","pitch");
     pitch.innerHTML='<div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div>';
     body.appendChild(pitch);

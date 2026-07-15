@@ -591,6 +591,9 @@ function homeManager(){
   }
   return activeManager();
 }
+// 編成画面で育成中監督を表示するための manager オブジェクト(homeManagerのキャリア分岐と同形・試合外でも使える)。
+function careerAdviceMgr(cr){ if(!cr)return null; const v=vizColRow(cr.viz||0);
+  return {custom:true, name:cr.name, title:"育成中の監督", boosts:cr.boosts||[], tacs:cr.tacs||[], col:v.col, row:v.row}; }
 // カスタム監督を生成して S.customMgrs に登録(監督キャリアモードが boosts/tacs を積んで使う)。
 function createCustomManager(spec){
   spec=spec||{};
