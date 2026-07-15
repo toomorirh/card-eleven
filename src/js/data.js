@@ -405,6 +405,32 @@ function facilityWelcomeGrant(){
   const p=(S.cleared||0)*4+Math.floor((S.coll||[]).length/8)+(S.customMgrs||[]).length*20+(S.leagueWins||0)*3+(S.tourPerfect||0)*5;
   return {p, coach:Math.min(3,Math.floor(p/40))};
 }
+// 采配の起点(from)定義: subs=起点になり得るsubRole / act=発動アクション。
+// act: cross(クロス→空中戦) / through(決定的スルー→1対1) / shot(起点が強引にフィニッシュ) / block(CBブロック=守備) / save(GKセーブ=守備)。
+// ※攻撃采配の起点は pickAttacker で選ばれる持ち主(GKは対象外)。GKは守備采配(save)専用。
+const TAC_FROM={
+  sb: {subs:["LSB","RSB"], act:"cross"},
+  lmf:{subs:["LMF"],       act:"cross"},
+  omf:{subs:["OMF"],       act:"through"},
+  wg: {subs:["LWG","RWG"], act:"through"},
+  rmf:{subs:["RMF"],       act:"through"},
+  cmf:{subs:["CMF"],       act:"through"},
+  dmf:{subs:["DMF"],       act:"through"},
+  st: {subs:["ST"],        act:"shot"},
+  cf: {subs:["CF"],        act:"shot"},
+  cb: {subs:["CB"],        act:"block"},
+  gk: {subs:["GK"],        act:"save"},
+};
+function tacAct(from){return (TAC_FROM[from]||{}).act||"through";}
+function tacFromSubs(from){return (TAC_FROM[from]||{}).subs||[];}
+function tacIsDef(from){const a=tacAct(from);return a==="block"||a==="save";}
+// 采配の効果テキスト(報酬提示UI等で共通利用)。
+function tacEffText(t){
+  if(t.kind==="team")return `🌟 国際チームスキル: 発動で全体+${Math.round((t.surge.mul-1)*100)}%(${t.surge.ticks}T)`;
+  const a=tacAct(t.from);
+  return a==="save"?"守備采配: 守護神のセーブ":a==="block"?"守備采配: シュートブロック"
+    :a==="cross"?"攻撃采配: クロス→空中戦":a==="shot"?"攻撃采配: 強引フィニッシュ":"攻撃采配: 決定的スルー";
+}
 // カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
 const CAREER_TACS={
   basic:[
@@ -412,6 +438,14 @@ const CAREER_TACS={
     {name:"アーリークロス", from:"sb",  cond:[["LSB","tec",16]], chance:0.45},
     {name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",18]], chance:0.45},
     {name:"密集ブロック",   from:"cb",  cond:[["CB","def",18]],  chance:0.45},
+    // 各ポジション起点の采配(基本)。lmf=クロス / rmf・cmf・dmf=スルー / st・cf=強引フィニッシュ / gk=守備セーブ
+    {name:"サイドチェンジクロス", from:"lmf", cond:[["LMF","tec",18]], chance:0.45},
+    {name:"インナーラップ",       from:"rmf", cond:[["RMF","spd",18]], chance:0.45},
+    {name:"中央のタクト",         from:"cmf", cond:[["CMF","tec",18]], chance:0.45},
+    {name:"アンカーの縦刺し",     from:"dmf", cond:[["DMF","tec",18]], chance:0.45},
+    {name:"裏抜けフィニッシュ",   from:"st",  cond:[["ST","off",18]],  chance:0.45},
+    {name:"ポスト起点の反転",     from:"cf",  cond:[["CF","pow",18]],  chance:0.45},
+    {name:"守護神の一手",         from:"gk",  cond:[["GK","def",18]],  chance:0.45},
   ],
   strong:[
     {name:"閃光のスルーパス",   from:"omf", cond:[["OMF","tec",18]], chance:0.55, pow:1.3},
@@ -425,6 +459,14 @@ const CAREER_TACS={
     {name:"トリッキードリブル", from:"wg",  cond:[["LWG","tec",20]], chance:0.46},
     {name:"ウイングバック強襲", from:"sb",  cond:[["RSB","sta",20],["CF","pow",20]], chance:0.52},
     {name:"オフサイドトラップ", from:"cb",  cond:[["CB","def",20]],  chance:0.35},
+    // 各ポジション起点の采配(強化: 高発動・クロス系はpow増)
+    {name:"必殺のサイドチェンジ", from:"lmf", cond:[["LMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"電光のインナーラップ", from:"rmf", cond:[["RMF","spd",18]], chance:0.55, pow:1.3},
+    {name:"司令塔のタクト",       from:"cmf", cond:[["CMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"アンカーの一閃",       from:"dmf", cond:[["DMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"神速の裏抜け",         from:"st",  cond:[["ST","off",18]],  chance:0.55, pow:1.3},
+    {name:"鉄壁のポストプレー",   from:"cf",  cond:[["CF","pow",18]],  chance:0.55, pow:1.3},
+    {name:"守護神の鉄壁",         from:"gk",  cond:[["GK","def",18]],  chance:0.60},
   ],
   team:[ // 国際チームスキル: 発動でチーム全体が数ティック底上げ(surge)
     {name:"無敵艦隊",       kind:"team", flag:"🇪🇸", cond:[["CMF","tec",18]], chance:0.50, surge:{mul:1.25,ticks:3}},

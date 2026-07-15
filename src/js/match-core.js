@@ -412,15 +412,15 @@ function eff(p,k,min,T,opT){
   return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1)*(T&&T.ctrl||1); // p.cond=調子 / T.ctrl=統制超過ペナルティ
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
-// 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=密集ブロック)を1つ返す(発動抽選は呼び出し側)。
+// 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=ブロック / gk=セーブ)を1つ返す(発動抽選は呼び出し側)。
 function mgrCbTac(team){
   if(!team||team.side!=="H"||!team.mgr)return null;
-  for(const t of mgrTacs(team.mgr)){ if(t.from==="cb"&&tacCondMet(t,team))return t; }
+  for(const t of mgrTacs(team.mgr)){ if(tacIsDef(t.from)&&tacCondMet(t,team))return t; }
   return null;
 }
 function tacCondMet(tac,team){return tac.cond.every(([sub,st,th])=>team.players.some(p=>p.subRole===sub&&p.c[st]>=th));}
-function tacFromMatch(tac,carrier){const f=tac.from,sr=carrier&&carrier.subRole;
-  return f==="sb"?(sr==="LSB"||sr==="RSB"):f==="cb"?sr==="CB":f==="omf"?sr==="OMF":f==="wg"?(sr==="LWG"||sr==="RWG"):false;}
+// 攻撃采配の起点判定: 持ち主のsubRoleが tac.from の起点ポジ群に含まれるか(守備采配は含まれず攻撃時は発火しない)。
+function tacFromMatch(tac,carrier){return tacFromSubs(tac.from).includes(carrier&&carrier.subRole);}
 function fx(p){return p.c.skill?p.c.skill.fx:{};}
 function midPower(T,opT,min){
   let m=0;

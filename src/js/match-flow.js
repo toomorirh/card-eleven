@@ -116,7 +116,7 @@ function mgrCarryTac(A,carrier){
   if(A.side!=="H"||!A.mgr)return null;
   const surge=1+(A.ctrlSurge||0); // 統率に余裕があるほど采配が出やすい(隠し・最大×1.20)
   for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
-    if(tac.from==="cb")continue;                              // cb(密集ブロック)は守備采配=tryShot側
+    if(tacIsDef(tac.from))continue;                           // 守備采配(cb=ブロック/gk=セーブ)は tryShot 側で発火
     if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance*surge)return tac; continue; } // 国際チームスキルはfrom不問
     if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))continue; // 起点が采配のキープレイヤーか
     if(Math.random()<tac.chance*surge)return tac;
@@ -135,13 +135,22 @@ async function mgrTacAction(A,D,min,carrier,tac,who){
   addVolt(TUNING.volt.shot);
   await tacCutin(tac,A.mgr,carrier);
   const pw=tac.pow||1; // 強化采配は効果増
-  if(tac.from==="sb"){ // アーリークロス → 空中戦(采配ボーナス)
+  const act=tacAct(tac.from), dir=dirOf(A), gx=goalXOf(A);
+  if(act==="cross"){ // アーリークロス/サイドチェンジ → 空中戦(采配ボーナス)
     await ballTo(curP(carrier).x,curP(carrier).y,0.2);
     await aerialBox(A,D,min,carrier,{a:1.3*pw,d:1,bonus:1.3*pw},who);
     return;
   }
-  // 電光タクト / 電撃カウンター: 抜け出すランナーへ決定的スルー → 1対1
-  const dir=dirOf(A),gx=goalXOf(A), r=pickTarget(A)||carrier; r.stat.inv++;
+  if(act==="shot"){ // 起点FW(ST/CF)がそのままボックスへ持ち込み強引にフィニッシュ
+    const ly=42+ri(0,14); carrier.stat.inv++;
+    movePlayer(carrier,gx-dir*10,ly,0.4); await ballTo(gx-dir*10,ly,0.4); hot(carrier);
+    feed(`${who}⚡ <b>${carrier.c.name}</b>が強引に持ち込む!`,"chance");
+    await ballTo(gx-dir*8,ly+(50-ly)*0.3,0.3);
+    await tryShot(carrier,A,D,min,false,null,null,carrier);
+    return;
+  }
+  // through(電光タクト/電撃カウンター等): 抜け出すランナーへ決定的スルー → 1対1
+  const r=pickTarget(A)||carrier; r.stat.inv++;
   const ly=28+ri(0,44);
   movePlayer(r,gx-dir*12,ly,0.4); await ballTo(gx-dir*12,ly,0.4); hot(r);
   feed(`${who}⚡ <b>${r.c.name}</b>が抜け出した!`,"chance");
@@ -390,14 +399,20 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 }
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
-  // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら自チームCBがブロック(密集ブロック)
+  // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら守備采配で失点を防ぐ(cb=ブロック / gk=セーブ)
   if(A.side==="A"&&MC&&MC.home&&(MC.volt||0)>=TUNING.volt.tacGate){
-    const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb)を1つ取得(カスタム監督の複数tacにも対応)
+    const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb/gk)を1つ取得(カスタム監督の複数tacにも対応)
     if(dtac&&Math.random()<dtac.chance*(1+(MC.home.ctrlSurge||0))){ // 統率の余裕で発動率アップ(隠し)
-      const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
-      cb.stat.tkl++;cb.stat.inv++;
-      feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
-      await tacCutin(dtac,MC.home.mgr,cb);
+      if(tacAct(dtac.from)==="save"){ // 守護神のセーブ: GKがスーパーセーブ
+        const gk=pickGK(MC.home);gk.stat.saves++;gk.stat.inv++;
+        feed(`🎓 監督の采配!【${dtac.name}】<b>${gk.c.name}</b>が驚異のセーブ!`,"chance");
+        await tacCutin(dtac,MC.home.mgr,gk);
+      }else{ // 密集ブロック等: CBが身体を投げ出してブロック
+        const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
+        cb.stat.tkl++;cb.stat.inv++;
+        feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
+        await tacCutin(dtac,MC.home.mgr,cb);
+      }
       await ballTo(goalXOf(A)-dirOf(A)*16,50,0.45); // 弾き出し
       return;
     }
@@ -926,7 +941,7 @@ function offerCareerTac(pool,cup){
   const inn=ov.querySelector(".tac-offer-in");
   pick.forEach(t=>{
     const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
-    const eff=t.kind==="team"?`🌟 国際チームスキル: 発動で全体+${Math.round((t.surge.mul-1)*100)}%(${t.surge.ticks}T)`:t.from==="cb"?"守備采配: シュートブロック":t.from==="sb"?"攻撃采配: アーリークロス":t.from==="wg"?"攻撃采配: 電撃カウンター":"攻撃采配: 決定的スルー";
+    const eff=tacEffText(t);
     b.innerHTML=`<b>${t.flag||""}${t.name}</b><br><span class="lv">${eff} ・ 発動率${Math.round(t.chance*100)}%</span>`;
     b.onclick=()=>{cr.tacs.push({...t}); save(); ov.remove(); toast(`采配「${t.name}」を習得!`); if(!finalizeCareerIfDone())renderCareer();};
     inn.appendChild(b);

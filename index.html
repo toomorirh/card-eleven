@@ -1689,6 +1689,32 @@ function facilityWelcomeGrant(){
   const p=(S.cleared||0)*4+Math.floor((S.coll||[]).length/8)+(S.customMgrs||[]).length*20+(S.leagueWins||0)*3+(S.tourPerfect||0)*5;
   return {p, coach:Math.min(3,Math.floor(p/40))};
 }
+// 采配の起点(from)定義: subs=起点になり得るsubRole / act=発動アクション。
+// act: cross(クロス→空中戦) / through(決定的スルー→1対1) / shot(起点が強引にフィニッシュ) / block(CBブロック=守備) / save(GKセーブ=守備)。
+// ※攻撃采配の起点は pickAttacker で選ばれる持ち主(GKは対象外)。GKは守備采配(save)専用。
+const TAC_FROM={
+  sb: {subs:["LSB","RSB"], act:"cross"},
+  lmf:{subs:["LMF"],       act:"cross"},
+  omf:{subs:["OMF"],       act:"through"},
+  wg: {subs:["LWG","RWG"], act:"through"},
+  rmf:{subs:["RMF"],       act:"through"},
+  cmf:{subs:["CMF"],       act:"through"},
+  dmf:{subs:["DMF"],       act:"through"},
+  st: {subs:["ST"],        act:"shot"},
+  cf: {subs:["CF"],        act:"shot"},
+  cb: {subs:["CB"],        act:"block"},
+  gk: {subs:["GK"],        act:"save"},
+};
+function tacAct(from){return (TAC_FROM[from]||{}).act||"through";}
+function tacFromSubs(from){return (TAC_FROM[from]||{}).subs||[];}
+function tacIsDef(from){const a=tacAct(from);return a==="block"||a==="save";}
+// 采配の効果テキスト(報酬提示UI等で共通利用)。
+function tacEffText(t){
+  if(t.kind==="team")return `🌟 国際チームスキル: 発動で全体+${Math.round((t.surge.mul-1)*100)}%(${t.surge.ticks}T)`;
+  const a=tacAct(t.from);
+  return a==="save"?"守備采配: 守護神のセーブ":a==="block"?"守備采配: シュートブロック"
+    :a==="cross"?"攻撃采配: クロス→空中戦":a==="shot"?"攻撃采配: 強引フィニッシュ":"攻撃采配: 決定的スルー";
+}
 // カップ優勝で得られる采配tacのプール。基本(from型行動)/強化(pow増・高発動)/国際(kind:team=チーム全体surge)。
 const CAREER_TACS={
   basic:[
@@ -1696,6 +1722,14 @@ const CAREER_TACS={
     {name:"アーリークロス", from:"sb",  cond:[["LSB","tec",16]], chance:0.45},
     {name:"電撃カウンター", from:"wg",  cond:[["LWG","spd",18]], chance:0.45},
     {name:"密集ブロック",   from:"cb",  cond:[["CB","def",18]],  chance:0.45},
+    // 各ポジション起点の采配(基本)。lmf=クロス / rmf・cmf・dmf=スルー / st・cf=強引フィニッシュ / gk=守備セーブ
+    {name:"サイドチェンジクロス", from:"lmf", cond:[["LMF","tec",18]], chance:0.45},
+    {name:"インナーラップ",       from:"rmf", cond:[["RMF","spd",18]], chance:0.45},
+    {name:"中央のタクト",         from:"cmf", cond:[["CMF","tec",18]], chance:0.45},
+    {name:"アンカーの縦刺し",     from:"dmf", cond:[["DMF","tec",18]], chance:0.45},
+    {name:"裏抜けフィニッシュ",   from:"st",  cond:[["ST","off",18]],  chance:0.45},
+    {name:"ポスト起点の反転",     from:"cf",  cond:[["CF","pow",18]],  chance:0.45},
+    {name:"守護神の一手",         from:"gk",  cond:[["GK","def",18]],  chance:0.45},
   ],
   strong:[
     {name:"閃光のスルーパス",   from:"omf", cond:[["OMF","tec",18]], chance:0.55, pow:1.3},
@@ -1709,6 +1743,14 @@ const CAREER_TACS={
     {name:"トリッキードリブル", from:"wg",  cond:[["LWG","tec",20]], chance:0.46},
     {name:"ウイングバック強襲", from:"sb",  cond:[["RSB","sta",20],["CF","pow",20]], chance:0.52},
     {name:"オフサイドトラップ", from:"cb",  cond:[["CB","def",20]],  chance:0.35},
+    // 各ポジション起点の采配(強化: 高発動・クロス系はpow増)
+    {name:"必殺のサイドチェンジ", from:"lmf", cond:[["LMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"電光のインナーラップ", from:"rmf", cond:[["RMF","spd",18]], chance:0.55, pow:1.3},
+    {name:"司令塔のタクト",       from:"cmf", cond:[["CMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"アンカーの一閃",       from:"dmf", cond:[["DMF","tec",18]], chance:0.55, pow:1.3},
+    {name:"神速の裏抜け",         from:"st",  cond:[["ST","off",18]],  chance:0.55, pow:1.3},
+    {name:"鉄壁のポストプレー",   from:"cf",  cond:[["CF","pow",18]],  chance:0.55, pow:1.3},
+    {name:"守護神の鉄壁",         from:"gk",  cond:[["GK","def",18]],  chance:0.60},
   ],
   team:[ // 国際チームスキル: 発動でチーム全体が数ティック底上げ(surge)
     {name:"無敵艦隊",       kind:"team", flag:"🇪🇸", cond:[["CMF","tec",18]], chance:0.50, surge:{mul:1.25,ticks:3}},
@@ -6978,15 +7020,15 @@ function eff(p,k,min,T,opT){
   return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1)*(T&&T.ctrl||1); // p.cond=調子 / T.ctrl=統制超過ペナルティ
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
-// 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=密集ブロック)を1つ返す(発動抽選は呼び出し側)。
+// 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=ブロック / gk=セーブ)を1つ返す(発動抽選は呼び出し側)。
 function mgrCbTac(team){
   if(!team||team.side!=="H"||!team.mgr)return null;
-  for(const t of mgrTacs(team.mgr)){ if(t.from==="cb"&&tacCondMet(t,team))return t; }
+  for(const t of mgrTacs(team.mgr)){ if(tacIsDef(t.from)&&tacCondMet(t,team))return t; }
   return null;
 }
 function tacCondMet(tac,team){return tac.cond.every(([sub,st,th])=>team.players.some(p=>p.subRole===sub&&p.c[st]>=th));}
-function tacFromMatch(tac,carrier){const f=tac.from,sr=carrier&&carrier.subRole;
-  return f==="sb"?(sr==="LSB"||sr==="RSB"):f==="cb"?sr==="CB":f==="omf"?sr==="OMF":f==="wg"?(sr==="LWG"||sr==="RWG"):false;}
+// 攻撃采配の起点判定: 持ち主のsubRoleが tac.from の起点ポジ群に含まれるか(守備采配は含まれず攻撃時は発火しない)。
+function tacFromMatch(tac,carrier){return tacFromSubs(tac.from).includes(carrier&&carrier.subRole);}
 function fx(p){return p.c.skill?p.c.skill.fx:{};}
 function midPower(T,opT,min){
   let m=0;
@@ -7703,7 +7745,7 @@ function mgrCarryTac(A,carrier){
   if(A.side!=="H"||!A.mgr)return null;
   const surge=1+(A.ctrlSurge||0); // 統率に余裕があるほど采配が出やすい(隠し・最大×1.20)
   for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
-    if(tac.from==="cb")continue;                              // cb(密集ブロック)は守備采配=tryShot側
+    if(tacIsDef(tac.from))continue;                           // 守備采配(cb=ブロック/gk=セーブ)は tryShot 側で発火
     if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance*surge)return tac; continue; } // 国際チームスキルはfrom不問
     if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))continue; // 起点が采配のキープレイヤーか
     if(Math.random()<tac.chance*surge)return tac;
@@ -7722,13 +7764,22 @@ async function mgrTacAction(A,D,min,carrier,tac,who){
   addVolt(TUNING.volt.shot);
   await tacCutin(tac,A.mgr,carrier);
   const pw=tac.pow||1; // 強化采配は効果増
-  if(tac.from==="sb"){ // アーリークロス → 空中戦(采配ボーナス)
+  const act=tacAct(tac.from), dir=dirOf(A), gx=goalXOf(A);
+  if(act==="cross"){ // アーリークロス/サイドチェンジ → 空中戦(采配ボーナス)
     await ballTo(curP(carrier).x,curP(carrier).y,0.2);
     await aerialBox(A,D,min,carrier,{a:1.3*pw,d:1,bonus:1.3*pw},who);
     return;
   }
-  // 電光タクト / 電撃カウンター: 抜け出すランナーへ決定的スルー → 1対1
-  const dir=dirOf(A),gx=goalXOf(A), r=pickTarget(A)||carrier; r.stat.inv++;
+  if(act==="shot"){ // 起点FW(ST/CF)がそのままボックスへ持ち込み強引にフィニッシュ
+    const ly=42+ri(0,14); carrier.stat.inv++;
+    movePlayer(carrier,gx-dir*10,ly,0.4); await ballTo(gx-dir*10,ly,0.4); hot(carrier);
+    feed(`${who}⚡ <b>${carrier.c.name}</b>が強引に持ち込む!`,"chance");
+    await ballTo(gx-dir*8,ly+(50-ly)*0.3,0.3);
+    await tryShot(carrier,A,D,min,false,null,null,carrier);
+    return;
+  }
+  // through(電光タクト/電撃カウンター等): 抜け出すランナーへ決定的スルー → 1対1
+  const r=pickTarget(A)||carrier; r.stat.inv++;
   const ly=28+ri(0,44);
   movePlayer(r,gx-dir*12,ly,0.4); await ballTo(gx-dir*12,ly,0.4); hot(r);
   feed(`${who}⚡ <b>${r.c.name}</b>が抜け出した!`,"chance");
@@ -7977,14 +8028,20 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 }
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
-  // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら自チームCBがブロック(密集ブロック)
+  // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら守備采配で失点を防ぐ(cb=ブロック / gk=セーブ)
   if(A.side==="A"&&MC&&MC.home&&(MC.volt||0)>=TUNING.volt.tacGate){
-    const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb)を1つ取得(カスタム監督の複数tacにも対応)
+    const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb/gk)を1つ取得(カスタム監督の複数tacにも対応)
     if(dtac&&Math.random()<dtac.chance*(1+(MC.home.ctrlSurge||0))){ // 統率の余裕で発動率アップ(隠し)
-      const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
-      cb.stat.tkl++;cb.stat.inv++;
-      feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
-      await tacCutin(dtac,MC.home.mgr,cb);
+      if(tacAct(dtac.from)==="save"){ // 守護神のセーブ: GKがスーパーセーブ
+        const gk=pickGK(MC.home);gk.stat.saves++;gk.stat.inv++;
+        feed(`🎓 監督の采配!【${dtac.name}】<b>${gk.c.name}</b>が驚異のセーブ!`,"chance");
+        await tacCutin(dtac,MC.home.mgr,gk);
+      }else{ // 密集ブロック等: CBが身体を投げ出してブロック
+        const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
+        cb.stat.tkl++;cb.stat.inv++;
+        feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
+        await tacCutin(dtac,MC.home.mgr,cb);
+      }
       await ballTo(goalXOf(A)-dirOf(A)*16,50,0.45); // 弾き出し
       return;
     }
@@ -8513,7 +8570,7 @@ function offerCareerTac(pool,cup){
   const inn=ov.querySelector(".tac-offer-in");
   pick.forEach(t=>{
     const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
-    const eff=t.kind==="team"?`🌟 国際チームスキル: 発動で全体+${Math.round((t.surge.mul-1)*100)}%(${t.surge.ticks}T)`:t.from==="cb"?"守備采配: シュートブロック":t.from==="sb"?"攻撃采配: アーリークロス":t.from==="wg"?"攻撃采配: 電撃カウンター":"攻撃采配: 決定的スルー";
+    const eff=tacEffText(t);
     b.innerHTML=`<b>${t.flag||""}${t.name}</b><br><span class="lv">${eff} ・ 発動率${Math.round(t.chance*100)}%</span>`;
     b.onclick=()=>{cr.tacs.push({...t}); save(); ov.remove(); toast(`采配「${t.name}」を習得!`); if(!finalizeCareerIfDone())renderCareer();};
     inn.appendChild(b);
