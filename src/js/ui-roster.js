@@ -125,8 +125,9 @@ function renderPitch(){
   const p=document.getElementById("pitch");
   document.getElementById("fmName").textContent=S.form;
   const find=id=>S.coll.find(k=>k.id===id);
+  const ctxN=roleCtxNormal();
   renderChemLines(p, S.squad, find); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
-  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR, roleBadges});
+  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR, roleBadges:id=>roleBadges(ctxN,id)});
   // 同国籍ケミストリー表示
   const el=document.getElementById("chemStatus");
   if(el){
@@ -151,7 +152,7 @@ function renderPitch(){
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
-  renderRoleTiles();
+  renderRoleTiles(p, ctxN);
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
@@ -179,55 +180,62 @@ function openBenchPicker(j){
 // ===== ロール設定(キャプテン / プレースキッカー PK・FK・CK) =====
 // 関連ステで最適選手を推奨。captain=6ステ合計 / pk=決定力(off主体) / fk=技術(tec主体) / ck=クロス精度(tec主体)。
 function roleScore(c,role){return role==="pk"?(c.off*0.6+c.tec*0.4):role==="fk"?(c.tec*0.6+c.off*0.4):role==="ck"?(c.tec*0.7+c.off*0.3):total(c);}
-function starterCards(){return FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);}
-// 指定があり出場中ならそのid、無ければ先発から自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
-function resolveRoleId(role){
-  const st=starterCards(); if(!st.length)return null;
-  const setId=role==="captain"?S.captain:((S.kickers||{})[role]);
+// ロールの格納先/選手ソースを ctx で抽象化。通常編成=S、キャリア編成=cr を差し替えて同一UIを共有。
+function roleCtxNormal(){return {squad:()=>S.squad, find:id=>S.coll.find(k=>k.id===id),
+  getCap:()=>S.captain, setCap:id=>{S.captain=id;},
+  getKick:r=>(S.kickers||{})[r], setKick:(r,id)=>{(S.kickers=S.kickers||{pk:null,fk:null,ck:null})[r]=id;}, rerender:renderPitch};}
+function roleCtxCareer(cr){return {squad:()=>cr.squad||{}, find:id=>careerPool(cr).find(k=>k.id===id),
+  getCap:()=>cr.captain, setCap:id=>{cr.captain=id;},
+  getKick:r=>(cr.kickers||{})[r], setKick:(r,id)=>{(cr.kickers=cr.kickers||{pk:null,fk:null,ck:null})[r]=id;}, rerender:renderCareer};}
+function roleStarters(ctx){const sq=ctx.squad();return FORMS[S.form].map((_,i)=>ctx.find(sq[i])).filter(Boolean);}
+// 指定があり出場中ならそのid、無ければ自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
+function resolveRoleId(ctx,role){
+  const st=roleStarters(ctx); if(!st.length)return null;
+  const setId=role==="captain"?ctx.getCap():ctx.getKick(role);
   if(setId&&st.some(c=>c.id===setId))return setId;
   return role==="captain"?st.reduce((b,c)=>total(c)>total(b)?c:b,st[0]).id:null;
 }
-function setRole(role,id){ if(role==="captain")S.captain=id; else {S.kickers=S.kickers||{pk:null,fk:null,ck:null};S.kickers[role]=id;} }
-function roleBadges(cardId){
-  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">CAP</span>';
-  const k=S.kickers||{}; ["pk","fk","ck"].forEach(r=>{ if(k[r]===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
+function roleBadges(ctx,cardId){
+  let b=""; if(resolveRoleId(ctx,"captain")===cardId)b+='<span class="rb cap">CAP</span>';
+  ["pk","fk","ck"].forEach(r=>{ if(ctx.getKick(r)===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
   return b?`<div class="slotroles">${b}</div>`:"";
 }
 // フィールド内上部のロール割当タイル(CAP/PK/FK/CK)。タップで各ロールのピッカーを開く。設定結果はスロット隅の徽章で確認。
-function renderRoleTiles(){
-  const pitch=document.getElementById("pitch"); if(!pitch)return;
-  const old=pitch.querySelector("#roleTiles"); if(old)old.remove();
-  const bar=document.createElement("div"); bar.id="roleTiles"; bar.className="role-tiles";
-  const st=starterCards();
+function renderRoleTiles(pitch,ctx){
+  if(!pitch)return;
+  const old=pitch.querySelector(".role-tiles"); if(old)old.remove();
+  const bar=document.createElement("div"); bar.className="role-tiles";
+  const st=roleStarters(ctx);
   [["captain","CAP"],["pk","PK"],["fk","FK"],["ck","CK"]].forEach(([r,lb])=>{
-    const setId=r==="captain"?S.captain:((S.kickers||{})[r]);
+    const setId=r==="captain"?ctx.getCap():ctx.getKick(r);
     const setYes=setId&&st.some(c=>c.id===setId);
     const t=document.createElement("div"); t.className="role-tile"+(setYes?" set":""); t.textContent=lb;
-    t.onclick=e=>{e.stopPropagation(); openRolePicker(r);};
+    t.onclick=e=>{e.stopPropagation(); openRolePicker(ctx,r);};
     bar.appendChild(t);
   });
   pitch.appendChild(bar);
 }
-function openRolePicker(role){
+function openRolePicker(ctx,role){
   const LB={captain:"👑 キャプテン",pk:"⚽ PKキッカー",fk:"🎯 FKキッカー",ck:"🚩 CKキッカー"};
   const HINT={captain:"主将は試合前表記に採用・スタミナ低下が緩和",pk:"出場中ならPKを優先的に担当",fk:"出場中なら直接FK/FKを優先的に担当",ck:"出場中ならCKを優先的に担当"};
   document.getElementById("pickTitle").textContent=`${LB[role]} を選択`;
   const g=document.getElementById("pickGrid");g.innerHTML="";
+  const sq=ctx.squad();
   // キッカー(pk/fk/ck)はGKスロットを除外(GKは蹴らない=pickKickerが除外)。キャプテンはGKも選択可。
-  let ents=FORMS[S.form].map((sl,i)=>({sub:sl[0],c:S.coll.find(k=>k.id===S.squad[i])})).filter(e=>e.c);
+  let ents=FORMS[S.form].map((sl,i)=>({sub:sl[0],c:ctx.find(sq[i])})).filter(e=>e.c);
   if(role!=="captain")ents=ents.filter(e=>subGroup(e.sub)!=="GK");
   const st=ents.map(e=>e.c).sort((a,b)=>roleScore(b,role)-roleScore(a,role));
-  const curId=role==="captain"?S.captain:((S.kickers||{})[role]);
+  const curId=role==="captain"?ctx.getCap():ctx.getKick(role);
   const hint=document.createElement("div");hint.className="lg";hint.style.cssText="width:100%;margin-bottom:6px";hint.textContent="ℹ "+HINT[role];g.appendChild(hint);
   const auto=document.createElement("div");auto.className="pick-auto"+(!curId?" sel":"");
   auto.innerHTML=`🎲 おまかせ(自動) <span class="lv">${role==="captain"?"最上位を主将に":"その場で最適な選手が蹴る"}</span>`;
-  auto.onclick=async()=>{ setRole(role,null); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+  auto.onclick=async()=>{ if(role==="captain")ctx.setCap(null); else ctx.setKick(role,null); await save(); ctx.rerender(); document.getElementById("picker").classList.remove("on"); };
   g.appendChild(auto);
   if(!st.length){const e=document.createElement("div");e.className="lg";e.textContent="先発を配置してください";g.appendChild(e);}
   st.forEach((c,i)=>{
     const wrap=document.createElement("div");wrap.className="pick-role-cell"+(i===0?" recommend":"");
     const e=cardEl(c); if(c.id===curId)e.classList.add("sel");
-    e.onclick=async()=>{ setRole(role,c.id); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+    e.onclick=async()=>{ if(role==="captain")ctx.setCap(c.id); else ctx.setKick(role,c.id); await save(); ctx.rerender(); document.getElementById("picker").classList.remove("on"); };
     wrap.appendChild(e); g.appendChild(wrap);
   });
   document.getElementById("picker").classList.add("on");

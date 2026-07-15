@@ -556,11 +556,11 @@ function _beginMatch(away,name,form,lv,idx,home0){
   document.getElementById("scr-match").classList.add("on");
   document.body.classList.add("in-match"); // 共通ヘッダーを隠してフィールドを広く
   const home=home0||myTeam();
-  { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(pre-match表記・スタミナ緩和・スキルトリガの起点)
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(MC.mode確定後=activeRoleStoreが正しいstoreを返す。pre-match表記・スタミナ緩和・スキルトリガ)
   if(MC.mode!=="career"){ // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
     const _b=homeBaseTotal(home), _cap=mgrCtrlOVR(effectiveManager())+coachCtrlBonus();
     home.ctrl=ovrOverloadMul(_b,_cap); home.ctrlSurge=ctrlSurge(_b,_cap); // 余裕ぶんで采配の発動率アップ(隠し)
@@ -617,7 +617,7 @@ function startCareer(){
   S.career={name:nm, viz:ri(0,7), step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league", // viz=育成監督のビジュアル(開始時ランダム)
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], // 成長/調子/加齢＋手動編成(空=自動)＋交代枠
+    growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], captain:null, kickers:{pk:null,fk:null,ck:null}, // 成長/調子/加齢＋手動編成(空=自動)＋交代枠＋ロール
     loan:null}; // 名声/施設はアカウント恒久(S.prestige/S.fac)に移行
   save(); gotoCareer();
 }
@@ -706,8 +706,10 @@ function offerContractExtension(){ // 契約延長 or 引退の選択(オーバ�
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
 // 主将: 自チーム(H)は編成で指定したキャプテンが出場中ならそれを、無ければ6ステ合計最上位を自動採用。
+// 通常戦/キャリア戦で格納先(S / S.career)が異なるため activeRoleStore を参照。
 const teamCaptain=T=>{
-  if(T.side==="H"&&typeof S!=="undefined"&&S.captain){const p=T.players.find(x=>x.c.id===S.captain);if(p)return p;}
+  const st=activeRoleStore();
+  if(T.side==="H"&&st.captain){const p=T.players.find(x=>x.c.id===st.captain);if(p)return p;}
   return T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
 };
 

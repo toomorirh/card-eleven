@@ -741,7 +741,7 @@ function careerLoanOffer(cr){
 let _careerTab="schedule"; // 現在のセクションタブ
 let _careerSchedFit=null;  // 日程タブ: 日程リストの高さをビューポートに合わせる関数(リサイズ時再計算)
 if(typeof window!=="undefined"&&window.addEventListener)window.addEventListener("resize",()=>{if(typeof _careerSchedFit==="function")_careerSchedFit();});
-const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"manager",lb:"🎓 監督"}]; // 施設は監督室に統合(キャリアからは削除)
+const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"team",lb:"👤 チーム"}]; // 施設は監督室に統合。監督タブ→チームタブ(選手コンディション/成長+監督成長を集約)
 // ステータスカード(監督名・週の進捗バー・ステージ・名声・OVR上限)。
 function careerStatusCard(cr){
   const contNow=cr.contId?continentById(cr.contId):null;
@@ -869,29 +869,30 @@ function renderCareer(){
     body.appendChild(mk("div","banner","― 🏆 カップ/トーナメント ―"));
     body.appendChild(careerCupsView(cr));
   }else if(_careerTab==="squad"){
-    if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
+    if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[]; if(!cr.kickers)cr.kickers={pk:null,fk:null,ck:null}; if(cr.captain===undefined)cr.captain=null;
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
     body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${coachCtrlBonus()?`(基本${cr.ovrCap}+🧭${coachCtrlBonus()})`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
-    const rowb=mk("div");rowb.style.cssText="display:flex;gap:6px;margin:4px 0";
-    const fmB=mk("button","btn ghost");fmB.style.flex="1";fmB.style.whiteSpace="nowrap";fmB.textContent=`陣形 ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
-    const autoB=mk("button","btn ghost");autoB.style.flex="1";autoB.style.whiteSpace="nowrap";autoB.textContent="自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
-    body.appendChild(rowb);
-    // ピッチ盤(通常編成と同じ仕様・共通の pitchSlots/benchSlots を使用)
+    // 通常編成と同一UI: ピッチ盤(ロールタイル+徽章) → ベンチ → 陣形/自動編成ボタン(ベンチ下)
+    const ctxC=roleCtxCareer(cr);
+    const find=id=>careerPool(cr).find(k=>k.id===id);
     const pitch=mk("div","pitch");
     pitch.innerHTML='<div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div>';
     body.appendChild(pitch);
-    const find=id=>careerPool(cr).find(k=>k.id===id);
     renderChemLines(pitch, cr.squad, find);
-    pitchSlots(pitch, {squad:cr.squad, find, onSlot:openCareerSlotPicker, tacCond:()=>null});
+    pitchSlots(pitch, {squad:cr.squad, find, onSlot:openCareerSlotPicker, tacCond:()=>null, roleBadges:id=>roleBadges(ctxC,id)});
+    renderRoleTiles(pitch, ctxC);
     const bbox=mk("div");body.appendChild(bbox);
     benchSlots(bbox, {bench:cr.bench, find, onBench:openCareerBenchPicker});
-    const sq=careerSquadView(cr); // 育成固有の詳細(年齢/調子/成長)
-    if(sq){body.appendChild(mk("div","banner","― 詳細: 年齢/調子/成長 ―"));body.appendChild(sq);}
-  }else if(_careerTab==="club"){
-    body.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${S.prestige||0} ―`));
-    body.appendChild(careerFacilities(cr));
-  }else if(_careerTab==="manager"){
-    body.appendChild(mk("div","banner","― 🎓 監督の能力 ―"));
+    const rowb=mk("div","row");rowb.style.cssText="margin-top:8px;align-items:center;gap:6px";
+    const fmB=mk("button","btn ghost");fmB.style.cssText="flex:1;white-space:nowrap";fmB.textContent=`陣形 ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
+    const autoB=mk("button","btn ghost");autoB.style.cssText="flex:1;white-space:nowrap";autoB.textContent="自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
+    body.appendChild(rowb);
+  }else if(_careerTab==="team"){
+    // 監督タブ改めチームタブ: 選手コンディション/成長 と 監督の成長 を同じ画面に集約
+    body.appendChild(mk("div","banner","― 👤 選手のコンディション / 成長 ―"));
+    const sq=careerSquadView(cr);
+    if(sq)body.appendChild(sq); else body.appendChild(mk("div","lg","編成を組むと選手のコンディション/成長が表示されます"));
+    body.appendChild(mk("div","banner","― 🎓 監督の成長 ―"));
     body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
     if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.6">(獲得バフ ${cr.boosts.length}件を合算表示)</span>`));
     body.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));

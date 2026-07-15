@@ -591,11 +591,17 @@ function pickShooter(A){
   if(fks.length)return pickW(fks,p=>p.c.tec+p.c.off);
   return pickW(A.players.filter(p=>p.role!=="GK"),p=>p.c.off*1.2+p.c.tec)||A.players[0];
 }
+// キャプテン/キッカーの格納先(通常戦=S / キャリア戦=S.career)。試合中は MC.mode で判別。
+function activeRoleStore(){
+  if(typeof MC!=="undefined"&&MC&&MC.mode==="career"&&typeof S!=="undefined"&&S.career)return S.career;
+  return (typeof S!=="undefined")?S:{};
+}
 // プレースキッカー: 自チーム(H)で該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
 // 未指定・ベンチ・相手チームは通常の pickShooter にフォールバック。
 function pickKicker(A,kind){
-  if(A&&A.side==="H"&&typeof S!=="undefined"&&S.kickers&&S.kickers[kind]){
-    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===S.kickers[kind]);
+  const st=activeRoleStore();
+  if(A&&A.side==="H"&&st.kickers&&st.kickers[kind]){
+    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===st.kickers[kind]);
     if(p)return p;
   }
   return pickShooter(A);

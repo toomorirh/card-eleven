@@ -4849,6 +4849,7 @@ async function loadGame(){                                       // つづきか
   if(S.captain===undefined)S.captain=null;                     // キャプテン/プレースキッカーの後方互換
   if(!S.kickers||typeof S.kickers!=="object")S.kickers={pk:null,fk:null,ck:null};
   if(S.career&&!Array.isArray(S.career.bench))S.career.bench=[];
+  if(S.career){ if(S.career.captain===undefined)S.career.captain=null; if(!S.career.kickers)S.career.kickers={pk:null,fk:null,ck:null}; } // キャリアのロール後方互換
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。
@@ -5086,8 +5087,9 @@ function renderPitch(){
   const p=document.getElementById("pitch");
   document.getElementById("fmName").textContent=S.form;
   const find=id=>S.coll.find(k=>k.id===id);
+  const ctxN=roleCtxNormal();
   renderChemLines(p, S.squad, find); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
-  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR, roleBadges});
+  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR, roleBadges:id=>roleBadges(ctxN,id)});
   // 同国籍ケミストリー表示
   const el=document.getElementById("chemStatus");
   if(el){
@@ -5112,7 +5114,7 @@ function renderPitch(){
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
-  renderRoleTiles();
+  renderRoleTiles(p, ctxN);
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
@@ -5140,55 +5142,62 @@ function openBenchPicker(j){
 // ===== ロール設定(キャプテン / プレースキッカー PK・FK・CK) =====
 // 関連ステで最適選手を推奨。captain=6ステ合計 / pk=決定力(off主体) / fk=技術(tec主体) / ck=クロス精度(tec主体)。
 function roleScore(c,role){return role==="pk"?(c.off*0.6+c.tec*0.4):role==="fk"?(c.tec*0.6+c.off*0.4):role==="ck"?(c.tec*0.7+c.off*0.3):total(c);}
-function starterCards(){return FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);}
-// 指定があり出場中ならそのid、無ければ先発から自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
-function resolveRoleId(role){
-  const st=starterCards(); if(!st.length)return null;
-  const setId=role==="captain"?S.captain:((S.kickers||{})[role]);
+// ロールの格納先/選手ソースを ctx で抽象化。通常編成=S、キャリア編成=cr を差し替えて同一UIを共有。
+function roleCtxNormal(){return {squad:()=>S.squad, find:id=>S.coll.find(k=>k.id===id),
+  getCap:()=>S.captain, setCap:id=>{S.captain=id;},
+  getKick:r=>(S.kickers||{})[r], setKick:(r,id)=>{(S.kickers=S.kickers||{pk:null,fk:null,ck:null})[r]=id;}, rerender:renderPitch};}
+function roleCtxCareer(cr){return {squad:()=>cr.squad||{}, find:id=>careerPool(cr).find(k=>k.id===id),
+  getCap:()=>cr.captain, setCap:id=>{cr.captain=id;},
+  getKick:r=>(cr.kickers||{})[r], setKick:(r,id)=>{(cr.kickers=cr.kickers||{pk:null,fk:null,ck:null})[r]=id;}, rerender:renderCareer};}
+function roleStarters(ctx){const sq=ctx.squad();return FORMS[S.form].map((_,i)=>ctx.find(sq[i])).filter(Boolean);}
+// 指定があり出場中ならそのid、無ければ自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
+function resolveRoleId(ctx,role){
+  const st=roleStarters(ctx); if(!st.length)return null;
+  const setId=role==="captain"?ctx.getCap():ctx.getKick(role);
   if(setId&&st.some(c=>c.id===setId))return setId;
   return role==="captain"?st.reduce((b,c)=>total(c)>total(b)?c:b,st[0]).id:null;
 }
-function setRole(role,id){ if(role==="captain")S.captain=id; else {S.kickers=S.kickers||{pk:null,fk:null,ck:null};S.kickers[role]=id;} }
-function roleBadges(cardId){
-  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">CAP</span>';
-  const k=S.kickers||{}; ["pk","fk","ck"].forEach(r=>{ if(k[r]===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
+function roleBadges(ctx,cardId){
+  let b=""; if(resolveRoleId(ctx,"captain")===cardId)b+='<span class="rb cap">CAP</span>';
+  ["pk","fk","ck"].forEach(r=>{ if(ctx.getKick(r)===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
   return b?`<div class="slotroles">${b}</div>`:"";
 }
 // フィールド内上部のロール割当タイル(CAP/PK/FK/CK)。タップで各ロールのピッカーを開く。設定結果はスロット隅の徽章で確認。
-function renderRoleTiles(){
-  const pitch=document.getElementById("pitch"); if(!pitch)return;
-  const old=pitch.querySelector("#roleTiles"); if(old)old.remove();
-  const bar=document.createElement("div"); bar.id="roleTiles"; bar.className="role-tiles";
-  const st=starterCards();
+function renderRoleTiles(pitch,ctx){
+  if(!pitch)return;
+  const old=pitch.querySelector(".role-tiles"); if(old)old.remove();
+  const bar=document.createElement("div"); bar.className="role-tiles";
+  const st=roleStarters(ctx);
   [["captain","CAP"],["pk","PK"],["fk","FK"],["ck","CK"]].forEach(([r,lb])=>{
-    const setId=r==="captain"?S.captain:((S.kickers||{})[r]);
+    const setId=r==="captain"?ctx.getCap():ctx.getKick(r);
     const setYes=setId&&st.some(c=>c.id===setId);
     const t=document.createElement("div"); t.className="role-tile"+(setYes?" set":""); t.textContent=lb;
-    t.onclick=e=>{e.stopPropagation(); openRolePicker(r);};
+    t.onclick=e=>{e.stopPropagation(); openRolePicker(ctx,r);};
     bar.appendChild(t);
   });
   pitch.appendChild(bar);
 }
-function openRolePicker(role){
+function openRolePicker(ctx,role){
   const LB={captain:"👑 キャプテン",pk:"⚽ PKキッカー",fk:"🎯 FKキッカー",ck:"🚩 CKキッカー"};
   const HINT={captain:"主将は試合前表記に採用・スタミナ低下が緩和",pk:"出場中ならPKを優先的に担当",fk:"出場中なら直接FK/FKを優先的に担当",ck:"出場中ならCKを優先的に担当"};
   document.getElementById("pickTitle").textContent=`${LB[role]} を選択`;
   const g=document.getElementById("pickGrid");g.innerHTML="";
+  const sq=ctx.squad();
   // キッカー(pk/fk/ck)はGKスロットを除外(GKは蹴らない=pickKickerが除外)。キャプテンはGKも選択可。
-  let ents=FORMS[S.form].map((sl,i)=>({sub:sl[0],c:S.coll.find(k=>k.id===S.squad[i])})).filter(e=>e.c);
+  let ents=FORMS[S.form].map((sl,i)=>({sub:sl[0],c:ctx.find(sq[i])})).filter(e=>e.c);
   if(role!=="captain")ents=ents.filter(e=>subGroup(e.sub)!=="GK");
   const st=ents.map(e=>e.c).sort((a,b)=>roleScore(b,role)-roleScore(a,role));
-  const curId=role==="captain"?S.captain:((S.kickers||{})[role]);
+  const curId=role==="captain"?ctx.getCap():ctx.getKick(role);
   const hint=document.createElement("div");hint.className="lg";hint.style.cssText="width:100%;margin-bottom:6px";hint.textContent="ℹ "+HINT[role];g.appendChild(hint);
   const auto=document.createElement("div");auto.className="pick-auto"+(!curId?" sel":"");
   auto.innerHTML=`🎲 おまかせ(自動) <span class="lv">${role==="captain"?"最上位を主将に":"その場で最適な選手が蹴る"}</span>`;
-  auto.onclick=async()=>{ setRole(role,null); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+  auto.onclick=async()=>{ if(role==="captain")ctx.setCap(null); else ctx.setKick(role,null); await save(); ctx.rerender(); document.getElementById("picker").classList.remove("on"); };
   g.appendChild(auto);
   if(!st.length){const e=document.createElement("div");e.className="lg";e.textContent="先発を配置してください";g.appendChild(e);}
   st.forEach((c,i)=>{
     const wrap=document.createElement("div");wrap.className="pick-role-cell"+(i===0?" recommend":"");
     const e=cardEl(c); if(c.id===curId)e.classList.add("sel");
-    e.onclick=async()=>{ setRole(role,c.id); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+    e.onclick=async()=>{ if(role==="captain")ctx.setCap(c.id); else ctx.setKick(role,c.id); await save(); ctx.rerender(); document.getElementById("picker").classList.remove("on"); };
     wrap.appendChild(e); g.appendChild(wrap);
   });
   document.getElementById("picker").classList.add("on");
@@ -6420,7 +6429,7 @@ function careerLoanOffer(cr){
 let _careerTab="schedule"; // 現在のセクションタブ
 let _careerSchedFit=null;  // 日程タブ: 日程リストの高さをビューポートに合わせる関数(リサイズ時再計算)
 if(typeof window!=="undefined"&&window.addEventListener)window.addEventListener("resize",()=>{if(typeof _careerSchedFit==="function")_careerSchedFit();});
-const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"manager",lb:"🎓 監督"}]; // 施設は監督室に統合(キャリアからは削除)
+const CAREER_TABS=[{id:"schedule",lb:"📅 日程"},{id:"league",lb:"📊 リーグ"},{id:"cup",lb:"🏆 カップ"},{id:"squad",lb:"👥 編成"},{id:"team",lb:"👤 チーム"}]; // 施設は監督室に統合。監督タブ→チームタブ(選手コンディション/成長+監督成長を集約)
 // ステータスカード(監督名・週の進捗バー・ステージ・名声・OVR上限)。
 function careerStatusCard(cr){
   const contNow=cr.contId?continentById(cr.contId):null;
@@ -6548,29 +6557,30 @@ function renderCareer(){
     body.appendChild(mk("div","banner","― 🏆 カップ/トーナメント ―"));
     body.appendChild(careerCupsView(cr));
   }else if(_careerTab==="squad"){
-    if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[];
+    if(!cr.squad)cr.squad={}; if(!Array.isArray(cr.bench))cr.bench=[]; if(!cr.kickers)cr.kickers={pk:null,fk:null,ck:null}; if(cr.captain===undefined)cr.captain=null;
     const cap=careerCap(cr), base=careerBaseTotal(cr), over=base>cap, drop=Math.round((1-careerOverloadMul(cr))*100);
     body.appendChild(mk("div","lg",`スカッドOVR <b style="color:${over?"#ff8e8e":"#7dff9e"}">${base}</b> / 統制OVR ${cap}${coachCtrlBonus()?`(基本${cr.ovrCap}+🧭${coachCtrlBonus()})`:""}${over?` ⚠<b style="color:#ff8e8e">統制超過</b> → 全能力 <b style="color:#ff8e8e">-${drop}%</b>(監督の指揮が追いつかない)`:" ✅統制内"}`));
-    const rowb=mk("div");rowb.style.cssText="display:flex;gap:6px;margin:4px 0";
-    const fmB=mk("button","btn ghost");fmB.style.flex="1";fmB.style.whiteSpace="nowrap";fmB.textContent=`陣形 ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
-    const autoB=mk("button","btn ghost");autoB.style.flex="1";autoB.style.whiteSpace="nowrap";autoB.textContent="自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
-    body.appendChild(rowb);
-    // ピッチ盤(通常編成と同じ仕様・共通の pitchSlots/benchSlots を使用)
+    // 通常編成と同一UI: ピッチ盤(ロールタイル+徽章) → ベンチ → 陣形/自動編成ボタン(ベンチ下)
+    const ctxC=roleCtxCareer(cr);
+    const find=id=>careerPool(cr).find(k=>k.id===id);
     const pitch=mk("div","pitch");
     pitch.innerHTML='<div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div>';
     body.appendChild(pitch);
-    const find=id=>careerPool(cr).find(k=>k.id===id);
     renderChemLines(pitch, cr.squad, find);
-    pitchSlots(pitch, {squad:cr.squad, find, onSlot:openCareerSlotPicker, tacCond:()=>null});
+    pitchSlots(pitch, {squad:cr.squad, find, onSlot:openCareerSlotPicker, tacCond:()=>null, roleBadges:id=>roleBadges(ctxC,id)});
+    renderRoleTiles(pitch, ctxC);
     const bbox=mk("div");body.appendChild(bbox);
     benchSlots(bbox, {bench:cr.bench, find, onBench:openCareerBenchPicker});
-    const sq=careerSquadView(cr); // 育成固有の詳細(年齢/調子/成長)
-    if(sq){body.appendChild(mk("div","banner","― 詳細: 年齢/調子/成長 ―"));body.appendChild(sq);}
-  }else if(_careerTab==="club"){
-    body.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${S.prestige||0} ―`));
-    body.appendChild(careerFacilities(cr));
-  }else if(_careerTab==="manager"){
-    body.appendChild(mk("div","banner","― 🎓 監督の能力 ―"));
+    const rowb=mk("div","row");rowb.style.cssText="margin-top:8px;align-items:center;gap:6px";
+    const fmB=mk("button","btn ghost");fmB.style.cssText="flex:1;white-space:nowrap";fmB.textContent=`陣形 ${S.form}`;fmB.onclick=()=>openFormationPicker(renderCareer);rowb.appendChild(fmB);
+    const autoB=mk("button","btn ghost");autoB.style.cssText="flex:1;white-space:nowrap";autoB.textContent="自動編成";autoB.onclick=async()=>{cr.squad={};cr.bench=[];await save();renderCareer();};rowb.appendChild(autoB);
+    body.appendChild(rowb);
+  }else if(_careerTab==="team"){
+    // 監督タブ改めチームタブ: 選手コンディション/成長 と 監督の成長 を同じ画面に集約
+    body.appendChild(mk("div","banner","― 👤 選手のコンディション / 成長 ―"));
+    const sq=careerSquadView(cr);
+    if(sq)body.appendChild(sq); else body.appendChild(mk("div","lg","編成を組むと選手のコンディション/成長が表示されます"));
+    body.appendChild(mk("div","banner","― 🎓 監督の成長 ―"));
     body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
     if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.6">(獲得バフ ${cr.boosts.length}件を合算表示)</span>`));
     body.appendChild(mk("div","lg",`🎓 獲得采配(${(cr.tacs||[]).length}): ${(cr.tacs||[]).length?cr.tacs.map(t=>(t.flag||"")+t.name).join(" / "):"(まだ無し・カップ優勝で獲得)"}`));
@@ -7273,11 +7283,17 @@ function pickShooter(A){
   if(fks.length)return pickW(fks,p=>p.c.tec+p.c.off);
   return pickW(A.players.filter(p=>p.role!=="GK"),p=>p.c.off*1.2+p.c.tec)||A.players[0];
 }
+// キャプテン/キッカーの格納先(通常戦=S / キャリア戦=S.career)。試合中は MC.mode で判別。
+function activeRoleStore(){
+  if(typeof MC!=="undefined"&&MC&&MC.mode==="career"&&typeof S!=="undefined"&&S.career)return S.career;
+  return (typeof S!=="undefined")?S:{};
+}
 // プレースキッカー: 自チーム(H)で該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
 // 未指定・ベンチ・相手チームは通常の pickShooter にフォールバック。
 function pickKicker(A,kind){
-  if(A&&A.side==="H"&&typeof S!=="undefined"&&S.kickers&&S.kickers[kind]){
-    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===S.kickers[kind]);
+  const st=activeRoleStore();
+  if(A&&A.side==="H"&&st.kickers&&st.kickers[kind]){
+    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===st.kickers[kind]);
     if(p)return p;
   }
   return pickShooter(A);
@@ -8269,11 +8285,11 @@ function _beginMatch(away,name,form,lv,idx,home0){
   document.getElementById("scr-match").classList.add("on");
   document.body.classList.add("in-match"); // 共通ヘッダーを隠してフィールドを広く
   const home=home0||myTeam();
-  { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(pre-match表記・スタミナ緩和・スキルトリガの起点)
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
+  { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(MC.mode確定後=activeRoleStoreが正しいstoreを返す。pre-match表記・スタミナ緩和・スキルトリガ)
   if(MC.mode!=="career"){ // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
     const _b=homeBaseTotal(home), _cap=mgrCtrlOVR(effectiveManager())+coachCtrlBonus();
     home.ctrl=ovrOverloadMul(_b,_cap); home.ctrlSurge=ctrlSurge(_b,_cap); // 余裕ぶんで采配の発動率アップ(隠し)
@@ -8330,7 +8346,7 @@ function startCareer(){
   S.career={name:nm, viz:ri(0,7), step:0, div:3, node:0, pts:0, gf:0, ga:0, stage:"league", // viz=育成監督のビジュアル(開始時ランダム)
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
-    growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], // 成長/調子/加齢＋手動編成(空=自動)＋交代枠
+    growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], captain:null, kickers:{pk:null,fk:null,ck:null}, // 成長/調子/加齢＋手動編成(空=自動)＋交代枠＋ロール
     loan:null}; // 名声/施設はアカウント恒久(S.prestige/S.fac)に移行
   save(); gotoCareer();
 }
@@ -8419,8 +8435,10 @@ function offerContractExtension(){ // 契約延長 or 引退の選択(オーバ�
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
 // 主将: 自チーム(H)は編成で指定したキャプテンが出場中ならそれを、無ければ6ステ合計最上位を自動採用。
+// 通常戦/キャリア戦で格納先(S / S.career)が異なるため activeRoleStore を参照。
 const teamCaptain=T=>{
-  if(T.side==="H"&&typeof S!=="undefined"&&S.captain){const p=T.players.find(x=>x.c.id===S.captain);if(p)return p;}
+  const st=activeRoleStore();
+  if(T.side==="H"&&st.captain){const p=T.players.find(x=>x.c.id===st.captain);if(p)return p;}
   return T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
 };
 
