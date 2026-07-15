@@ -108,13 +108,17 @@ def _gen_block():
 
 
 def _mgr_block():
-    """src/assets/manager/ce_mg_managers.png(4x2=8名のシート)を base64 データURI化し
-    `window.MGR_SHEET="data:..."` を生成。無ければ空文字(★無し相当)。"""
-    f = ROOT / "src" / "assets" / "manager" / "ce_mg_managers.png"
-    if not f.is_file():
-        return 'window.MGR_SHEET="";'
-    b64 = base64.b64encode(f.read_bytes()).decode("ascii")
-    return 'window.MGR_SHEET="data:image/png;base64,%s";' % b64
+    """監督シートを base64 データURI化。第1シート ce_mg_managers.png(4x2=8名)を `window.MGR_SHEET`、
+    第2シート ce_mg2_managers.png(4x2=追加8名・sheet:2)を `window.MGR_SHEET2` に。無ければ空文字。"""
+    out = []
+    for var, name in (("MGR_SHEET", "ce_mg_managers.png"), ("MGR_SHEET2", "ce_mg2_managers.png")):
+        f = ROOT / "src" / "assets" / "manager" / name
+        if f.is_file():
+            b64 = base64.b64encode(f.read_bytes()).decode("ascii")
+            out.append('window.%s="data:image/png;base64,%s";' % (var, b64))
+        else:
+            out.append('window.%s="";' % var)
+    return "".join(out)
 
 
 def _sec_block():

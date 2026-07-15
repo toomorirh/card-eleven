@@ -298,6 +298,21 @@ const MANAGERS=[
   {id:"professor", col:2,row:1, name:"アーセン・ヴェンゲル",     title:"知性の教授",           cost:300, ctrlOVR:850, boost:{pos:"all", stat:"tec", mul:1.04}},
   {id:"cholo",     col:3,row:1, name:"ディエゴ・シメオネ",       title:"闘将",                 cost:320, ctrlOVR:890, boost:{pos:"all", stat:"def", mul:1.05},
     tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
+  // ===== 第2シート(ce_mg2_managers.png・4x2)の追加8名。sheet:2 で別シートを参照 =====
+  {id:"cruyff",    sheet:2, col:0,row:0, name:"ヨハン・クライフ",     title:"トータルフットボール", cost:380, ctrlOVR:960, boost:{pos:"MF", stat:"off", mul:1.06},
+    tac:{name:"トータルフットボール", from:"omf", cond:[["OMF","tec",20]], chance:0.52}},
+  {id:"sacchi",    sheet:2, col:1,row:0, name:"アリゴ・サッキ",       title:"ゾーンプレスの祖",     cost:350, ctrlOVR:930, boost:{pos:"MF", stat:"spd", mul:1.06},
+    tac:{name:"オフサイドトラップ",   from:"cb",  cond:[["CB","def",20]], chance:0.35}},
+  {id:"bielsa",    sheet:2, col:2,row:0, name:"マルセロ・ビエルサ",   title:"エル・ロコ",           cost:320, ctrlOVR:870, boost:{pos:"all", stat:"sta", mul:1.06},
+    tac:{name:"縦への衝動",           from:"wg",  cond:[["RWG","spd",20]], chance:0.50}},
+  {id:"conte",     sheet:2, col:3,row:0, name:"アントニオ・コンテ",   title:"闘志の3バック",        cost:340, ctrlOVR:910, boost:{pos:"all", stat:"pow", mul:1.05},
+    tac:{name:"ウイングバック強襲",   from:"sb",  cond:[["RSB","sta",20],["CF","pow",20]], chance:0.52}},
+  {id:"zico",      sheet:2, col:0,row:1, name:"ジーコ",               title:"白いペレ",             cost:320, ctrlOVR:880, boost:{pos:"FW", stat:"tec", mul:1.06},
+    tac:{name:"黄金のパスワーク",     from:"omf", cond:[["OMF","tec",20]], chance:0.50}},
+  {id:"litti",     sheet:2, col:1,row:1, name:"ピエール・リトバルスキー", title:"孤高のドリブラー",  cost:260, ctrlOVR:850, boost:{pos:"MF", stat:"tec", mul:1.05},
+    tac:{name:"トリッキードリブル",   from:"wg",  cond:[["LWG","tec",20]], chance:0.46}},
+  {id:"bosque",    sheet:2, col:2,row:1, name:"ビセンテ・デル・ボスケ", title:"寡黙なる常勝",        cost:360, ctrlOVR:930, boost:{pos:"all", stat:"all", mul:1.03}},
+  {id:"capello",   sheet:2, col:3,row:1, name:"ファビオ・カペッロ",   title:"規律の勝者",           cost:340, ctrlOVR:910, boost:{pos:"DF", stat:"def", mul:1.06}},
 ];
 // 無料の既定監督(未起用時のフォールバック=見習い)。統制OVRは控えめ、バフ無し。名将/カスタムで伸ばす。
 // col/row は起動時に S.rookieViz(0〜7のシートセル)から設定(applyRookieViz)。
@@ -533,9 +548,13 @@ function createCustomManager(spec){
   return m;
 }
 // 監督ポートレート: シート(4x2)から該当セルの全身を切り出した canvas を返す(高さ指定・幅はセル比)。
+// 名将は2枚のシートに分かれる(第1シート=既存8名/カスタム監督, 第2シート=m.sheet===2 の追加8名)。
 const MGR_IMG=new Image();
 if(typeof window!=="undefined"&&window.MGR_SHEET)MGR_IMG.src=window.MGR_SHEET;
+const MGR_IMG2=new Image();
+if(typeof window!=="undefined"&&window.MGR_SHEET2)MGR_IMG2.src=window.MGR_SHEET2;
 const MGR_CELL_W=252, MGR_CELL_H=529; // シート1セルの実寸(全身)
+function mgrSheetImg(m){return (m&&m.sheet===2)?MGR_IMG2:MGR_IMG;}
 function mgrPortrait(m,h){
   h=h||72; const w=Math.round(h*MGR_CELL_W/MGR_CELL_H);
   const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.className="mgrpic";
@@ -548,10 +567,11 @@ function mgrPortrait(m,h){
     ctx.font=`bold ${Math.round(h*0.5)}px serif`;ctx.fillText("🎓",w/2,h*0.5);
     return cv;
   }
-  const draw=()=>{const W=MGR_IMG.naturalWidth,H=MGR_IMG.naturalHeight;if(!W||!m)return;
+  const IMG=mgrSheetImg(m);
+  const draw=()=>{const W=IMG.naturalWidth,H=IMG.naturalHeight;if(!W||!m)return;
     const cw=W/4,ch=H/2;ctx.clearRect(0,0,w,h);
-    ctx.drawImage(MGR_IMG,m.col*cw,m.row*ch,cw,ch,0,0,w,h);}; // 全身
-  if(MGR_IMG.complete&&MGR_IMG.naturalWidth)draw();else MGR_IMG.addEventListener("load",draw);
+    ctx.drawImage(IMG,m.col*cw,m.row*ch,cw,ch,0,0,w,h);}; // 全身
+  if(IMG.complete&&IMG.naturalWidth)draw();else IMG.addEventListener("load",draw);
   return cv;
 }
 // ===== 秘書イラスト(4列×2行のシート・5キャラ)。監督シートと同形式でセルを切り出す =====
