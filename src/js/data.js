@@ -300,7 +300,7 @@ const MANAGERS=[
     tac:{name:"密集ブロック",   from:"cb",  cond:[["CB","def",20]], chance:0.30}},
   // ===== 第2シート(ce_mg2_managers.png・4x2)の追加8名。sheet:2 で別シートを参照 =====
   {id:"cruyff",    sheet:2, col:0,row:0, name:"ヨハン・クライフ",     title:"トータルフットボール", cost:380, ctrlOVR:960, boost:{pos:"MF", stat:"off", mul:1.06},
-    tac:{name:"トータルフットボール", from:"omf", cond:[["OMF","tec",20]], chance:0.52}},
+    tac:{name:"フライング・ダッチマン", from:"omf", cond:[["OMF","tec",20]], chance:0.52}},
   {id:"sacchi",    sheet:2, col:1,row:0, name:"アリゴ・サッキ",       title:"ゾーンプレスの祖",     cost:350, ctrlOVR:930, boost:{pos:"MF", stat:"spd", mul:1.06},
     tac:{name:"オフサイドトラップ",   from:"cb",  cond:[["CB","def",20]], chance:0.35}},
   {id:"bielsa",    sheet:2, col:2,row:0, name:"マルセロ・ビエルサ",   title:"エル・ロコ",           cost:320, ctrlOVR:870, boost:{pos:"all", stat:"sta", mul:1.06},
@@ -419,7 +419,7 @@ const CAREER_TACS={
     {name:"疾風のカウンター",   from:"wg",  cond:[["LWG","spd",18]], chance:0.55, pow:1.3},
     {name:"鉄壁の密集ブロック", from:"cb",  cond:[["CB","def",18]],  chance:0.60},
     // 名将直伝(第2シート監督のシグネチャ采配)。発動条件は名将版と同一(閾値20)。
-    {name:"トータルフットボール", from:"omf", cond:[["OMF","tec",20]], chance:0.52},
+    {name:"フライング・ダッチマン", from:"omf", cond:[["OMF","tec",20]], chance:0.52},
     {name:"黄金のパスワーク",   from:"omf", cond:[["OMF","tec",20]], chance:0.50},
     {name:"縦への衝動",         from:"wg",  cond:[["RWG","spd",20]], chance:0.50},
     {name:"トリッキードリブル", from:"wg",  cond:[["LWG","tec",20]], chance:0.46},
@@ -432,7 +432,7 @@ const CAREER_TACS={
     {name:"ゲルマン魂",     kind:"team", flag:"🇩🇪", cond:[["CB","def",18]],  chance:0.50, surge:{mul:1.30,ticks:3}},
     {name:"カテナチオ",     kind:"team", flag:"🇮🇹", cond:[["CB","def",18]],  chance:0.50, surge:{mul:1.22,ticks:4}},
     {name:"アルビセレステ", kind:"team", flag:"🇦🇷", cond:[["CMF","tec",18]], chance:0.50, surge:{mul:1.27,ticks:3}},
-    {name:"フライング・ダッチマン", kind:"team", flag:"🇳🇱", cond:[["LWG","spd",18]], chance:0.50, surge:{mul:1.26,ticks:3}},
+    {name:"トータルフットボール", kind:"team", flag:"🇳🇱", cond:[["LWG","spd",18]], chance:0.50, surge:{mul:1.26,ticks:3}},
     {name:"スリーライオンズ", kind:"team", flag:"🇬🇧", cond:[["CF","pow",18]],  chance:0.50, surge:{mul:1.25,ticks:3}},
     {name:"レ・ブルー",     kind:"team", flag:"🇫🇷", cond:[["ST","spd",18]],  chance:0.50, surge:{mul:1.29,ticks:3}},
   ],
