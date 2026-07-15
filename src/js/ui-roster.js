@@ -151,7 +151,7 @@ function renderPitch(){
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
-  renderRolePanel();
+  renderRoleTiles();
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
@@ -189,26 +189,24 @@ function resolveRoleId(role){
 }
 function setRole(role,id){ if(role==="captain")S.captain=id; else {S.kickers=S.kickers||{pk:null,fk:null,ck:null};S.kickers[role]=id;} }
 function roleBadges(cardId){
-  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">👑</span>';
+  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">CAP</span>';
   const k=S.kickers||{}; ["pk","fk","ck"].forEach(r=>{ if(k[r]===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
   return b?`<div class="slotroles">${b}</div>`:"";
 }
-function renderRolePanel(){
-  const box=document.getElementById("rolePanel"); if(!box)return;
-  const find=id=>S.coll.find(k=>k.id===id);
-  const rows=[["captain","👑","キャプテン"],["pk","⚽","PK"],["fk","🎯","FK"],["ck","🚩","CK"]];
-  let h=`<div class="banner" style="font-size:13px">― 🎽 ロール設定 ―</div>`;
-  rows.forEach(([r,ic,lb])=>{
+// フィールド内上部のロール割当タイル(CAP/PK/FK/CK)。タップで各ロールのピッカーを開く。設定結果はスロット隅の徽章で確認。
+function renderRoleTiles(){
+  const pitch=document.getElementById("pitch"); if(!pitch)return;
+  const old=pitch.querySelector("#roleTiles"); if(old)old.remove();
+  const bar=document.createElement("div"); bar.id="roleTiles"; bar.className="role-tiles";
+  const st=starterCards();
+  [["captain","CAP"],["pk","PK"],["fk","FK"],["ck","CK"]].forEach(([r,lb])=>{
     const setId=r==="captain"?S.captain:((S.kickers||{})[r]);
-    const st=starterCards(), valid=setId&&st.some(c=>c.id===setId);
-    let disp;
-    if(valid){const c=find(setId);disp=`${c.flag} ${c.name}`;}
-    else if(r==="captain"){const id=resolveRoleId("captain"),c=id&&find(id);disp=c?`${c.flag} ${c.name} <span class="lv">(自動)</span>`:"—";}
-    else disp=`<span class="lv">自動(その場で選出)</span>`;
-    h+=`<div class="role-row" data-r="${r}"><span class="role-ic">${ic}</span><span class="role-lb">${lb}</span><span class="role-val">${disp}</span><span class="role-edit">変更 ›</span></div>`;
+    const setYes=setId&&st.some(c=>c.id===setId);
+    const t=document.createElement("div"); t.className="role-tile"+(setYes?" set":""); t.textContent=lb;
+    t.onclick=e=>{e.stopPropagation(); openRolePicker(r);};
+    bar.appendChild(t);
   });
-  box.innerHTML=h;
-  box.querySelectorAll(".role-row").forEach(row=>row.onclick=()=>openRolePicker(row.dataset.r));
+  pitch.appendChild(bar);
 }
 function openRolePicker(role){
   const LB={captain:"👑 キャプテン",pk:"⚽ PKキッカー",fk:"🎯 FKキッカー",ck:"🚩 CKキッカー"};

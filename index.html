@@ -161,18 +161,15 @@ canvas.sprite{image-rendering:auto}
 .card.sel{outline:3px solid var(--cyan)}
 
 .grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
-/* ロール設定(キャプテン/プレースキッカー) */
-#rolePanel{margin-top:10px}
-.role-row{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-top:5px;background:#0e1826;border:1px solid #24344c;border-radius:8px;cursor:pointer}
-.role-row:active{background:#132135}
-.role-ic{font-size:16px;flex:0 0 auto}
-.role-lb{flex:0 0 78px;font-weight:bold;color:#cfe0f5;font-size:13px}
-.role-val{flex:1 1 auto;color:#fff;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.role-edit{flex:0 0 auto;color:var(--cyan);font-size:12px}
+/* ロール設定(キャプテン/プレースキッカー): フィールド内上部タイル+スロット隅の徽章 */
+.role-tiles{position:absolute;top:3px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:6}
+.role-tile{font-size:10px;font-weight:900;letter-spacing:.5px;color:#cfe0f5;background:rgba(10,18,32,.82);border:1px solid #35506f;border-radius:5px;padding:2px 8px;cursor:pointer}
+.role-tile:active{background:rgba(30,50,80,.92)}
+.role-tile.set{border-color:var(--gold);color:var(--gold)}
 .slotroles{position:absolute;top:-7px;right:-6px;display:flex;flex-direction:column;gap:2px;align-items:flex-end;z-index:3;pointer-events:none}
-.rb{font-size:9px;line-height:1;font-weight:900}
-.rb.cap{font-size:14px;filter:drop-shadow(0 1px 1px #000)}
-.rb.kick{background:#1b3a5c;color:#9fe0ff;border:1px solid #2f6ea0;padding:1px 3px;border-radius:4px}
+.rb{font-size:9px;line-height:1;font-weight:900;padding:1px 3px;border-radius:4px}
+.rb.cap{background:var(--gold);color:#1a1200}
+.rb.kick{background:#1b3a5c;color:#9fe0ff;border:1px solid #2f6ea0}
 .pick-auto{width:100%;padding:10px;background:#132135;border:1px dashed #3a5f86;border-radius:8px;text-align:center;color:#cfe6ff;cursor:pointer;font-weight:bold}
 .pick-auto.sel{border-color:var(--gold);color:var(--gold)}
 .pick-auto .lv{display:block;margin-top:2px}
@@ -1145,7 +1142,6 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     <div class="lg" id="chemStatus" style="margin-top:6px"></div>
     <div class="mgr-advice" id="mgrAdvice" style="display:none"></div>
     <div class="pitch" id="pitch"><div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div></div>
-    <div id="rolePanel"></div>
     <div id="benchBox"></div>
     <div class="row" style="margin-top:8px;align-items:center">
       <button class="btn ghost" id="fmBtn" style="flex:1;white-space:nowrap">陣形 <span id="fmName">4-4-2</span></button>
@@ -5116,7 +5112,7 @@ function renderPitch(){
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
-  renderRolePanel();
+  renderRoleTiles();
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
@@ -5154,26 +5150,24 @@ function resolveRoleId(role){
 }
 function setRole(role,id){ if(role==="captain")S.captain=id; else {S.kickers=S.kickers||{pk:null,fk:null,ck:null};S.kickers[role]=id;} }
 function roleBadges(cardId){
-  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">👑</span>';
+  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">CAP</span>';
   const k=S.kickers||{}; ["pk","fk","ck"].forEach(r=>{ if(k[r]===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
   return b?`<div class="slotroles">${b}</div>`:"";
 }
-function renderRolePanel(){
-  const box=document.getElementById("rolePanel"); if(!box)return;
-  const find=id=>S.coll.find(k=>k.id===id);
-  const rows=[["captain","👑","キャプテン"],["pk","⚽","PK"],["fk","🎯","FK"],["ck","🚩","CK"]];
-  let h=`<div class="banner" style="font-size:13px">― 🎽 ロール設定 ―</div>`;
-  rows.forEach(([r,ic,lb])=>{
+// フィールド内上部のロール割当タイル(CAP/PK/FK/CK)。タップで各ロールのピッカーを開く。設定結果はスロット隅の徽章で確認。
+function renderRoleTiles(){
+  const pitch=document.getElementById("pitch"); if(!pitch)return;
+  const old=pitch.querySelector("#roleTiles"); if(old)old.remove();
+  const bar=document.createElement("div"); bar.id="roleTiles"; bar.className="role-tiles";
+  const st=starterCards();
+  [["captain","CAP"],["pk","PK"],["fk","FK"],["ck","CK"]].forEach(([r,lb])=>{
     const setId=r==="captain"?S.captain:((S.kickers||{})[r]);
-    const st=starterCards(), valid=setId&&st.some(c=>c.id===setId);
-    let disp;
-    if(valid){const c=find(setId);disp=`${c.flag} ${c.name}`;}
-    else if(r==="captain"){const id=resolveRoleId("captain"),c=id&&find(id);disp=c?`${c.flag} ${c.name} <span class="lv">(自動)</span>`:"—";}
-    else disp=`<span class="lv">自動(その場で選出)</span>`;
-    h+=`<div class="role-row" data-r="${r}"><span class="role-ic">${ic}</span><span class="role-lb">${lb}</span><span class="role-val">${disp}</span><span class="role-edit">変更 ›</span></div>`;
+    const setYes=setId&&st.some(c=>c.id===setId);
+    const t=document.createElement("div"); t.className="role-tile"+(setYes?" set":""); t.textContent=lb;
+    t.onclick=e=>{e.stopPropagation(); openRolePicker(r);};
+    bar.appendChild(t);
   });
-  box.innerHTML=h;
-  box.querySelectorAll(".role-row").forEach(row=>row.onclick=()=>openRolePicker(row.dataset.r));
+  pitch.appendChild(bar);
 }
 function openRolePicker(role){
   const LB={captain:"👑 キャプテン",pk:"⚽ PKキッカー",fk:"🎯 FKキッカー",ck:"🚩 CKキッカー"};
