@@ -843,6 +843,12 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 .card.par-danger .radar .rfill{fill:rgba(255,58,58,.28);stroke:#ff3a3a;filter:drop-shadow(0 0 4px rgba(255,55,55,.7))}
 .card.par-danger .rlab b.mx{color:#ff4d4d;text-shadow:-1px -1px 0 rgba(0,0,0,.9),1px -1px 0 rgba(0,0,0,.9),-1px 1px 0 rgba(0,0,0,.9),1px 1px 0 rgba(0,0,0,.9),0 0 7px rgba(255,60,60,.9)}
 .card.l.sig.par-danger::after{background:linear-gradient(115deg,transparent 36%,rgba(255,120,120,.42) 48%,transparent 60%)} /* ホロ光沢も赤系へ */
+/* ===== パラレル: TURBULENCE(枠=紫/レーダー=紫/SIGNATURE文字=紫/ポジション=ANY紫バッジ) ===== */
+.card.l.sig.par-turbulence{border-color:#a95cff!important;box-shadow:0 0 12px rgba(150,70,255,.55)!important}
+.card.l.sig.par-turbulence .rar{color:#c79bff!important;text-shadow:var(--txto),0 0 8px rgba(160,80,255,.95)}
+.card.par-turbulence .radar .rfill{fill:rgba(168,92,255,.28);stroke:#a95cff;filter:drop-shadow(0 0 4px rgba(160,90,255,.7))}
+.card.par-turbulence .chead .pos{background:#7a3fd0!important;color:#fff!important} /* ANY バッジを紫に */
+.card.l.sig.par-turbulence::after{background:linear-gradient(115deg,transparent 36%,rgba(190,140,255,.42) 48%,transparent 60%)}
 .slot .scard.l{border-color:#d8ad63}
 /* Legend/Signatureの情報帯: 明るい国籍色の上でも文字が読めるよう暗いスクリムを敷く(色の主張は上部で確保) */
 .card.l .cinfo::before{content:"";position:absolute;left:-5px;right:-5px;top:0;bottom:-5px;z-index:-1;
@@ -2001,6 +2007,12 @@ function posFit(cardSub,slotSub){
   if(cardSub===slotSub)return POSFIT.exact;                         // 細分まで完全一致
   return subClusterMates(sg,slotSub).indexOf(cardSub)>=0?POSFIT.near:POSFIT.far; // ② 同分類内の近接/非近接
 }
+// カード対応の適性: パラレル「乱気流」は同じ大分類(subGroup)なら常に適正=exact(1.0)でペナルティ回避。
+// それ以外は通常の posFit(細分ポジ一致度)。カードを持つ呼び出しは全てこちらを使う。
+function posFitOf(c,slotSub){
+  if(c&&c.par==="turbulence"&&subGroup(c.sub)===subGroup(slotSub))return POSFIT.exact;
+  return posFit(c?c.sub:c,slotSub);
+}
 // フォーメーション: 各枠 [細分pos, x, y]。座標は §3.4 の標準ポジショングリッドに従う(上=攻撃/下=自陣)。
 const FORMS={
  "4-4-2":[["GK",50,90],["LSB",18,76],["CB",38,77],["CB",62,77],["RSB",82,76],["LMF",16,49],["CMF",38,51],["CMF",62,51],["RMF",84,49],["ST",50,28],["CF",50,13]],
@@ -2351,11 +2363,14 @@ function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 // 種類は今後追加予定。apply(c) がカードへ隠し効果を付与し、c.par にID記録(券面の見た目も par-<id> で分岐)。
 const PARALLELS={
   // DANGER ZONE: 得意能力(20)が21(デンジャーゾーン)へ。券面は 枠=赤/レーダー=赤/SIGNATURE文字=赤/21=赤。
-  danger:{ id:"danger", name:"DANGER ZONE",
+  danger:{ id:"danger", name:"DANGER ZONE", rate:1/50,
     apply(c){ ["off","def","pow","tec","spd","sta"].forEach(k=>{ if(c[k]===20)c[k]=21; }); } },
+  // TURBULENCE(乱気流): 同じ大分類(FW/MF/DF)のポジション全てに適正=1(ペナルティ回避)。効果は posFitOf 側。
+  // ステ/OVRは不変(DangerZoneとの差別化)。券面は 枠=紫/レーダー=紫/SIGNATURE文字=紫/ポジション=ANY。GKは実質効果なし。
+  turbulence:{ id:"turbulence", name:"TURBULENCE", rate:1/50, apply(c){} },
 };
-// シグネチャ当選時のパラレル抽選。現状 DangerZone のみ 1/50。将来は複数種を各レートで判定(最初に当たったもの)。
-function rollParallel(){ if(Math.random()<1/50)return "danger"; return null; }
+// シグネチャ当選時のパラレル抽選。各種を独立レート(各1/50)で判定し、複数当選時はランダムで1つ。
+function rollParallel(){ const hits=Object.keys(PARALLELS).filter(k=>Math.random()<PARALLELS[k].rate); return hits.length?hits[Math.floor(Math.random()*hits.length)]:null; }
 function applyParallel(c,parId){ const p=PARALLELS[parId]; if(!p||!c)return c; c.par=parId; p.apply(c); return c; }
 function makeSignature(id){
   const s=signatureById(id);if(!s)return null;
@@ -5017,7 +5032,7 @@ function cardEl(c,mini){
   const grade=c.emo?"EMOTIONAL":c.sig?"SIGNATURE":RARS[c.rar]; // グレード表記(上中央・★★★★→SIGNATURE)
   const cat=typeFlavor(c).cat||"atk";
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
-  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
+  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.par==="turbulence"?"ANY":c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
   <div class="tp" style="color:${CAT_COL[cat]}">${typeOf(c).n}</div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
   <div class="cinfo"><div class="ovr">OVR<b>${ovr}</b></div><div class="pnm"><span class="pnm-in">${c.name}</span></div>${sk}</div>`;
@@ -5043,7 +5058,7 @@ let pickSlot=null;
 function total(c){return c.off+c.def+c.pow+c.tec+c.spd+c.sta;}
 // 枠に置いた時の実効OVR(ポジション適性pen・キーポジション係数を反映した「計算後」の値)
 function slotEffOVR(c,sub,i){
-  const pen=posFit(c.sub,sub);
+  const pen=posFitOf(c,sub);
   const keyStat=(KEYPOS[S.form]||{})[i];
   const ks=["off","def","pow","tec","spd","sta"];
   let sum=0;
@@ -5065,7 +5080,7 @@ function pitchSlots(pitchEl, ctx){
     const c=ctx.find(ctx.squad[i]);
     let fitCls="",fitMark="";
     if(c){
-      const fit=posFit(c.sub,sub);
+      const fit=posFitOf(c,sub);
       if(fit>=POSFIT.exact){fitCls="fit-ok";fitMark='<span class="fitmark">✓</span>';}
       else if(fit>POSFIT.group){fitCls="fit-mild";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}
       else{fitCls="fit-bad";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}
@@ -5287,7 +5302,7 @@ function openPicker(i,sub){
   const used=Object.entries(S.squad).filter(([k])=>+k!==i).map(([,v])=>v);
   const cur=S.squad[i];
   S.coll.filter(c=>!used.includes(c.id))
-    .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||total(b)-total(a))
+    .sort((a,b)=>posFitOf(b,sub)-posFitOf(a,sub)||total(b)-total(a))
     .forEach(c=>{
       const e=cardEl(c); // 図鑑と同じフルカード(ステ数値が見える=入れ替え比較しやすい)
       if(c.id===cur)e.classList.add("sel");
@@ -5331,7 +5346,7 @@ document.getElementById("autoBtn").onclick=async()=>{
     pool.sort((a,b)=>
       ((subGroup(b.sub)===grp)-(subGroup(a.sub)===grp))
       || (total(b)-total(a))
-      || (posFit(b.sub,sub)-posFit(a.sub,sub)));
+      || (posFitOf(b,sub)-posFitOf(a,sub)));
     const c=pool.shift();if(c)S.squad[i]=c.id;
   });
   const starters=new Set(Object.values(S.squad)); // 残りの上位をベンチへ自動補充
@@ -6053,7 +6068,7 @@ function importTeam(raw){
   const r=_BR(bytes.slice(p));
   const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
   const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits,typeBits,ageBits);
-    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
+    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const fav=favFlag?_decCard(r,sigBits,typeBits,ageBits):null;
   return {team:buildTeam(cards,"A",form), coach:(coach||"名無し監督").slice(0,20),
     teamName:(team||"相手チーム").slice(0,20), fav, form};
@@ -6370,7 +6385,7 @@ function openCareerSlotPicker(i,sub){
   const used=Object.entries(cr.squad||{}).filter(([k])=>+k!==i).map(([,v])=>v).concat((cr.bench||[]).filter(Boolean));
   const cur=(cr.squad||{})[i];
   careerPool(cr).filter(c=>!used.includes(c.id))
-    .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||cardOvr(b)-cardOvr(a))
+    .sort((a,b)=>posFitOf(b,sub)-posFitOf(a,sub)||cardOvr(b)-cardOvr(a))
     .forEach(c=>{
       const e=cardEl(c);
       if(c.id===cur)e.classList.add("sel");
@@ -6796,7 +6811,7 @@ function myTeam(){
   const kp=KEYPOS[S.form]||{};
   FORMS[S.form].forEach((sl,i)=>{
     const c=S.coll.find(k=>k.id===S.squad[i]);
-    if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
+    if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1});
   });
   return buildTeam(cards,"H",S.form);
@@ -6823,7 +6838,7 @@ function careerPicks(cr,exclude){
   });
   picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完(ベンチ指定は除外)
     let best=null,bs=-1;
-    for(const c of pool){ if(used.has(c.id)||ex.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    for(const c of pool){ if(used.has(c.id)||ex.has(c.id))continue; const sc=posFitOf(c,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
     if(best){p.c=best;used.add(best.id);}
   });
   return {picks,used};
@@ -6842,13 +6857,13 @@ function careerTeam(cap){
     for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
       for(const c of pool){ if(used.has(c.id)||ex.has(c.id)||ovr(c)>=ovr(p.c))continue;
-        const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
+        const sc=posFitOf(c,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
       if(a){const save=ovr(p.c)-ovr(a); if(save>bestSave){bestSave=save;pick=p;alt=a;}}
     }
     if(!pick)break;
     used.delete(pick.c.id);used.add(alt.id);pick.c=alt;
   }
-  const cards=picks.filter(p=>p.c).map(p=>{const i=picks.indexOf(p);return {c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
+  const cards=picks.filter(p=>p.c).map(p=>{const i=picks.indexOf(p);return {c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFitOf(p.c,p.sub),
     x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const team=buildTeam(cards,"H",S.form);
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
@@ -8812,7 +8827,7 @@ function renderBench(pi){
   const onField=MC.home.players.map(p=>p.c.id);
   const benchedOut=MC.subbedOut||(MC.subbedOut=new Set()); // 既に交代退場した選手は戻せない
   const bench=(MC.bench||[]).filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id)) // 事前設定のベンチからのみ交代可
-    .sort((a,b)=>posFit(b.sub,out.subRole)-posFit(a.sub,out.subRole)||total(b)-total(a));
+    .sort((a,b)=>posFitOf(b,out.subRole)-posFitOf(a,out.subRole)||total(b)-total(a));
   if(!bench.length){toast("交代枠に投入できる控えがいません(編成でベンチを設定)");return;}
   document.getElementById("subTitle").textContent=`INする選手を選択(OUT: ${out.c.name} / 枠は${out.subRole||out.role})`;
   document.getElementById("subList").style.display="none";
@@ -8820,7 +8835,7 @@ function renderBench(pi){
   bench.forEach(c=>{
     const e=cardEl(c,true);
     e.onclick=()=>{
-      const np={c,role:out.role,subRole:out.subRole,pen:posFit(c.sub,out.subRole),x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,cur:out.cur,
+      const np={c,role:out.role,subRole:out.subRole,pen:posFitOf(c,out.subRole),x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,cur:out.cur,
         stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0},
         keyStat:out.keyStat||null,keyMul:out.keyMul||1};
       benchedOut.add(out.c.id); // OUTした選手は以後ベンチに出さない(再投入不可)

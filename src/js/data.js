@@ -697,6 +697,12 @@ function posFit(cardSub,slotSub){
   if(cardSub===slotSub)return POSFIT.exact;                         // 細分まで完全一致
   return subClusterMates(sg,slotSub).indexOf(cardSub)>=0?POSFIT.near:POSFIT.far; // ② 同分類内の近接/非近接
 }
+// カード対応の適性: パラレル「乱気流」は同じ大分類(subGroup)なら常に適正=exact(1.0)でペナルティ回避。
+// それ以外は通常の posFit(細分ポジ一致度)。カードを持つ呼び出しは全てこちらを使う。
+function posFitOf(c,slotSub){
+  if(c&&c.par==="turbulence"&&subGroup(c.sub)===subGroup(slotSub))return POSFIT.exact;
+  return posFit(c?c.sub:c,slotSub);
+}
 // フォーメーション: 各枠 [細分pos, x, y]。座標は §3.4 の標準ポジショングリッドに従う(上=攻撃/下=自陣)。
 const FORMS={
  "4-4-2":[["GK",50,90],["LSB",18,76],["CB",38,77],["CB",62,77],["RSB",82,76],["LMF",16,49],["CMF",38,51],["CMF",62,51],["RMF",84,49],["ST",50,28],["CF",50,13]],
@@ -1047,11 +1053,14 @@ function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 // 種類は今後追加予定。apply(c) がカードへ隠し効果を付与し、c.par にID記録(券面の見た目も par-<id> で分岐)。
 const PARALLELS={
   // DANGER ZONE: 得意能力(20)が21(デンジャーゾーン)へ。券面は 枠=赤/レーダー=赤/SIGNATURE文字=赤/21=赤。
-  danger:{ id:"danger", name:"DANGER ZONE",
+  danger:{ id:"danger", name:"DANGER ZONE", rate:1/50,
     apply(c){ ["off","def","pow","tec","spd","sta"].forEach(k=>{ if(c[k]===20)c[k]=21; }); } },
+  // TURBULENCE(乱気流): 同じ大分類(FW/MF/DF)のポジション全てに適正=1(ペナルティ回避)。効果は posFitOf 側。
+  // ステ/OVRは不変(DangerZoneとの差別化)。券面は 枠=紫/レーダー=紫/SIGNATURE文字=紫/ポジション=ANY。GKは実質効果なし。
+  turbulence:{ id:"turbulence", name:"TURBULENCE", rate:1/50, apply(c){} },
 };
-// シグネチャ当選時のパラレル抽選。現状 DangerZone のみ 1/50。将来は複数種を各レートで判定(最初に当たったもの)。
-function rollParallel(){ if(Math.random()<1/50)return "danger"; return null; }
+// シグネチャ当選時のパラレル抽選。各種を独立レート(各1/50)で判定し、複数当選時はランダムで1つ。
+function rollParallel(){ const hits=Object.keys(PARALLELS).filter(k=>Math.random()<PARALLELS[k].rate); return hits.length?hits[Math.floor(Math.random()*hits.length)]:null; }
 function applyParallel(c,parId){ const p=PARALLELS[parId]; if(!p||!c)return c; c.par=parId; p.apply(c); return c; }
 function makeSignature(id){
   const s=signatureById(id);if(!s)return null;

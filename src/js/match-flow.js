@@ -1059,7 +1059,7 @@ function renderBench(pi){
   const onField=MC.home.players.map(p=>p.c.id);
   const benchedOut=MC.subbedOut||(MC.subbedOut=new Set()); // 既に交代退場した選手は戻せない
   const bench=(MC.bench||[]).filter(c=>!onField.includes(c.id)&&!benchedOut.has(c.id)) // 事前設定のベンチからのみ交代可
-    .sort((a,b)=>posFit(b.sub,out.subRole)-posFit(a.sub,out.subRole)||total(b)-total(a));
+    .sort((a,b)=>posFitOf(b,out.subRole)-posFitOf(a,out.subRole)||total(b)-total(a));
   if(!bench.length){toast("交代枠に投入できる控えがいません(編成でベンチを設定)");return;}
   document.getElementById("subTitle").textContent=`INする選手を選択(OUT: ${out.c.name} / 枠は${out.subRole||out.role})`;
   document.getElementById("subList").style.display="none";
@@ -1067,7 +1067,7 @@ function renderBench(pi){
   bench.forEach(c=>{
     const e=cardEl(c,true);
     e.onclick=()=>{
-      const np={c,role:out.role,subRole:out.subRole,pen:posFit(c.sub,out.subRole),x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,cur:out.cur,
+      const np={c,role:out.role,subRole:out.subRole,pen:posFitOf(c,out.subRole),x:out.x,y:out.y,enter:MC.min,fside:"H",el:out.el,cur:out.cur,
         stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0},
         keyStat:out.keyStat||null,keyMul:out.keyMul||1};
       benchedOut.add(out.c.id); // OUTした選手は以後ベンチに出さない(再投入不可)

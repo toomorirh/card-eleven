@@ -344,7 +344,7 @@ function importTeam(raw){
   const r=_BR(bytes.slice(p));
   const form=_FORMS[r.read(3)]||"4-4-2", favFlag=r.read(1), kp=KEYPOS[form]||{};
   const cards=FORMS[form].map((sl,i)=>{const c=_decCard(r,sigBits,typeBits,ageBits);
-    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
+    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const fav=favFlag?_decCard(r,sigBits,typeBits,ageBits):null;
   return {team:buildTeam(cards,"A",form), coach:(coach||"名無し監督").slice(0,20),
     teamName:(team||"相手チーム").slice(0,20), fav, form};
@@ -661,7 +661,7 @@ function openCareerSlotPicker(i,sub){
   const used=Object.entries(cr.squad||{}).filter(([k])=>+k!==i).map(([,v])=>v).concat((cr.bench||[]).filter(Boolean));
   const cur=(cr.squad||{})[i];
   careerPool(cr).filter(c=>!used.includes(c.id))
-    .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||cardOvr(b)-cardOvr(a))
+    .sort((a,b)=>posFitOf(b,sub)-posFitOf(a,sub)||cardOvr(b)-cardOvr(a))
     .forEach(c=>{
       const e=cardEl(c);
       if(c.id===cur)e.classList.add("sel");

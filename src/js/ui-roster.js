@@ -36,7 +36,7 @@ function cardEl(c,mini){
   const grade=c.emo?"EMOTIONAL":c.sig?"SIGNATURE":RARS[c.rar]; // グレード表記(上中央・★★★★→SIGNATURE)
   const cat=typeFlavor(c).cat||"atk";
   const lab=(cls,k)=>`<div class="rlab ${cls}">${STAT_SHORT[k]}<b class="${c.lb&&c.lb[k]?"lb":(c[k]>=20?"mx":"")}">${c[k]}</b></div>`;
-  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
+  d.innerHTML=`<div class="chead"><span class="pos ${c.pos}">${c.par==="turbulence"?"ANY":c.sub}</span><span class="cgrade"><span class="rar">${grade}</span></span><span class="cflag">${c.flag}</span></div>
   <div class="tp" style="color:${CAT_COL[cat]}">${typeOf(c).n}</div>
   <div class="radar">${radarSVG(c)}${lab("rl-of","off")}${lab("rl-df","def")}${lab("rl-po","pow")}${lab("rl-te","tec")}${lab("rl-sp","spd")}${lab("rl-st","sta")}<div class="face"></div></div>
   <div class="cinfo"><div class="ovr">OVR<b>${ovr}</b></div><div class="pnm"><span class="pnm-in">${c.name}</span></div>${sk}</div>`;
@@ -62,7 +62,7 @@ let pickSlot=null;
 function total(c){return c.off+c.def+c.pow+c.tec+c.spd+c.sta;}
 // 枠に置いた時の実効OVR(ポジション適性pen・キーポジション係数を反映した「計算後」の値)
 function slotEffOVR(c,sub,i){
-  const pen=posFit(c.sub,sub);
+  const pen=posFitOf(c,sub);
   const keyStat=(KEYPOS[S.form]||{})[i];
   const ks=["off","def","pow","tec","spd","sta"];
   let sum=0;
@@ -84,7 +84,7 @@ function pitchSlots(pitchEl, ctx){
     const c=ctx.find(ctx.squad[i]);
     let fitCls="",fitMark="";
     if(c){
-      const fit=posFit(c.sub,sub);
+      const fit=posFitOf(c,sub);
       if(fit>=POSFIT.exact){fitCls="fit-ok";fitMark='<span class="fitmark">✓</span>';}
       else if(fit>POSFIT.group){fitCls="fit-mild";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}
       else{fitCls="fit-bad";fitMark=`<span class="fitmark">⚠${c.sub}</span>`;}
@@ -306,7 +306,7 @@ function openPicker(i,sub){
   const used=Object.entries(S.squad).filter(([k])=>+k!==i).map(([,v])=>v);
   const cur=S.squad[i];
   S.coll.filter(c=>!used.includes(c.id))
-    .sort((a,b)=>posFit(b.sub,sub)-posFit(a.sub,sub)||total(b)-total(a))
+    .sort((a,b)=>posFitOf(b,sub)-posFitOf(a,sub)||total(b)-total(a))
     .forEach(c=>{
       const e=cardEl(c); // 図鑑と同じフルカード(ステ数値が見える=入れ替え比較しやすい)
       if(c.id===cur)e.classList.add("sel");
@@ -350,7 +350,7 @@ document.getElementById("autoBtn").onclick=async()=>{
     pool.sort((a,b)=>
       ((subGroup(b.sub)===grp)-(subGroup(a.sub)===grp))
       || (total(b)-total(a))
-      || (posFit(b.sub,sub)-posFit(a.sub,sub)));
+      || (posFitOf(b,sub)-posFitOf(a,sub)));
     const c=pool.shift();if(c)S.squad[i]=c.id;
   });
   const starters=new Set(Object.values(S.squad)); // 残りの上位をベンチへ自動補充

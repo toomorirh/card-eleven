@@ -80,7 +80,7 @@ function myTeam(){
   const kp=KEYPOS[S.form]||{};
   FORMS[S.form].forEach((sl,i)=>{
     const c=S.coll.find(k=>k.id===S.squad[i]);
-    if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFit(c.sub,sl[0]),x:sl[1],y:sl[2],enter:0,
+    if(c)cards.push({c,role:subGroup(sl[0]),subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1});
   });
   return buildTeam(cards,"H",S.form);
@@ -107,7 +107,7 @@ function careerPicks(cr,exclude){
   });
   picks.forEach(p=>{ if(p.c)return; // 2) 空き枠を貪欲に自動補完(ベンチ指定は除外)
     let best=null,bs=-1;
-    for(const c of pool){ if(used.has(c.id)||ex.has(c.id))continue; const sc=posFit(c.sub,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
+    for(const c of pool){ if(used.has(c.id)||ex.has(c.id))continue; const sc=posFitOf(c,p.sub)*1000+cardOvr(c); if(sc>bs){bs=sc;best=c;} }
     if(best){p.c=best;used.add(best.id);}
   });
   return {picks,used};
@@ -126,13 +126,13 @@ function careerTeam(cap){
     for(const p of picks){ if(p.manual||!p.c)continue;
       let a=null,as=-1;
       for(const c of pool){ if(used.has(c.id)||ex.has(c.id)||ovr(c)>=ovr(p.c))continue;
-        const sc=posFit(c.sub,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
+        const sc=posFitOf(c,p.sub)*1000+ovr(c); if(sc>as){as=sc;a=c;} }
       if(a){const save=ovr(p.c)-ovr(a); if(save>bestSave){bestSave=save;pick=p;alt=a;}}
     }
     if(!pick)break;
     used.delete(pick.c.id);used.add(alt.id);pick.c=alt;
   }
-  const cards=picks.filter(p=>p.c).map(p=>{const i=picks.indexOf(p);return {c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFit(p.c.sub,p.sub),
+  const cards=picks.filter(p=>p.c).map(p=>{const i=picks.indexOf(p);return {c:p.c,role:subGroup(p.sub),subRole:p.sub,pen:posFitOf(p.c,p.sub),
     x:form[i][1],y:form[i][2],enter:0,keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};});
   const team=buildTeam(cards,"H",S.form);
   if(cr)team.players.forEach(p=>{p.grow=(cr.growth&&cr.growth[p.c.id])||null; p.ageBonus=cr.season||0;}); // 成長値+加齢(実効年齢)を付与
