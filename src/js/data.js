@@ -1058,9 +1058,17 @@ const PARALLELS={
   // TURBULENCE(乱気流): 同じ大分類(FW/MF/DF)のポジション全てに適正=1(ペナルティ回避)。効果は posFitOf 側。
   // ステ/OVRは不変(DangerZoneとの差別化)。券面は 枠=紫/レーダー=紫/SIGNATURE文字=紫/ポジション=ANY。GKは実質効果なし。
   turbulence:{ id:"turbulence", name:"TURBULENCE", rate:1/50, apply(c){} },
+  // OBSIDIAN(黒曜石): 最高レア(1/100)。スタミナ低下の影響を受けず常にフル性能(fatigue側でiron相当)。
+  // ステ/OVRは不変。券面は 国籍カラーを廃し漆黒背景+銀のホロで高級感。
+  obsidian:{ id:"obsidian", name:"OBSIDIAN", rate:1/100, apply(c){} },
 };
-// シグネチャ当選時のパラレル抽選。各種を独立レート(各1/50)で判定し、複数当選時はランダムで1つ。
-function rollParallel(){ const hits=Object.keys(PARALLELS).filter(k=>Math.random()<PARALLELS[k].rate); return hits.length?hits[Math.floor(Math.random()*hits.length)]:null; }
+// シグネチャ当選時のパラレル抽選。各種を独立レートで判定し、複数当選時は「よりレアな(低レート)」を優先(=最高レアが勝つ)。
+function rollParallel(){
+  const hits=Object.keys(PARALLELS).filter(k=>Math.random()<PARALLELS[k].rate);
+  if(!hits.length)return null;
+  hits.sort((a,b)=>PARALLELS[a].rate-PARALLELS[b].rate); // レア(低レート)優先
+  return hits[0];
+}
 function applyParallel(c,parId){ const p=PARALLELS[parId]; if(!p||!c)return c; c.par=parId; p.apply(c); return c; }
 function makeSignature(id){
   const s=signatureById(id);if(!s)return null;

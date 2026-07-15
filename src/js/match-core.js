@@ -11,6 +11,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function fatigue(p,min){
   const c=p.c, F=TUNING.fatigue;
   if(c.skill&&c.skill.fx.iron)return 1;
+  if(c.par==="obsidian")return 1; // 黒曜石: スタミナ低下の影響を受けず常にフル性能(スタミナ自体は減るが試合への影響ゼロ)
   const inv=(p.stat&&p.stat.inv)||0;
   const dload=(p.stat&&p.stat.dload)||0;                   // 守備負荷(被攻撃/被シュートをラインで分担)
   const played=Math.min(Math.max(min-(p.enter||0),0),90);
