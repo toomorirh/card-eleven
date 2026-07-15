@@ -15,7 +15,8 @@ function fatigue(p,min){
   const dload=(p.stat&&p.stat.dload)||0;                   // 守備負荷(被攻撃/被シュートをラインで分担)
   const played=Math.min(Math.max(min-(p.enter||0),0),90);
   const staMul=1-(c.sta-1)/19*F.staReduce;                 // sta1→1.0 / sta20→1-staReduce
-  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul*ageDrain(p)); // 年齢: 若手ほど消費が早い
+  const capMul=(p.isCaptain&&F.captain!=null)?F.captain:1;  // 主将は消耗を緩和(スタミナ低下がゆるやか)
+  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul*ageDrain(p)*capMul); // 年齢: 若手ほど消費が早い
 }
 // 守備ライン全体の消耗で守備力が落ちる(疲れたDFラインは終盤に綻び被弾しやすい)。
 // 個々のeffの疲労とは別に、ライン平均消耗ぶんだけ守備スコアを薄く減じる。rng非消費=判定順は不変。
@@ -589,6 +590,15 @@ function pickShooter(A){
   const fks=A.players.filter(p=>p.role!=="GK"&&fx(p).freekick);
   if(fks.length)return pickW(fks,p=>p.c.tec+p.c.off);
   return pickW(A.players.filter(p=>p.role!=="GK"),p=>p.c.off*1.2+p.c.tec)||A.players[0];
+}
+// プレースキッカー: 自チーム(H)で該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
+// 未指定・ベンチ・相手チームは通常の pickShooter にフォールバック。
+function pickKicker(A,kind){
+  if(A&&A.side==="H"&&typeof S!=="undefined"&&S.kickers&&S.kickers[kind]){
+    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===S.kickers[kind]);
+    if(p)return p;
+  }
+  return pickShooter(A);
 }
 
 // ===== 勝敗判定(純粋関数・DOM/演出/stat更新を持たない) =====

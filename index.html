@@ -161,6 +161,23 @@ canvas.sprite{image-rendering:auto}
 .card.sel{outline:3px solid var(--cyan)}
 
 .grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+/* ロール設定(キャプテン/プレースキッカー) */
+#rolePanel{margin-top:10px}
+.role-row{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-top:5px;background:#0e1826;border:1px solid #24344c;border-radius:8px;cursor:pointer}
+.role-row:active{background:#132135}
+.role-ic{font-size:16px;flex:0 0 auto}
+.role-lb{flex:0 0 78px;font-weight:bold;color:#cfe0f5;font-size:13px}
+.role-val{flex:1 1 auto;color:#fff;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.role-edit{flex:0 0 auto;color:var(--cyan);font-size:12px}
+.slotroles{position:absolute;top:-7px;right:-6px;display:flex;flex-direction:column;gap:2px;align-items:flex-end;z-index:3;pointer-events:none}
+.rb{font-size:9px;line-height:1;font-weight:900}
+.rb.cap{font-size:14px;filter:drop-shadow(0 1px 1px #000)}
+.rb.kick{background:#1b3a5c;color:#9fe0ff;border:1px solid #2f6ea0;padding:1px 3px;border-radius:4px}
+.pick-auto{width:100%;padding:10px;background:#132135;border:1px dashed #3a5f86;border-radius:8px;text-align:center;color:#cfe6ff;cursor:pointer;font-weight:bold}
+.pick-auto.sel{border-color:var(--gold);color:var(--gold)}
+.pick-auto .lv{display:block;margin-top:2px}
+.pick-role-cell{position:relative}
+.pick-role-cell.recommend::after{content:"⭐推奨";position:absolute;top:3px;left:3px;background:var(--gold);color:#1a1200;font-size:9px;font-weight:900;padding:1px 4px;border-radius:5px;z-index:4}
 #sigPickGrid{max-height:60vh;overflow-y:auto}
 #sigPickGrid .pickable{cursor:pointer;transition:transform .08s}
 #sigPickGrid .pickable:active{transform:scale(.95)}
@@ -1128,6 +1145,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     <div class="lg" id="chemStatus" style="margin-top:6px"></div>
     <div class="mgr-advice" id="mgrAdvice" style="display:none"></div>
     <div class="pitch" id="pitch"><div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div></div>
+    <div id="rolePanel"></div>
     <div id="benchBox"></div>
     <div class="row" style="margin-top:8px;align-items:center">
       <button class="btn ghost" id="fmBtn" style="flex:1;white-space:nowrap">陣形 <span id="fmName">4-4-2</span></button>
@@ -1434,7 +1452,7 @@ const TUNING={
   // perDef=守備負荷(dload)1あたりの消耗 / dloadShot=被シュート時の追加守備負荷 /
   // lineFree=この消耗までは守備力ペナルティ無し(不感帯) / linePenalty=超過分に対する守備力低下度合い
   // (=疲れたDFラインだけが終盤に綻ぶ。序盤の全体的な得点インフレを避ける)
-  fatigue:{max:0.76, perAction:0.13, perMin:0.0012, staReduce:0.55, gassedFeed:0.55, perDef:0.012, dloadShot:1.5, lineFree:0.30, linePenalty:0.8},
+  fatigue:{max:0.76, perAction:0.13, perMin:0.0012, staReduce:0.55, gassedFeed:0.55, perDef:0.012, dloadShot:1.5, lineFree:0.30, linePenalty:0.8, captain:0.8},
   tactic:{atk:1.15,def:0.85},                      // 攻撃シーケンスの戦術補正(攻撃的/守備的)
   midTactic:{atk:1.05,def:0.92},                   // 支配率の戦術補正(スタイル補正は STYLES[id].mid)
   mid:{tec:0.45,spd:0.3,sta:0.25,mf:1,other:0.32}, // 支配率の能力重み/ポジション重み
@@ -4794,7 +4812,7 @@ function migrate(){ // 旧カード → 6パラメータ+スキル+ドット絵�
 }
 // 新規データ(初期デッキ)を構築。はじめから用。固有選手は実績(マイルストーン)で入手する。
 function applyDefaults(){
-  S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:10,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[],prestige:0,fac:{stadium:0,academy:0,medical:0,coaching:0,scouting:0},_facGranted:1,rookieViz:ri(0,7),secViz:ri(0,4),guideStep:0,hasScouted:0,leagueDone:0};
+  S={coins:300,coll:[],squad:{},form:"4-4-2",cleared:0,tactic:"bal",v:10,legendPacks:0,championPacks:0,sigPacks:0,sigSelect:0,leagueWins:0,tour:{i:0,res:[]},tourPerfect:0,coach:"",teamName:"",favId:0,friendRec:{},ms:{},league:null,mgrOwned:[],mgrActive:"",introLetters:0,customMgrs:[],prestige:0,fac:{stadium:0,academy:0,medical:0,coaching:0,scouting:0},_facGranted:1,rookieViz:ri(0,7),secViz:ri(0,4),guideStep:0,hasScouted:0,leagueDone:0,captain:null,kickers:{pk:null,fk:null,ck:null}};
   applyRookieViz();
   FORMS["4-4-2"].forEach((sl,i)=>{
     const sub=sl[0],c=makeCard(subGroup(sub),i===9?"r":"n",null,sub);
@@ -4832,6 +4850,8 @@ async function loadGame(){                                       // つづきか
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換
+  if(S.captain===undefined)S.captain=null;                     // キャプテン/プレースキッカーの後方互換
+  if(!S.kickers||typeof S.kickers!=="object")S.kickers={pk:null,fk:null,ck:null};
   if(S.career&&!Array.isArray(S.career.bench))S.career.bench=[];
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
@@ -5042,7 +5062,8 @@ function pitchSlots(pitchEl, ctx){
       d.classList.add("filled");
       const ovr=slotOvr(c,sub,i);
       d.innerHTML=`${head}<div class="slotsprite"><div class="slotring ${c.rar}"></div></div>
-        <div class="slotinfo"><span class="flag">${c.flag}</span><b class="nm">${c.name}</b><span class="ovr">OVR<b>${ovr}</b></span></div>`;
+        <div class="slotinfo"><span class="flag">${c.flag}</span><b class="nm">${c.name}</b><span class="ovr">OVR<b>${ovr}</b></span></div>`
+        +(ctx.roleBadges?ctx.roleBadges(c.id):"");
       d.querySelector(".slotsprite").appendChild(spriteCanvas(c,40));
     }else{d.classList.add("empty");d.innerHTML=`${head}<div class="slotsprite"><div class="ph">＋</div></div>`;}
     d.onclick=()=>ctx.onSlot(i,sub);
@@ -5070,7 +5091,7 @@ function renderPitch(){
   document.getElementById("fmName").textContent=S.form;
   const find=id=>S.coll.find(k=>k.id===id);
   renderChemLines(p, S.squad, find); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
-  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR});
+  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR, roleBadges});
   // 同国籍ケミストリー表示
   const el=document.getElementById("chemStatus");
   if(el){
@@ -5095,6 +5116,7 @@ function renderPitch(){
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
+  renderRolePanel();
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
@@ -5116,6 +5138,64 @@ function openBenchPicker(j){
     e.onclick=async()=>{ if(c.id===cur)S.bench[j]=null; else S.bench[j]=c.id;
       await save();renderPitch();document.getElementById("picker").classList.remove("on"); };
     g.appendChild(e);
+  });
+  document.getElementById("picker").classList.add("on");
+}
+// ===== ロール設定(キャプテン / プレースキッカー PK・FK・CK) =====
+// 関連ステで最適選手を推奨。captain=6ステ合計 / pk=決定力(off主体) / fk=技術(tec主体) / ck=クロス精度(tec主体)。
+function roleScore(c,role){return role==="pk"?(c.off*0.6+c.tec*0.4):role==="fk"?(c.tec*0.6+c.off*0.4):role==="ck"?(c.tec*0.7+c.off*0.3):total(c);}
+function starterCards(){return FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);}
+// 指定があり出場中ならそのid、無ければ先発から自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
+function resolveRoleId(role){
+  const st=starterCards(); if(!st.length)return null;
+  const setId=role==="captain"?S.captain:((S.kickers||{})[role]);
+  if(setId&&st.some(c=>c.id===setId))return setId;
+  return role==="captain"?st.reduce((b,c)=>total(c)>total(b)?c:b,st[0]).id:null;
+}
+function setRole(role,id){ if(role==="captain")S.captain=id; else {S.kickers=S.kickers||{pk:null,fk:null,ck:null};S.kickers[role]=id;} }
+function roleBadges(cardId){
+  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">👑</span>';
+  const k=S.kickers||{}; ["pk","fk","ck"].forEach(r=>{ if(k[r]===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
+  return b?`<div class="slotroles">${b}</div>`:"";
+}
+function renderRolePanel(){
+  const box=document.getElementById("rolePanel"); if(!box)return;
+  const find=id=>S.coll.find(k=>k.id===id);
+  const rows=[["captain","👑","キャプテン"],["pk","⚽","PK"],["fk","🎯","FK"],["ck","🚩","CK"]];
+  let h=`<div class="banner" style="font-size:13px">― 🎽 ロール設定 ―</div>`;
+  rows.forEach(([r,ic,lb])=>{
+    const setId=r==="captain"?S.captain:((S.kickers||{})[r]);
+    const st=starterCards(), valid=setId&&st.some(c=>c.id===setId);
+    let disp;
+    if(valid){const c=find(setId);disp=`${c.flag} ${c.name}`;}
+    else if(r==="captain"){const id=resolveRoleId("captain"),c=id&&find(id);disp=c?`${c.flag} ${c.name} <span class="lv">(自動)</span>`:"—";}
+    else disp=`<span class="lv">自動(その場で選出)</span>`;
+    h+=`<div class="role-row" data-r="${r}"><span class="role-ic">${ic}</span><span class="role-lb">${lb}</span><span class="role-val">${disp}</span><span class="role-edit">変更 ›</span></div>`;
+  });
+  box.innerHTML=h;
+  box.querySelectorAll(".role-row").forEach(row=>row.onclick=()=>openRolePicker(row.dataset.r));
+}
+function openRolePicker(role){
+  const LB={captain:"👑 キャプテン",pk:"⚽ PKキッカー",fk:"🎯 FKキッカー",ck:"🚩 CKキッカー"};
+  const HINT={captain:"主将は試合前表記に採用・スタミナ低下が緩和",pk:"出場中ならPKを優先的に担当",fk:"出場中なら直接FK/FKを優先的に担当",ck:"出場中ならCKを優先的に担当"};
+  document.getElementById("pickTitle").textContent=`${LB[role]} を選択`;
+  const g=document.getElementById("pickGrid");g.innerHTML="";
+  // キッカー(pk/fk/ck)はGKスロットを除外(GKは蹴らない=pickKickerが除外)。キャプテンはGKも選択可。
+  let ents=FORMS[S.form].map((sl,i)=>({sub:sl[0],c:S.coll.find(k=>k.id===S.squad[i])})).filter(e=>e.c);
+  if(role!=="captain")ents=ents.filter(e=>subGroup(e.sub)!=="GK");
+  const st=ents.map(e=>e.c).sort((a,b)=>roleScore(b,role)-roleScore(a,role));
+  const curId=role==="captain"?S.captain:((S.kickers||{})[role]);
+  const hint=document.createElement("div");hint.className="lg";hint.style.cssText="width:100%;margin-bottom:6px";hint.textContent="ℹ "+HINT[role];g.appendChild(hint);
+  const auto=document.createElement("div");auto.className="pick-auto"+(!curId?" sel":"");
+  auto.innerHTML=`🎲 おまかせ(自動) <span class="lv">${role==="captain"?"最上位を主将に":"その場で最適な選手が蹴る"}</span>`;
+  auto.onclick=async()=>{ setRole(role,null); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+  g.appendChild(auto);
+  if(!st.length){const e=document.createElement("div");e.className="lg";e.textContent="先発を配置してください";g.appendChild(e);}
+  st.forEach((c,i)=>{
+    const wrap=document.createElement("div");wrap.className="pick-role-cell"+(i===0?" recommend":"");
+    const e=cardEl(c); if(c.id===curId)e.classList.add("sel");
+    e.onclick=async()=>{ setRole(role,c.id); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+    wrap.appendChild(e); g.appendChild(wrap);
   });
   document.getElementById("picker").classList.add("on");
 }
@@ -6623,7 +6703,8 @@ function fatigue(p,min){
   const dload=(p.stat&&p.stat.dload)||0;                   // 守備負荷(被攻撃/被シュートをラインで分担)
   const played=Math.min(Math.max(min-(p.enter||0),0),90);
   const staMul=1-(c.sta-1)/19*F.staReduce;                 // sta1→1.0 / sta20→1-staReduce
-  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul*ageDrain(p)); // 年齢: 若手ほど消費が早い
+  const capMul=(p.isCaptain&&F.captain!=null)?F.captain:1;  // 主将は消耗を緩和(スタミナ低下がゆるやか)
+  return 1-Math.min(F.max, (inv*F.perAction+dload*F.perDef+played*F.perMin)*staMul*ageDrain(p)*capMul); // 年齢: 若手ほど消費が早い
 }
 // 守備ライン全体の消耗で守備力が落ちる(疲れたDFラインは終盤に綻び被弾しやすい)。
 // 個々のeffの疲労とは別に、ライン平均消耗ぶんだけ守備スコアを薄く減じる。rng非消費=判定順は不変。
@@ -7197,6 +7278,15 @@ function pickShooter(A){
   const fks=A.players.filter(p=>p.role!=="GK"&&fx(p).freekick);
   if(fks.length)return pickW(fks,p=>p.c.tec+p.c.off);
   return pickW(A.players.filter(p=>p.role!=="GK"),p=>p.c.off*1.2+p.c.tec)||A.players[0];
+}
+// プレースキッカー: 自チーム(H)で該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
+// 未指定・ベンチ・相手チームは通常の pickShooter にフォールバック。
+function pickKicker(A,kind){
+  if(A&&A.side==="H"&&typeof S!=="undefined"&&S.kickers&&S.kickers[kind]){
+    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===S.kickers[kind]);
+    if(p)return p;
+  }
+  return pickShooter(A);
 }
 
 // ===== 勝敗判定(純粋関数・DOM/演出/stat更新を持たない) =====
@@ -7914,7 +8004,7 @@ async function aerialBox(A,D,min,deliverer,tf,who){
 // 追加=1エントリ+呼び出し元。共有プリミティブは spShot(高ベース判定)/aerialBox(空中戦)。
 const SETPIECES={
   pk:{ async run(A,D,min){
-    const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), taker=pickKicker(A,"pk"), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"pk");
     feed(`${who}🎯 PK獲得! <b>${taker.c.name}</b>がスポットへ`,"goal");
     movePlayer(taker,gx-dir*11,50,0.4); // キッカーもスポットへ(ボールだけが動く違和感を解消)
@@ -7924,7 +8014,7 @@ const SETPIECES={
     if(g)recordSet(MC,"pk",true);
   }},
   fk:{ async run(A,D,min){
-    const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), taker=pickKicker(A,"fk"), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"fk");
     const wide=curP(taker).y<35||curP(taker).y>65;
     const knuckle=!!fx(taker).freekick; // エモーショナル等のFK専門家=無回転FKの“瞬間”
@@ -7953,7 +8043,7 @@ const SETPIECES={
     }
   }},
   ck:{ async run(A,D,min){ // CK: 危険なクリア/セーブから派生。キッカーのクロス → 空中戦。
-    const who=whoPrefix(A), kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), kicker=pickKicker(A,"ck"), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"ck");
     feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
     await spCutin(kicker,"コーナーキック");
@@ -8185,6 +8275,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   document.getElementById("scr-match").classList.add("on");
   document.body.classList.add("in-match"); // 共通ヘッダーを隠してフィールドを広く
   const home=home0||myTeam();
+  { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(pre-match表記・スタミナ緩和・スキルトリガの起点)
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
@@ -8333,7 +8424,11 @@ function offerContractExtension(){ // 契約延長 or 引退の選択(オーバ�
 }
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-const teamCaptain=T=>T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
+// 主将: 自チーム(H)は編成で指定したキャプテンが出場中ならそれを、無ければ6ステ合計最上位を自動採用。
+const teamCaptain=T=>{
+  if(T.side==="H"&&typeof S!=="undefined"&&S.captain){const p=T.players.find(x=>x.c.id===S.captain);if(p)return p;}
+  return T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
+};
 
 // ================= 試合後スタッツ(オーバーレイ) =================
 let _statTeams=null;

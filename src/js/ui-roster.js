@@ -97,7 +97,8 @@ function pitchSlots(pitchEl, ctx){
       d.classList.add("filled");
       const ovr=slotOvr(c,sub,i);
       d.innerHTML=`${head}<div class="slotsprite"><div class="slotring ${c.rar}"></div></div>
-        <div class="slotinfo"><span class="flag">${c.flag}</span><b class="nm">${c.name}</b><span class="ovr">OVR<b>${ovr}</b></span></div>`;
+        <div class="slotinfo"><span class="flag">${c.flag}</span><b class="nm">${c.name}</b><span class="ovr">OVR<b>${ovr}</b></span></div>`
+        +(ctx.roleBadges?ctx.roleBadges(c.id):"");
       d.querySelector(".slotsprite").appendChild(spriteCanvas(c,40));
     }else{d.classList.add("empty");d.innerHTML=`${head}<div class="slotsprite"><div class="ph">＋</div></div>`;}
     d.onclick=()=>ctx.onSlot(i,sub);
@@ -125,7 +126,7 @@ function renderPitch(){
   document.getElementById("fmName").textContent=S.form;
   const find=id=>S.coll.find(k=>k.id===id);
   renderChemLines(p, S.squad, find); // 同国籍の選手を結ぶケミストリー線(スロットより背面)
-  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR});
+  pitchSlots(p, {squad:S.squad, find, onSlot:openPicker, slotOvr:slotEffOVR, roleBadges});
   // 同国籍ケミストリー表示
   const el=document.getElementById("chemStatus");
   if(el){
@@ -150,6 +151,7 @@ function renderPitch(){
     }else ov.innerHTML=`自チーム 平均OVR <b>—</b>`;
   }
   renderBenchSlots();
+  renderRolePanel();
   renderManagerAdvice();
   // 編成変更のたびに実績判定(合計OVR1000突破など)。付与があれば保存。
   if(typeof checkAchievements==="function"&&checkAchievements())save();
@@ -171,6 +173,64 @@ function openBenchPicker(j){
     e.onclick=async()=>{ if(c.id===cur)S.bench[j]=null; else S.bench[j]=c.id;
       await save();renderPitch();document.getElementById("picker").classList.remove("on"); };
     g.appendChild(e);
+  });
+  document.getElementById("picker").classList.add("on");
+}
+// ===== ロール設定(キャプテン / プレースキッカー PK・FK・CK) =====
+// 関連ステで最適選手を推奨。captain=6ステ合計 / pk=決定力(off主体) / fk=技術(tec主体) / ck=クロス精度(tec主体)。
+function roleScore(c,role){return role==="pk"?(c.off*0.6+c.tec*0.4):role==="fk"?(c.tec*0.6+c.off*0.4):role==="ck"?(c.tec*0.7+c.off*0.3):total(c);}
+function starterCards(){return FORMS[S.form].map((_,i)=>S.coll.find(k=>k.id===S.squad[i])).filter(Boolean);}
+// 指定があり出場中ならそのid、無ければ先発から自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
+function resolveRoleId(role){
+  const st=starterCards(); if(!st.length)return null;
+  const setId=role==="captain"?S.captain:((S.kickers||{})[role]);
+  if(setId&&st.some(c=>c.id===setId))return setId;
+  return role==="captain"?st.reduce((b,c)=>total(c)>total(b)?c:b,st[0]).id:null;
+}
+function setRole(role,id){ if(role==="captain")S.captain=id; else {S.kickers=S.kickers||{pk:null,fk:null,ck:null};S.kickers[role]=id;} }
+function roleBadges(cardId){
+  let b=""; if(resolveRoleId("captain")===cardId)b+='<span class="rb cap">👑</span>';
+  const k=S.kickers||{}; ["pk","fk","ck"].forEach(r=>{ if(k[r]===cardId)b+=`<span class="rb kick">${r.toUpperCase()}</span>`; });
+  return b?`<div class="slotroles">${b}</div>`:"";
+}
+function renderRolePanel(){
+  const box=document.getElementById("rolePanel"); if(!box)return;
+  const find=id=>S.coll.find(k=>k.id===id);
+  const rows=[["captain","👑","キャプテン"],["pk","⚽","PK"],["fk","🎯","FK"],["ck","🚩","CK"]];
+  let h=`<div class="banner" style="font-size:13px">― 🎽 ロール設定 ―</div>`;
+  rows.forEach(([r,ic,lb])=>{
+    const setId=r==="captain"?S.captain:((S.kickers||{})[r]);
+    const st=starterCards(), valid=setId&&st.some(c=>c.id===setId);
+    let disp;
+    if(valid){const c=find(setId);disp=`${c.flag} ${c.name}`;}
+    else if(r==="captain"){const id=resolveRoleId("captain"),c=id&&find(id);disp=c?`${c.flag} ${c.name} <span class="lv">(自動)</span>`:"—";}
+    else disp=`<span class="lv">自動(その場で選出)</span>`;
+    h+=`<div class="role-row" data-r="${r}"><span class="role-ic">${ic}</span><span class="role-lb">${lb}</span><span class="role-val">${disp}</span><span class="role-edit">変更 ›</span></div>`;
+  });
+  box.innerHTML=h;
+  box.querySelectorAll(".role-row").forEach(row=>row.onclick=()=>openRolePicker(row.dataset.r));
+}
+function openRolePicker(role){
+  const LB={captain:"👑 キャプテン",pk:"⚽ PKキッカー",fk:"🎯 FKキッカー",ck:"🚩 CKキッカー"};
+  const HINT={captain:"主将は試合前表記に採用・スタミナ低下が緩和",pk:"出場中ならPKを優先的に担当",fk:"出場中なら直接FK/FKを優先的に担当",ck:"出場中ならCKを優先的に担当"};
+  document.getElementById("pickTitle").textContent=`${LB[role]} を選択`;
+  const g=document.getElementById("pickGrid");g.innerHTML="";
+  // キッカー(pk/fk/ck)はGKスロットを除外(GKは蹴らない=pickKickerが除外)。キャプテンはGKも選択可。
+  let ents=FORMS[S.form].map((sl,i)=>({sub:sl[0],c:S.coll.find(k=>k.id===S.squad[i])})).filter(e=>e.c);
+  if(role!=="captain")ents=ents.filter(e=>subGroup(e.sub)!=="GK");
+  const st=ents.map(e=>e.c).sort((a,b)=>roleScore(b,role)-roleScore(a,role));
+  const curId=role==="captain"?S.captain:((S.kickers||{})[role]);
+  const hint=document.createElement("div");hint.className="lg";hint.style.cssText="width:100%;margin-bottom:6px";hint.textContent="ℹ "+HINT[role];g.appendChild(hint);
+  const auto=document.createElement("div");auto.className="pick-auto"+(!curId?" sel":"");
+  auto.innerHTML=`🎲 おまかせ(自動) <span class="lv">${role==="captain"?"最上位を主将に":"その場で最適な選手が蹴る"}</span>`;
+  auto.onclick=async()=>{ setRole(role,null); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+  g.appendChild(auto);
+  if(!st.length){const e=document.createElement("div");e.className="lg";e.textContent="先発を配置してください";g.appendChild(e);}
+  st.forEach((c,i)=>{
+    const wrap=document.createElement("div");wrap.className="pick-role-cell"+(i===0?" recommend":"");
+    const e=cardEl(c); if(c.id===curId)e.classList.add("sel");
+    e.onclick=async()=>{ setRole(role,c.id); await save(); renderPitch(); document.getElementById("picker").classList.remove("on"); };
+    wrap.appendChild(e); g.appendChild(wrap);
   });
   document.getElementById("picker").classList.add("on");
 }

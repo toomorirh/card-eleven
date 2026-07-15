@@ -285,7 +285,7 @@ async function aerialBox(A,D,min,deliverer,tf,who){
 // 追加=1エントリ+呼び出し元。共有プリミティブは spShot(高ベース判定)/aerialBox(空中戦)。
 const SETPIECES={
   pk:{ async run(A,D,min){
-    const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), taker=pickKicker(A,"pk"), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"pk");
     feed(`${who}🎯 PK獲得! <b>${taker.c.name}</b>がスポットへ`,"goal");
     movePlayer(taker,gx-dir*11,50,0.4); // キッカーもスポットへ(ボールだけが動く違和感を解消)
@@ -295,7 +295,7 @@ const SETPIECES={
     if(g)recordSet(MC,"pk",true);
   }},
   fk:{ async run(A,D,min){
-    const who=whoPrefix(A), taker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), taker=pickKicker(A,"fk"), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"fk");
     const wide=curP(taker).y<35||curP(taker).y>65;
     const knuckle=!!fx(taker).freekick; // エモーショナル等のFK専門家=無回転FKの“瞬間”
@@ -324,7 +324,7 @@ const SETPIECES={
     }
   }},
   ck:{ async run(A,D,min){ // CK: 危険なクリア/セーブから派生。キッカーのクロス → 空中戦。
-    const who=whoPrefix(A), kicker=pickShooter(A), dir=dirOf(A),gx=goalXOf(A);
+    const who=whoPrefix(A), kicker=pickKicker(A,"ck"), dir=dirOf(A),gx=goalXOf(A);
     recordSet(MC,"ck");
     feed(`${who}🚩 コーナーキック! <b>${kicker.c.name}</b>が蹴る`,"chance");
     await spCutin(kicker,"コーナーキック");
@@ -556,6 +556,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   document.getElementById("scr-match").classList.add("on");
   document.body.classList.add("in-match"); // 共通ヘッダーを隠してフィールドを広く
   const home=home0||myTeam();
+  { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(pre-match表記・スタミナ緩和・スキルトリガの起点)
   away.style=oppPickStyle(away);
   MC={home,away,min:0,ball:50,bx:50,by:50,idx,name,lv,subs:3,halt:false,loop:false,volt:0,mom:0};
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
@@ -704,7 +705,11 @@ function offerContractExtension(){ // 契約延長 or 引退の選択(オーバ�
 }
 // 主将 = 6ステ合計が最大の選手(キャプテン未指名のため最高OVRで代用)。
 const teamTotal6=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
-const teamCaptain=T=>T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
+// 主将: 自チーム(H)は編成で指定したキャプテンが出場中ならそれを、無ければ6ステ合計最上位を自動採用。
+const teamCaptain=T=>{
+  if(T.side==="H"&&typeof S!=="undefined"&&S.captain){const p=T.players.find(x=>x.c.id===S.captain);if(p)return p;}
+  return T.players.reduce((b,p)=>teamTotal6(p.c)>teamTotal6(b.c)?p:b,T.players[0]);
+};
 
 // ================= 試合後スタッツ(オーバーレイ) =================
 let _statTeams=null;
