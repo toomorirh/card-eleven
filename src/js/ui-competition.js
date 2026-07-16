@@ -27,10 +27,6 @@ function renderLeague(){
     }
     l.appendChild(d);
   });
-  if(S.cleared>=CLUBS.length){
-    const w=document.createElement("div");w.className="banner";w.textContent="🏆 全クラブ制覇!リーグ戦が解放!(リーグ優勝でワールドツアー解放)";
-    l.prepend(w);
-  }
   updateModeButtons(); // ワールドツアー(全クラブ制覇)/デイリー(ツアー1週完了)の解放を反映
 }
 // モードボタンの解放: ワールドツアー=全クラブ制覇 / デイリー=ワールドツアー1週完了(S.tourDone)。
@@ -131,7 +127,7 @@ function renderLeagueMode(){
   const fb=document.getElementById("fixtureBox");
   const tbl=document.getElementById("standings");
   if(!lg){
-    head.innerHTML='<div class="banner" style="font-size:15px">― リーグ戦 ― '+helpIcon("league")+'</div>';
+    head.innerHTML="";
     fb.innerHTML="";tbl.innerHTML="";
     const b=document.createElement("button");b.className="btn";b.textContent="シーズン開始";
     b.onclick=startSeason;fb.appendChild(b);
@@ -149,7 +145,7 @@ function renderLeagueMode(){
   tbl.innerHTML=h;
   tbl.querySelectorAll("[data-club-lg]").forEach(td=>{td.onclick=()=>openScout(+td.dataset.clubLg-1);}); // LG_CLUBS[i]=CLUBS[i-1]
   const done=lg.round>=lg.fixtures.length;
-  head.innerHTML=`<div class="banner" style="font-size:15px">― リーグ戦 第${Math.min(lg.round+1,lg.fixtures.length)}節${done?"終了":""} ―</div>`;
+  head.innerHTML="";
   fb.innerHTML="";
   if(done){
     const champ=rk[0];
@@ -220,8 +216,7 @@ function renderWorld(){
   const done=tour.i>=WORLD_NATIONS.length;
   const wins=tour.res.filter(x=>x==="W").length;
   document.getElementById("worldHead").innerHTML=
-    `<div class="banner" style="font-size:15px">― 🌍 ワールドツアー ${Math.min(tour.i+(done?0:1),WORLD_NATIONS.length)}/${WORLD_NATIONS.length} ― ${helpIcon("world")}</div>`
-    +`<div class="lg">${wins}勝</div>`;
+    `<div class="lg">🌍 ${Math.min(tour.i+(done?0:1),WORLD_NATIONS.length)}/${WORLD_NATIONS.length} ・ ${wins}勝</div>`;
   const list=document.getElementById("worldList");list.innerHTML="";
   WORLD_NATIONS.forEach((nation,k)=>{
     const res=tour.res[k], cur=(k===tour.i)&&!done, locked=k>tour.i;
@@ -250,8 +245,7 @@ function renderWorld(){
 function renderDaily(){
   const d=ensureDaily(), doneN=d.done.filter(x=>x).length, allDone=doneN>=d.teams.length;
   document.getElementById("dailyHead").innerHTML=
-    `<div class="banner" style="font-size:15px">― 📅 デイリークエスト ${doneN}/${d.teams.length} ― ${helpIcon("daily")}</div>`
-    +`<div class="lg">本日の全チーム撃破で <b>🎟️シグネチャーチケット</b>(1日1枚)。状態: ${d.claimed?"🎟️獲得済(また明日)":allDone?"未受取":"挑戦中"}</div>`;
+    `<div class="lg">📅 ${doneN}/${d.teams.length} ・ 全撃破で <b>🎟️シグネチャーチケット</b>(1日1枚)。状態: ${d.claimed?"🎟️獲得済(また明日)":allDone?"未受取":"挑戦中"}</div>`;
   const list=document.getElementById("dailyList");list.innerHTML="";
   d.teams.forEach((t,k)=>{
     const nation=WORLD_NATIONS[t.idx], away=worldTeam(nation,t.idx);
@@ -352,8 +346,7 @@ function importTeam(raw){
 }
 let _pendingChallenge=null; // チャレンジURL(#team=)で来たコードを保持
 function renderFriend(){
-  document.getElementById("friendHead").innerHTML=
-    '<div class="banner" style="font-size:15px">― 🤝 フレンド対戦 ― '+helpIcon("friend")+'</div>';
+  document.getElementById("friendHead").innerHTML="";
   const body=document.getElementById("friendBody");body.innerHTML="";
   const add=el=>body.appendChild(el), mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
   // 共有(URL生成)
@@ -466,8 +459,7 @@ function _selectOfTab(o){
 function renderOfficeFacilities(){
   const box=document.getElementById("ofFac"); if(!box)return; box.innerHTML="";
   const mk=(t,cls,html)=>{const e=document.createElement(t);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
-  box.appendChild(mk("div","banner",`― 🏛 クラブ施設 ・ 名声 ${S.prestige||0} ―`));
-  box.appendChild(mk("div","lg","名声はキャリアの勝利/制覇/昇格で上昇(他モードの勝利でも微増)。上位施設は名声で解禁し、コインで拡張。効果は全モードに永続。"));
+  box.appendChild(mk("div","lg","名声(ヘッダ🏛)はキャリアの勝利/制覇/昇格で上昇(他モードの勝利でも微増)。上位施設は名声で解禁し、コインで拡張。効果は全モードに永続。"));
   box.appendChild(careerFacilities(null)); // 助っ人抜きの施設のみ
 }
 // ===== 監督(契約): 紹介済みの監督から起用する1名を選ぶ(契約=起用ごとにコイン・交代制)。監督スカウトはスカウト画面側。 =====
@@ -475,7 +467,6 @@ function renderManagers(){
   const box=document.getElementById("ofMgr");box.innerHTML="";
   S.mgrOwned=S.mgrOwned||[];
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
-  const head=mk("div","banner");head.style.cssText="font-size:14px";head.innerHTML="― 🎯 監督(契約) ― "+helpIcon("office");box.appendChild(head);
   // 現在の起用
   const act=activeManager();
   const cur=mk("div","wt-card");
@@ -975,7 +966,6 @@ function rentManager(id){
 function renderFriendRec(){
   const box=document.getElementById("ofRec");box.innerHTML="";
   const mk=(t,cls)=>{const e=document.createElement(t);if(cls)e.className=cls;return e;};
-  const h=mk("div","banner");h.style.cssText="font-size:14px";h.textContent="― フレンド対戦戦績 ―";box.appendChild(h);
   const rec=S.friendRec||{},keys=Object.keys(rec);
   if(!keys.length){const e=mk("div","lg");e.textContent="まだフレンド対戦の記録がありません。「🤝対戦」から挑戦しましょう。";box.appendChild(e);return;}
   keys.forEach(k=>{const r=rec[k],dd=mk("div","wt-card");

@@ -146,7 +146,7 @@ function checkAchievements(){
 }
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.display="block";
   clearTimeout(toast._tm);toast._tm=setTimeout(()=>t.style.display="none",2200);}
-function coinUI(){const e=document.getElementById("coinN");if(e)e.textContent=S.coins;}
+function coinUI(){const e=document.getElementById("coinN");if(e)e.textContent=S.coins;const p=document.getElementById("prestigeN");if(p)p.textContent=S.prestige||0;}
 function myName(){return (S.teamName||"").trim()||"マイチーム";} // 自チーム表示名(プロフィール)
 // 共通ヘッダー(監督名・チーム名)を更新。コインは coinUI()。
 function renderHeader(){

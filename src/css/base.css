@@ -20,6 +20,8 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .apphead .ah-owner{font-size:10px;color:#8fa3b8;white-space:nowrap;flex:0 0 auto}
 .apphead .ah-team{font-family:'DotGothic16';font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .apphead .coins{flex:0 0 auto;position:relative}
+.apphead .ah-r{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.coins.prestige{border-color:#a98bff;color:#c9b6ff;font-size:13px;box-shadow:0 0 8px rgba(150,120,255,.3),inset 0 0 0 1px rgba(200,180,255,.22)}
 .on-title .apphead,.in-match .apphead{display:none}
 
 /* tabs */
