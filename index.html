@@ -7215,14 +7215,14 @@ function worldTeam(nation,idx){
     return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
-  // シグネチャー注入: 同じ細分sub優先 → 同pos → 任意の未注入枠へ
+  // シグネチャー注入(共通ルール): 同じ細分sub優先 → 同じメインポジ(大分類FW/MF/DF/GK)内の空き枠。
+  // どちらも空きが無ければ注入しない(GKや他ラインへは移さない=素のカードのまま)。配置枠のsubRoleを継承。
   if(typeof SIGNATURES!=="undefined"&&typeof makeSignature==="function"){
     SIGNATURES.filter(s=>s.flag===nation.flag).forEach(sig=>{
       let i=cards.findIndex(p=>!p._sig&&p.subRole===sig.sub);
-      if(i<0)i=cards.findIndex(p=>!p._sig&&subGroup(p.subRole)===sig.pos);
-      if(i<0)i=cards.findIndex(p=>!p._sig);
+      if(i<0)i=cards.findIndex(p=>!p._sig&&subGroup(p.subRole)===sig.pos); // 同メインポジ内の空きのみ
       if(i>=0){const sc=makeSignature(sig.id);
-        cards[i]={c:sc,role:sc.pos,subRole:sc.sub,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
+        cards[i]={c:sc,role:subGroup(cards[i].subRole),subRole:cards[i].subRole,pen:1,x:cards[i].x,y:cards[i].y,enter:0,
           keyStat:cards[i].keyStat,keyMul:cards[i].keyMul,_sig:1};}
     });
   }
