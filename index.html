@@ -30,16 +30,15 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .apphead .coins{flex:0 0 auto;position:relative}
 .apphead .ah-r{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* HELPタブ + 秘書ドロワー(右からスライドイン) */
-#helpTab{position:fixed;right:0;bottom:66px;z-index:48;background:linear-gradient(90deg,#5a86c4,#33507d);color:#f2f8ff;
+/* タブ/ドロワーは画面高さの少し下(56%)で全画面共通位置(サブメニュー有無で動かない) */
+#helpTab{position:fixed;right:0;top:56%;transform:translateY(-50%);z-index:48;background:linear-gradient(90deg,#5a86c4,#33507d);color:#f2f8ff;
   font:900 11px/1 sans-serif;letter-spacing:2px;padding:10px 6px;border:1px solid #8fbaf0;border-right:none;
   border-radius:9px 0 0 9px;cursor:pointer;box-shadow:-2px 0 12px rgba(90,150,230,.55);writing-mode:vertical-rl;text-orientation:upright}
 #helpTab:active{background:#6b93c9;color:#fff}
-body.has-subnav #helpTab{bottom:110px}
 .on-title #helpTab,.in-match #helpTab{display:none}
-#helpDrawer{position:fixed;right:0;bottom:66px;z-index:70;width:min(88vw,340px);
-  transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);pointer-events:none}
-#helpDrawer.on{transform:translateX(0);pointer-events:auto}
-body.has-subnav #helpDrawer{bottom:110px}
+#helpDrawer{position:fixed;right:0;top:56%;z-index:70;width:min(88vw,340px);
+  transform:translate(105%,-50%);transition:transform .28s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+#helpDrawer.on{transform:translate(0,-50%);pointer-events:auto}
 .hd-in{position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 30px 12px 12px;
   background:linear-gradient(160deg,#132030,#0d1626);border:1px solid #35506f;border-right:none;
   border-radius:12px 0 0 12px;box-shadow:-3px 3px 14px rgba(0,0,0,.55)}
