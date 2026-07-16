@@ -65,7 +65,10 @@ function applyCardBackgrounds(){
   const scrim="linear-gradient(rgba(6,6,14,.24),rgba(6,6,14,.44)),radial-gradient(ellipse at 50% 46%,rgba(4,4,10,0) 34%,rgba(4,4,10,.34) 100%)";
   let css="";
   Object.keys(window.CARD_BG).forEach(t=>{const sel=CARD_BG_SEL[t],url=window.CARD_BG[t];
-    if(sel&&url)css+=`${sel}{background:${scrim},url(${url}) center/cover!important}`;});
+    if(!sel||!url)return;
+    css+=`${sel}{background:${scrim},url(${url}) center/cover!important}`;
+    // 背景画像があるtierは、素のキラ演出(虹オーバーレイ::before/光沢スイープ::after/スパーク)を弱めて下地を見せる
+    css+=`${sel}::before{opacity:.25!important}${sel}::after{opacity:.30!important}${sel} .spark{opacity:.55!important}`;});
   if(css){const s=document.createElement("style");s.id="cardBgStyle";s.textContent=css;document.head.appendChild(s);}
 }
 
