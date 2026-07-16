@@ -58,8 +58,11 @@ function cardEl(c,mini){
 }
 // カード背景画像(carddesign)を CSS に適用。tier→対象セレクタ。暗幕+中央ビネットを重ね、
 // 明るい素材でも白文字/スプライトの視認性を確保する。素材が無いtierは従来のグラデ背景のまま。
-const CARD_BG_SEL={emotional:".card.emo", danger:".card.par-danger", turbulence:".card.par-turbulence",
-  obsidian:".card.par-obsidian", signature:".card.l.sig", legend:".card.l:not(.sig)", sr:".card.sr", rare:".card.r", normal:".card.n"};
+// パラレルは sig の背景(!important)に勝てるよう .card.l.sig.par-* の完全形にする。dangerzone は danger のエイリアス。
+const CARD_BG_SEL={emotional:".card.emo", signature:".card.l.sig",
+  danger:".card.l.sig.par-danger", dangerzone:".card.l.sig.par-danger",
+  turbulence:".card.l.sig.par-turbulence", obsidian:".card.l.sig.par-obsidian",
+  legend:".card.l:not(.sig)", sr:".card.sr", rare:".card.r", normal:".card.n"};
 function applyCardBackgrounds(){
   if(typeof window==="undefined"||!window.CARD_BG||document.getElementById("cardBgStyle"))return;
   const scrim="linear-gradient(rgba(6,6,14,.24),rgba(6,6,14,.44)),radial-gradient(ellipse at 50% 46%,rgba(4,4,10,0) 34%,rgba(4,4,10,.34) 100%)";
