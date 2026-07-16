@@ -131,6 +131,41 @@ def _sec_block():
     return 'window.SEC_SHEET="data:image/png;base64,%s";' % b64
 
 
+def _cardbg_block():
+    """src/assets/carddesign/ce_bg_<tier>.png を 58:95 中央クロップ+縮小(高さ570)して JPEG データURI化し
+    window.CARD_BG={"<tier>":"data:..."} を生成。PILが無い場合は生PNGのまま埋め込む(比率はCSS coverで吸収)。"""
+    d = ROOT / "src" / "assets" / "carddesign"
+    if not d.is_dir():
+        return "window.CARD_BG={};"
+    try:
+        from PIL import Image
+        import io
+        pil = True
+    except Exception:
+        pil = False
+    TR = 58 / 95
+    parts = []
+    for f in sorted(d.glob("ce_bg_*.png")):
+        tier = f.stem[len("ce_bg_"):]
+        if not tier:
+            continue
+        if pil:
+            im = Image.open(f).convert("RGB")
+            W, H = im.size
+            if W / H > TR:                       # 横広 → 幅を中央クロップ
+                cw = max(1, round(H * TR)); x = (W - cw) // 2; im = im.crop((x, 0, x + cw, H))
+            else:                                # 縦長 → 高さを中央クロップ
+                ch = max(1, round(W / TR)); y = (H - ch) // 2; im = im.crop((0, y, W, y + ch))
+            if im.height > 570:                  # 表示用に縮小(高解像の原本は拡大/キャプチャ用に温存)
+                im = im.resize((round(570 * TR), 570))
+            buf = io.BytesIO(); im.save(buf, "JPEG", quality=82); raw = buf.getvalue(); mime = "jpeg"
+        else:
+            raw = f.read_bytes(); mime = "png"
+        b64 = base64.b64encode(raw).decode("ascii")
+        parts.append('"%s":"data:image/%s;base64,%s"' % (tier, mime, b64))
+    return "window.CARD_BG={%s};" % ",".join(parts)
+
+
 DEV_JS = ROOT / "src" / "js" / "_dev.js"  # ローカル検証専用(gitignore)。--dev の時だけ末尾に連結。
 
 
@@ -141,7 +176,7 @@ def _assemble_js(dev=False):
     body = _join("js", JS_FILES)
     if dev and DEV_JS.is_file():
         body += "\n\n" + DEV_JS.read_text(encoding="utf-8").strip()
-    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block() + "\n" + _sec_block()
+    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block() + "\n" + _sec_block() + "\n" + _cardbg_block()
     first_nl = body.find("\n")
     if first_nl == -1:
         return body + "\n" + inject

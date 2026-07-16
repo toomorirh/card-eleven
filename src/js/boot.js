@@ -32,6 +32,7 @@ document.body.classList.add("on-title"); // 起動時はタイトル表示=下�
 try{const hm=(location.hash||"").match(/team=([A-Za-z0-9_\-]+)/);if(hm)_pendingChallenge=hm[1];}catch(e){}
 (async()=>{
   try{
+    if(typeof applyCardBackgrounds==="function")applyCardBackgrounds(); // カード背景画像(carddesign)をCSS適用
     await withTimeout(SPR_READY,4500);   // タイトルのヒーロー描画にスプライトが要る
     coinUI();
     renderTitleHero();
