@@ -166,6 +166,28 @@ def _cardbg_block():
     return "window.CARD_BG={%s};" % ",".join(parts)
 
 
+def _topbg_block():
+    """src/assets/materials/ce_toppage_title.png(ロゴ入りトップ画像)を紙色でフラット化・縮小・JPEG化して
+    window.TOP_BG に埋め込む(タイトル画面の背景。PILが無ければ生PNG)。"""
+    f = ROOT / "src" / "assets" / "materials" / "ce_toppage_title.png"
+    if not f.is_file():
+        return 'window.TOP_BG="";'
+    try:
+        from PIL import Image
+        import io
+        im = Image.open(f).convert("RGBA")
+        bg = Image.new("RGB", im.size, (243, 240, 234))  # 紙色でフラット化(透過→紙色)
+        bg.paste(im, mask=im.split()[3])
+        if bg.width > 680:
+            bg = bg.resize((680, round(680 * bg.height / bg.width)))
+        buf = io.BytesIO(); bg.save(buf, "JPEG", quality=88)
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return 'window.TOP_BG="data:image/jpeg;base64,%s";' % b64
+    except Exception:
+        b64 = base64.b64encode(f.read_bytes()).decode("ascii")
+        return 'window.TOP_BG="data:image/png;base64,%s";' % b64
+
+
 DEV_JS = ROOT / "src" / "js" / "_dev.js"  # ローカル検証専用(gitignore)。--dev の時だけ末尾に連結。
 
 
@@ -176,7 +198,7 @@ def _assemble_js(dev=False):
     body = _join("js", JS_FILES)
     if dev and DEV_JS.is_file():
         body += "\n\n" + DEV_JS.read_text(encoding="utf-8").strip()
-    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block() + "\n" + _sec_block() + "\n" + _cardbg_block()
+    inject = _sig_block() + "\n" + _gen_block() + "\n" + _mgr_block() + "\n" + _sec_block() + "\n" + _cardbg_block() + "\n" + _topbg_block()
     first_nl = body.find("\n")
     if first_nl == -1:
         return body + "\n" + inject

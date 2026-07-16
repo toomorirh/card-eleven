@@ -64,7 +64,9 @@ const CARD_BG_SEL={emotional:".card.emo", signature:".card.l.sig",
   turbulence:".card.l.sig.par-turbulence", obsidian:".card.l.sig.par-obsidian",
   legend:".card.l:not(.sig)", sr:".card.sr", rare:".card.r", normal:".card.n"};
 function applyCardBackgrounds(){
-  if(typeof window==="undefined"||!window.CARD_BG||document.getElementById("cardBgStyle"))return;
+  if(typeof window==="undefined")return;
+  if(window.TOP_BG)document.documentElement.style.setProperty("--top-bg","url("+window.TOP_BG+")"); // タイトル画面の背景イラスト
+  if(!window.CARD_BG||document.getElementById("cardBgStyle"))return;
   const scrim="linear-gradient(rgba(6,6,14,.24),rgba(6,6,14,.44)),radial-gradient(ellipse at 50% 46%,rgba(4,4,10,0) 34%,rgba(4,4,10,.34) 100%)";
   let css="";
   Object.keys(window.CARD_BG).forEach(t=>{const sel=CARD_BG_SEL[t],url=window.CARD_BG[t];

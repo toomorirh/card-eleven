@@ -277,40 +277,20 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 /* タイトル中は下部メニュー・コイン・ページ見出しを隠す(クリーンなタイトル/将来のNewGame用) */
 .on-title .tabs,.on-title .coins,.on-title h1,.on-title .sub{display:none!important}
 /* ===== タイトル(FIFA WC風・中央ヒーロー = トロフィー位置に選手) ===== */
-#scr-title{position:relative;overflow:hidden}
-#scr-title::before{content:"";position:absolute;inset:-15% -25%;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(58% 44% at 50% 44%,rgba(232,194,90,.22),transparent 62%),
-    radial-gradient(130% 85% at 50% -12%,rgba(40,90,160,.20),transparent 60%),
-    radial-gradient(120% 70% at 50% 115%,rgba(20,110,60,.18),transparent 62%);}
+/* タイトル: ロゴ入りトップイラストを土台に、中央の彩りの上へ選手を重ねる */
+#scr-title{position:relative;background:#f2efe9;overflow:hidden}
 #scr-title .tscreen{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;min-height:80vh;gap:8px;padding:6px 0}
-.t-top{text-align:center;margin-bottom:2px}
-.t-wordmark{font-family:'DotGothic16';font-size:34px;letter-spacing:4px;color:var(--gold);line-height:1;
-  text-shadow:2px 2px 0 #06301c,0 0 20px rgba(232,194,90,.6);animation:tglow 2.6s ease-in-out infinite}
-@keyframes tglow{0%,100%{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.45)}
-  50%{text-shadow:2px 2px 0 #06301c,0 0 26px rgba(232,194,90,.9)}}
-.t-edition{font-family:'DotGothic16';font-size:11px;letter-spacing:3px;color:#cfe0ff;margin-top:5px;opacity:.9}
-/* 中央ヒーローステージ */
-.t-stage{position:relative;width:min(80vw,300px);height:min(80vw,300px);display:flex;align-items:center;justify-content:center;margin:2px 0}
-.t-rays{position:absolute;inset:-8%;z-index:0;border-radius:50%!important;
-  background:repeating-conic-gradient(from 0deg,rgba(232,194,90,.15) 0deg 5deg,transparent 5deg 10deg);
-  -webkit-mask:radial-gradient(closest-side,#000 18%,transparent 74%);mask:radial-gradient(closest-side,#000 18%,transparent 74%);
-  animation:tspin 26s linear infinite}
-@keyframes tspin{to{transform:rotate(360deg)}}
-.t-glow{position:absolute;inset:14%;z-index:0;border-radius:50%!important;
-  background:radial-gradient(circle,rgba(232,194,90,.30),transparent 66%);filter:blur(2px)}
-.t-hero{position:relative;z-index:2;animation:tfloat 3s ease-in-out infinite;
-  filter:drop-shadow(0 12px 12px rgba(0,0,0,.55)) drop-shadow(0 0 12px rgba(232,194,90,.35))}
+  justify-content:center;min-height:100vh;gap:14px;padding:12px 12px 20px}
+.t-illust{position:relative;width:100%;max-width:440px;aspect-ratio:848/1231;max-height:calc(100vh - 116px);
+  margin:0 auto;background:var(--top-bg,none) center/contain no-repeat}
+.t-hero{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);z-index:2;animation:tfloat 3s ease-in-out infinite;
+  filter:drop-shadow(0 9px 12px rgba(70,50,40,.5))}
 .t-hero canvas{image-rendering:pixelated}
-@keyframes tfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-.t-pedestal{position:absolute;bottom:5%;left:50%;transform:translateX(-50%);z-index:1;
-  width:66%;height:24px;border-radius:50%!important;
-  background:radial-gradient(ellipse at center,rgba(232,194,90,.55),rgba(232,194,90,.10) 52%,transparent 72%)}
-.t-heroname{font-family:'DotGothic16';font-size:15px;color:#eaf1fb;text-shadow:2px 2px 0 #06160c;text-align:center}
-.t-heroname b{color:var(--gold)}
-.t-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px;width:210px}
-.t-ver{font-size:10px;color:#6b7f8f;margin-top:12px;letter-spacing:1px;text-align:center}
+@keyframes tfloat{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,calc(-50% - 8px))}}
+.t-heroname{position:absolute;left:0;right:0;top:6%;text-align:center;z-index:3;
+  font-family:'DotGothic16';font-size:14px;color:#4a3b5c;font-weight:900;letter-spacing:1px;text-shadow:0 1px 3px rgba(255,255,255,.9)}
+.t-heroname b{color:#c0392b}
+.t-actions{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px}
 .tstart{animation:tpulse 1.5s ease-in-out infinite}
 @keyframes tpulse{0%,100%{filter:drop-shadow(0 0 0 rgba(232,194,90,0))}50%{filter:drop-shadow(0 0 12px rgba(232,194,90,.7))}}
 
