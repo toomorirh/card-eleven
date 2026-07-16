@@ -62,7 +62,7 @@ const CARD_BG_SEL={emotional:".card.emo", danger:".card.par-danger", turbulence:
   obsidian:".card.par-obsidian", signature:".card.l.sig", legend:".card.l:not(.sig)", sr:".card.sr", rare:".card.r", normal:".card.n"};
 function applyCardBackgrounds(){
   if(typeof window==="undefined"||!window.CARD_BG||document.getElementById("cardBgStyle"))return;
-  const scrim="linear-gradient(rgba(6,6,14,.42),rgba(6,6,14,.66)),radial-gradient(ellipse at 50% 46%,rgba(4,4,10,0) 30%,rgba(4,4,10,.55) 100%)";
+  const scrim="linear-gradient(rgba(6,6,14,.24),rgba(6,6,14,.44)),radial-gradient(ellipse at 50% 46%,rgba(4,4,10,0) 34%,rgba(4,4,10,.34) 100%)";
   let css="";
   Object.keys(window.CARD_BG).forEach(t=>{const sel=CARD_BG_SEL[t],url=window.CARD_BG[t];
     if(sel&&url)css+=`${sel}{background:${scrim},url(${url}) center/cover!important}`;});
