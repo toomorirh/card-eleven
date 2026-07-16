@@ -829,18 +829,18 @@ const WORLD_NATIONS=[
   {flag:"🇺🇾",name:"ウルグアイ",    form:"4-4-2",   seed:2002},
   {flag:"🇨🇴",name:"コロンビア",    form:"4-2-3-1", seed:2003},
   {flag:"🇯🇵",name:"日本",          form:"4-2-3-1", seed:2004},
-  {flag:"🇧🇪",name:"ベルギー",      form:"3-5-2",   seed:2005},
-  {flag:"🇳🇴",name:"ノルウェー",    form:"4-4-2",   seed:2006},
-  {flag:"🇭🇷",name:"クロアチア",    form:"4-3-1-2", seed:2007},
+  {flag:"🇧🇪",name:"ベルギー",      form:"3-4-3",   seed:2005}, // 黄金世代の3-4-3
+  {flag:"🇳🇴",name:"ノルウェー",    form:"4-2-3-1", seed:2006}, // ハーランド1トップ+ウーデゴール
+  {flag:"🇭🇷",name:"クロアチア",    form:"4-4-2ダイヤ", seed:2007}, // モドリッチ擁するダイヤ型中盤
   {flag:"🇪🇸",name:"スペイン",      form:"4-3-3",   seed:2008},
   {flag:"🇬🇧",name:"イングランド",  form:"4-4-2",   seed:2009},
   {flag:"🇳🇱",name:"オランダ",      form:"4-3-3",   seed:2010},
   {flag:"🇵🇹",name:"ポルトガル",    form:"4-3-3",   seed:2011},
   {flag:"🇮🇹",name:"イタリア",      form:"3-5-2",   seed:2012},
   {flag:"🇩🇪",name:"ドイツ",        form:"4-2-3-1", seed:2013},
-  {flag:"🇦🇷",name:"アルゼンチン",  form:"4-4-2",   seed:2014},
+  {flag:"🇦🇷",name:"アルゼンチン",  form:"4-3-3",   seed:2014}, // メッシ擁する前3枚
   {flag:"🇫🇷",name:"フランス",      form:"4-2-3-1", seed:2015},
-  {flag:"🇧🇷",name:"ブラジル",      form:"4-3-3",   seed:2016},
+  {flag:"🇧🇷",name:"ブラジル",      form:"4-2-2-2", seed:2016}, // ブラジル伝統の箱型4-2-2-2
 ];
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
@@ -1075,6 +1075,21 @@ const SIGNATURES=[
   {id:"odegaard", name:"マルティン・ウーデゴール", flag:"🇳🇴", pos:"MF", sub:"OMF", type:"maker", age:25,
    stats:{off:17,def:14,pow:14,tec:20,spd:17,sta:18},
    skill:{name:"アーセナルの司令塔", desc:"柔らかいタッチと視野で決定機を演出しつづける現代の指揮者。チャンス創出と技術勝負を大幅強化", fx:{teamChance:1.4,duelTec:1.2}}},
+  {id:"zanetti", name:"ハビエル・サネッティ", flag:"🇦🇷", pos:"DF", sub:"RSB", type:"wingback", age:30,
+   stats:{off:13,def:19,pow:16,tec:14,spd:18,sta:20},
+   skill:{name:"不屈の主将", desc:"衰えぬスタミナで上下動を続け最終ラインを束ねる永遠の主将。チーム守備とスピード勝負を大幅強化", fx:{teamDef:1.3,duelSpd:1.2}}},
+  {id:"gallas", name:"ウィリアム・ギャラス", flag:"🇫🇷", pos:"DF", sub:"CB", type:"stopper", age:28,
+   stats:{off:12,def:20,pow:18,tec:14,spd:18,sta:18},
+   skill:{name:"冷徹なストッパー", desc:"読みと球際の強さで前を潰す屈強な壁。チーム守備と力勝負を大幅強化", fx:{teamDef:1.3,duelPow:1.25}}},
+  {id:"ronaldinho", name:"ロナウジーニョ", flag:"🇧🇷", pos:"FW", sub:"LWG", type:"dribbler", age:24,
+   stats:{off:20,def:9,pow:14,tec:20,spd:19,sta:18},
+   skill:{name:"微笑の魔術師", desc:"エラシコと閃きで守備を翻弄し歓喜を生む天才。技術勝負とチャンス創出を大幅強化", fx:{duelTec:1.4,teamChance:1.25}}},
+  {id:"ayase", name:"上田綺世", flag:"🇯🇵", pos:"FW", sub:"CF", type:"striker", age:26,
+   stats:{off:20,def:12,pow:16,tec:15,spd:18,sta:19},
+   skill:{name:"和製ストライカー", desc:"裏抜けと反応で沈める規律あるセンターフォワード。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.3,shoot:1.35}}},
+  {id:"schweinsteiger", name:"シュヴァインシュタイガー", flag:"🇩🇪", pos:"MF", sub:"CMF", type:"b2b", age:29,
+   stats:{off:14,def:18,pow:17,tec:20,spd:13,sta:18},
+   skill:{name:"ゲルマンの心臓", desc:"攻守に効く技術と球際で中盤を統べる不屈のエンジン。支配率と力勝負を大幅強化", fx:{mid:1.3,duelPow:1.2}}},
 ];
 function signatureById(id){return SIGNATURES.find(s=>s.id===id);}
 // ===== パラレルカード(ガチャ限定・シグネチャ当選時に稀に上位化) =====
