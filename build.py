@@ -176,7 +176,7 @@ def _topbg_block():
         from PIL import Image
         import io
         im = Image.open(f).convert("RGBA")
-        bg = Image.new("RGB", im.size, (243, 240, 234))  # 紙色でフラット化(透過→紙色)
+        bg = Image.new("RGB", im.size, (248, 249, 246))  # 紙色(#f8f9f6)でフラット化(透過→画像の白地と一致)
         bg.paste(im, mask=im.split()[3])
         if bg.width > 680:
             bg = bg.resize((680, round(680 * bg.height / bg.width)))
