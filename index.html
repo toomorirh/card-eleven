@@ -1511,6 +1511,7 @@ const TUNING={
     cornerOnSave:0.10,    // GKセーブがCKになる割合
   },
   worldSigDrop:0.10,    // ワールドツアー: 署名保有国に勝利時の固有ドロップ基礎確率(スカウティングLv5で最大2倍=20%)
+  worldSigPackDrop:0.05,// ワールドツアー: 勝利時にシグネチャーパックがドロップする確率(暫定・入手機会の拡充)
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
   // 序盤=低い→キックオフ直後の唐突な演出を防ぐ。動くと上がり、停滞で冷める。時間で下限が上昇。
   volt:{decay:0.80, atk:0.10, shot:0.15, goal:0.45, surge:0.10, timeFloor:0.28, gateBase:0.10, tacGate:0.5, heatReset:0.4},
@@ -8669,6 +8670,11 @@ const MATCH_MODES={
         S.coll.push(makeSignature(pick.id));
         drop=`<div class="banner" style="font-size:14px;color:#ff9ec4">🌟 ${nation.name}撃破! 固有選手「${pick.name}」を獲得!!</div>`;
         feed(`🌟 ${nation.name}を撃破!固有選手「${pick.name}」を獲得!`,"goal");
+      }
+      if(Math.random()<TUNING.worldSigPackDrop){ // 暫定: 勝利で低確率にシグネチャーパックもドロップ(入手機会の拡充)
+        S.sigPacks=(S.sigPacks||0)+1;
+        drop+=`<div class="banner" style="font-size:14px;color:#ffd24a">🎁 シグネチャーパックをドロップ!</div>`;
+        feed("🎁 シグネチャーパックをドロップ!","goal");
       }
     }
     tour.i++;

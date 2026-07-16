@@ -800,6 +800,11 @@ const MATCH_MODES={
         drop=`<div class="banner" style="font-size:14px;color:#ff9ec4">🌟 ${nation.name}撃破! 固有選手「${pick.name}」を獲得!!</div>`;
         feed(`🌟 ${nation.name}を撃破!固有選手「${pick.name}」を獲得!`,"goal");
       }
+      if(Math.random()<TUNING.worldSigPackDrop){ // 暫定: 勝利で低確率にシグネチャーパックもドロップ(入手機会の拡充)
+        S.sigPacks=(S.sigPacks||0)+1;
+        drop+=`<div class="banner" style="font-size:14px;color:#ffd24a">🎁 シグネチャーパックをドロップ!</div>`;
+        feed("🎁 シグネチャーパックをドロップ!","goal");
+      }
     }
     tour.i++;
     const last=tour.i>=WORLD_NATIONS.length;
