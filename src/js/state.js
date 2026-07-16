@@ -196,7 +196,9 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));
   show(b.dataset.s);
 });
+let _curScreen="title"; // 現在の画面(HELPドロワーの文脈判定に使用)
 function show(s){
+  _curScreen=s;
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("on"));
   document.getElementById("scr-"+s).classList.add("on");
   const wrap=document.querySelector(".wrap");

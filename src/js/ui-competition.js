@@ -395,6 +395,34 @@ function renderFriend(){
 // 一本道の進行ポインタ S.guideStep。各ステップの done() は既存stateを流用。CTAで該当画面へ即遷移。
 function gotoScreen(s){const b=document.querySelector('.tabs [data-s="'+s+'"]');if(b)b.click();}
 function gotoMode(m){const hb=document.querySelector('.tabs [data-s="home"]');if(hb)hb.click();const mb=document.querySelector('#modeRow [data-m="'+m+'"]');if(mb)mb.click();}
+// ===== HELPドロワー: 現在画面を秘書がコメントで解説(右下タブ→右からスライドイン) =====
+function currentHelpKey(){
+  const s=(typeof _curScreen!=="undefined")?_curScreen:"home";
+  if(s==="home"){const m=document.querySelector('#modeRow [data-m].on'),md=m&&m.dataset.m;
+    return md==="world"?"world":md==="daily"?"daily":md==="league"?"league":"stage";}
+  if(s==="office"){const o=document.querySelector('#ofTabs [data-o].on'),od=o&&o.dataset.o;
+    return (od==="match"||od==="rec")?"friend":od==="fac"?"fac":od==="ach"?"ach":"office";}
+  if(s==="career")return "career"; if(s==="team")return "team";
+  if(s==="coll")return "coll"; if(s==="gacha")return "gacha";
+  return "stage";
+}
+function openHelpDrawer(){
+  const key=currentHelpKey();
+  const secBox=document.getElementById("helpSec"); if(secBox){secBox.innerHTML="";try{secBox.appendChild(secretaryPortrait(S.secViz,84));}catch(e){}}
+  const say=document.getElementById("helpSay");
+  if(say)say.innerHTML="「"+(((typeof HELP!=="undefined")&&HELP[key])||"カードを集めてチームを編成し、試合で勝ち進むサッカーゲームです。")+"」";
+  const dr=document.getElementById("helpDrawer"); if(dr)dr.classList.add("on");
+}
+function closeHelpDrawer(){const dr=document.getElementById("helpDrawer"); if(dr)dr.classList.remove("on");}
+function toggleHelpDrawer(){const dr=document.getElementById("helpDrawer"); if(dr&&dr.classList.contains("on"))closeHelpDrawer(); else openHelpDrawer();}
+(function initHelpDrawer(){
+  if(typeof document==="undefined"||!document.getElementById)return;
+  const tab=document.getElementById("helpTab"), cl=document.getElementById("helpClose");
+  if(tab)tab.onclick=e=>{e.stopPropagation();toggleHelpDrawer();};
+  if(cl)cl.onclick=e=>{e.stopPropagation();closeHelpDrawer();};
+  if(document.addEventListener)document.addEventListener("click",e=>{const dr=document.getElementById("helpDrawer");
+    if(dr&&dr.classList.contains("on")&&!(e.target.closest&&(e.target.closest("#helpDrawer")||e.target.closest("#helpTab"))))closeHelpDrawer();});
+})();
 const GUIDE_STEPS=[
  {id:"stage1",   say:"ようこそ監督。新監督のもと私たちのクラブはインターナショナルクラブカップをめざします。まずは視察に向かいましょう。もし困ったらガイドするので監督室にもどってきてくださいね。", cta:{lb:"ステージへ", go:()=>gotoMode("stage")},   done:()=>S.cleared>=1},
  {id:"scout",    say:"選手をスカウトしてクラブを補強し、編成を組み替えましょう。",         cta:{lb:"スカウトへ", go:()=>gotoScreen("gacha")}, done:()=>!!S.hasScouted},

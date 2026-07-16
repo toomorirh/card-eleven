@@ -4,7 +4,7 @@
   --red:#e05546; --cyan:#54d6c8; --ink:#eef3f8;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:'M PLUS 1p',sans-serif;background:var(--night);color:var(--ink);min-height:100vh;
+body{font-family:'M PLUS 1p',sans-serif;background:var(--night);color:var(--ink);min-height:100vh;overflow-x:hidden;
   background-image:radial-gradient(ellipse at 50% -20%, #1d3b2c 0%, var(--night) 60%);}
 .wrap{max-width:520px;margin:0 auto;padding:12px 12px 90px}
 h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-align:center;padding:10px 0 2px;
@@ -21,6 +21,27 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .apphead .ah-team{font-family:'DotGothic16';font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .apphead .coins{flex:0 0 auto;position:relative}
 .apphead .ah-r{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+/* HELPタブ + 秘書ドロワー(右からスライドイン) */
+#helpTab{position:fixed;right:0;bottom:66px;z-index:48;background:linear-gradient(90deg,#5a86c4,#33507d);color:#f2f8ff;
+  font:900 11px/1 sans-serif;letter-spacing:2px;padding:10px 6px;border:1px solid #8fbaf0;border-right:none;
+  border-radius:9px 0 0 9px;cursor:pointer;box-shadow:-2px 0 12px rgba(90,150,230,.55);writing-mode:vertical-rl;text-orientation:upright}
+#helpTab:active{background:#6b93c9;color:#fff}
+body.has-subnav #helpTab{bottom:110px}
+.on-title #helpTab,.in-match #helpTab{display:none}
+#helpDrawer{position:fixed;right:0;bottom:66px;z-index:70;width:min(88vw,340px);
+  transform:translateX(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+#helpDrawer.on{transform:translateX(0);pointer-events:auto}
+body.has-subnav #helpDrawer{bottom:110px}
+.hd-in{position:relative;display:flex;align-items:flex-start;gap:9px;padding:10px 30px 12px 12px;
+  background:linear-gradient(160deg,#132030,#0d1626);border:1px solid #35506f;border-right:none;
+  border-radius:12px 0 0 12px;box-shadow:-3px 3px 14px rgba(0,0,0,.55)}
+.hd-sec{flex:0 0 auto;align-self:flex-end}
+.hd-sec canvas{display:block}
+.hd-bubble{flex:1 1 auto;min-width:0}
+.hd-name{font:900 11px sans-serif;color:#9fe0ff;margin-bottom:3px}
+.hd-say{font-size:12px;line-height:1.55;color:#eaf1fa}
+.hd-close{position:absolute;top:4px;right:8px;background:none;border:none;color:#8fa3b8;font-size:15px;cursor:pointer;padding:2px 4px;line-height:1}
+.hd-close:active{color:#fff}
 .coins.prestige{border-color:#a98bff;color:#c9b6ff;font-size:13px;box-shadow:0 0 8px rgba(150,120,255,.3),inset 0 0 0 1px rgba(200,180,255,.22)}
 .on-title .apphead,.in-match .apphead{display:none}
 
