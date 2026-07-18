@@ -1832,12 +1832,16 @@ const CAREER_TACS={
 };
 // カップ(監督キャリア): size強のトーナメント(ドロー=ランダム組合せ)。決勝まで勝ち抜くと優勝→采配tac報酬。
 // size=出場チーム数(2^rounds) / rounds=回戦数 / poolLv=相手クラブのlv帯 / period=エントリー週(倍数) / cond=前提。
+// reward=優勝賞品(采配スキルに加え、コイン+シグネチャーパック)。規模が大きく条件の厳しい大会ほど高リスク高リターン。
 const CUPS=[
   {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", size:8,  rounds:3, poolLv:[3,7],  pool:"basic",  period:5,
+   reward:{coins:600,  sigPacks:1},
    cond:cr=>cr.div<=2,                                   condText:"DIV2到達"},
   {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", size:16, rounds:4, poolLv:[4,10], pool:"strong", period:7,
+   reward:{coins:1200, sigPacks:1},
    cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または キングズクラブカップ優勝"},
   {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", size:16, rounds:4, poolLv:[5,10], pool:"team",   period:13,
+   reward:{coins:2500, sigPacks:2},
    cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"コンチネンタルカップ優勝"},
 ];
 function cupById(id){return CUPS.find(c=>c.id===id)||null;}
@@ -6688,7 +6692,7 @@ const SEC_EVENT_MSG={
   // 追加(同種の既存イベント)
   promote:"昇格おめでとうございます！上のディビジョンでも戦っていきましょう。",
   relegate:"降格は残念ですが、ここから立て直しましょう。",
-  cupwin:"カップ優勝、見事です！采配の引き出しも増えましたね。",
+  cupwin:"カップ優勝、見事です！賞金・シグネチャーパック・采配を獲得しました。",
   cupout:"カップは敗退となりました…次の大会で雪辱を果たしましょう。",
   contUnlock:"大陸リーグが解禁されました！新たな挑戦の始まりですね。",
   contWin:"大陸制覇、素晴らしいです！監督としての格が上がりました。",
@@ -6863,9 +6867,10 @@ function careerCupPicker(){
     const condOk=cup.cond(cr), entryOk=cupEntryWeek(cup,cr.step), enter=condOk&&entryOk, won=(cr.cupsWon||[]).includes(cup.id);
     const nextWk=Math.ceil((cr.step+1)/cup.period)*cup.period; // 次のエントリー週
     const status=!condOk?`🔒 ${cup.condText}`:!entryOk?`第${nextWk}週にエントリー可(${cup.period}の倍数週)`:"✅ 今週エントリー可能!";
-    const reward=cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配";
+    const tac=cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配";
+    const rw=cup.reward||{}, reward=`${tac}${rw.coins?` ・ 🪙${rw.coins}`:""}${rw.sigPacks?` ・ 🌟パック×${rw.sigPacks}`:""}`;
     const b=document.createElement("button");b.className="btn"+(enter?"":" ghost");b.style.cssText="margin-top:6px;text-align:left";
-    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.size}強・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${reward} ・ ${status}</span>`;
+    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.size}強・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">優勝報酬: ${reward} ・ ${status}</span>`;
     if(enter)b.onclick=()=>{ov.remove();startCup(cup.id);};
     inn.appendChild(b);
   });
@@ -8920,7 +8925,10 @@ const MATCH_MODES={
       if(typeof _careerTab!=="undefined")_careerTab=o.advance?"cup":"schedule"; // 勝ち上がり中はカップ表を継続、敗退/優勝の確定で日程タブへ
       if(pk){ headRes=pk.win?"W":"L"; pkNote=` (PK ${pk.sa}-${pk.sd})`; // ヘッダーの勝敗もPK結果を反映
         html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
-      if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`; secMsgs.push("cupwin");}
+      if(o.champion){champCup=o.cup; pp+=15;
+        const rw=o.cup.reward||{}; if(rw.coins)S.coins=(S.coins||0)+rw.coins; if(rw.sigPacks)S.sigPacks=(S.sigPacks||0)+rw.sigPacks; // 賞金+シグネチャーパック
+        const rwTxt=[rw.coins?`🪙${rw.coins}`:"",rw.sigPacks?`🌟シグネチャーパック×${rw.sigPacks}`:""].filter(Boolean).join(" / ");
+        html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキル${rwTxt?` + ${rwTxt}`:""}を獲得!</div>`; secMsgs.push("cupwin");}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
       else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`; secMsgs.push("cupout");
         const gh=gritRoll(cr); if(gh){html+=gh;secMsgs.push("grit");} // ② 敗退 → 20%で不屈

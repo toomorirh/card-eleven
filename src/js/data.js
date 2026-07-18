@@ -487,12 +487,16 @@ const CAREER_TACS={
 };
 // カップ(監督キャリア): size強のトーナメント(ドロー=ランダム組合せ)。決勝まで勝ち抜くと優勝→采配tac報酬。
 // size=出場チーム数(2^rounds) / rounds=回戦数 / poolLv=相手クラブのlv帯 / period=エントリー週(倍数) / cond=前提。
+// reward=優勝賞品(采配スキルに加え、コイン+シグネチャーパック)。規模が大きく条件の厳しい大会ほど高リスク高リターン。
 const CUPS=[
   {id:"domestic",     name:"キングズクラブカップ",       emoji:"🏆", size:8,  rounds:3, poolLv:[3,7],  pool:"basic",  period:5,
+   reward:{coins:600,  sigPacks:1},
    cond:cr=>cr.div<=2,                                   condText:"DIV2到達"},
   {id:"continental",  name:"コンチネンタルカップ",       emoji:"🌍", size:16, rounds:4, poolLv:[4,10], pool:"strong", period:7,
+   reward:{coins:1200, sigPacks:1},
    cond:cr=>cr.div<=1||(cr.cupsWon||[]).includes("domestic"), condText:"DIV1到達 または キングズクラブカップ優勝"},
   {id:"international", name:"インターナショナルクラブカップ", emoji:"🌐", size:16, rounds:4, poolLv:[5,10], pool:"team",   period:13,
+   reward:{coins:2500, sigPacks:2},
    cond:cr=>(cr.cupsWon||[]).includes("continental"),    condText:"コンチネンタルカップ優勝"},
 ];
 function cupById(id){return CUPS.find(c=>c.id===id)||null;}

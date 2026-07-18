@@ -852,7 +852,7 @@ const SEC_EVENT_MSG={
   // 追加(同種の既存イベント)
   promote:"昇格おめでとうございます！上のディビジョンでも戦っていきましょう。",
   relegate:"降格は残念ですが、ここから立て直しましょう。",
-  cupwin:"カップ優勝、見事です！采配の引き出しも増えましたね。",
+  cupwin:"カップ優勝、見事です！賞金・シグネチャーパック・采配を獲得しました。",
   cupout:"カップは敗退となりました…次の大会で雪辱を果たしましょう。",
   contUnlock:"大陸リーグが解禁されました！新たな挑戦の始まりですね。",
   contWin:"大陸制覇、素晴らしいです！監督としての格が上がりました。",
@@ -1027,9 +1027,10 @@ function careerCupPicker(){
     const condOk=cup.cond(cr), entryOk=cupEntryWeek(cup,cr.step), enter=condOk&&entryOk, won=(cr.cupsWon||[]).includes(cup.id);
     const nextWk=Math.ceil((cr.step+1)/cup.period)*cup.period; // 次のエントリー週
     const status=!condOk?`🔒 ${cup.condText}`:!entryOk?`第${nextWk}週にエントリー可(${cup.period}の倍数週)`:"✅ 今週エントリー可能!";
-    const reward=cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配";
+    const tac=cup.pool==="team"?"国際チームスキル":cup.pool==="strong"?"強化采配":"基本采配";
+    const rw=cup.reward||{}, reward=`${tac}${rw.coins?` ・ 🪙${rw.coins}`:""}${rw.sigPacks?` ・ 🌟パック×${rw.sigPacks}`:""}`;
     const b=document.createElement("button");b.className="btn"+(enter?"":" ghost");b.style.cssText="margin-top:6px;text-align:left";
-    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.size}強・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">報酬: ${reward} ・ ${status}</span>`;
+    b.innerHTML=`<b>${cup.emoji} ${cup.name}</b>(${cup.size}強・${cup.period}の倍数週)${won?' <span class="lv" style="color:var(--gold)">優勝済</span>':''}<br><span class="lv">優勝報酬: ${reward} ・ ${status}</span>`;
     if(enter)b.onclick=()=>{ov.remove();startCup(cup.id);};
     inn.appendChild(b);
   });

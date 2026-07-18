@@ -948,7 +948,10 @@ const MATCH_MODES={
       if(typeof _careerTab!=="undefined")_careerTab=o.advance?"cup":"schedule"; // 勝ち上がり中はカップ表を継続、敗退/優勝の確定で日程タブへ
       if(pk){ headRes=pk.win?"W":"L"; pkNote=` (PK ${pk.sa}-${pk.sd})`; // ヘッダーの勝敗もPK結果を反映
         html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
-      if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`; secMsgs.push("cupwin");}
+      if(o.champion){champCup=o.cup; pp+=15;
+        const rw=o.cup.reward||{}; if(rw.coins)S.coins=(S.coins||0)+rw.coins; if(rw.sigPacks)S.sigPacks=(S.sigPacks||0)+rw.sigPacks; // 賞金+シグネチャーパック
+        const rwTxt=[rw.coins?`🪙${rw.coins}`:"",rw.sigPacks?`🌟シグネチャーパック×${rw.sigPacks}`:""].filter(Boolean).join(" / ");
+        html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキル${rwTxt?` + ${rwTxt}`:""}を獲得!</div>`; secMsgs.push("cupwin");}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
       else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`; secMsgs.push("cupout");
         const gh=gritRoll(cr); if(gh){html+=gh;secMsgs.push("grit");} // ② 敗退 → 20%で不屈
