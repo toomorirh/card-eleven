@@ -232,6 +232,14 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 .cup-team.lost{color:#5a6b80;text-decoration:line-through}
 .cup-team.tbd{color:#42566f;text-align:center}
 .cup-vs{display:none}
+/* イベントタイル(レッド欠場/今後ケガ/トロフィー等・汎用) */
+.evt-list{display:flex;flex-direction:column;gap:6px;margin:4px 0}
+.evt-tile{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #2a3a54;border-radius:8px;background:#111c2e}
+.evt-tile.evt-red{border-color:#a33;background:linear-gradient(90deg,#2a1216,#131c2c)}
+.evt-ic{font-size:18px;flex:0 0 auto}
+.evt-body{display:flex;flex-direction:column;min-width:0}
+.evt-body b{font-size:12px;color:#eef2f8}
+.evt-sub{font-size:10px;color:#8fa3b8;margin-top:1px}
 /* PK戦オーバーレイ */
 .pkshoot{position:fixed;inset:0;z-index:210;background:rgba(6,12,22,.97);display:flex;align-items:center;justify-content:center;padding:14px}
 .pkshoot .pk-in{width:100%;max-width:440px;text-align:center}

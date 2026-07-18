@@ -24,7 +24,7 @@ async function egoRun(ctx,type){
   const ex=gx-dir*15;
   movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
   await ballTo(ex-dir*3,ey,0.4,null,A.side);hot(carrier);hot(df);
-  const foul=rollFoul(df,type,carrier); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
+  const foul=rollFoul(df,type,carrier); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await bookFoul(df,D,min,foul);await setPiece(foul,A,D,min);return {shot:true};}
   const won=resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
   await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)",won);
   if(won){
@@ -74,7 +74,7 @@ const LINKS={
     const lx=gx-dir*18, ly=20+ri(0,60);
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
     await ballTo(lx,ly,0.5,null,A.side);hot(r);hot(df);
-    const foul=rollFoul(df,"through",r); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
+    const foul=rollFoul(df,"through",r); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await bookFoul(df,D,min,foul);await setPiece(foul,A,D,min);return {shot:true};}
     const won=resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
     await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)",won);
     if(won){
@@ -334,6 +334,27 @@ const SETPIECES={
     await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
   }},
 };
+// カード判定: ファウルした守備側 df へイエロー/レッドを抽選。2枚目イエロー→退場。稀にダイレクトレッド。
+// kind: "pk"=エリア内(重い) / "fk"=通常。team=df の所属チーム(D)。
+async function bookFoul(df,team,min,kind){
+  if(!df||df.sentOff||df.role==="GK")return; // GKの退場はレア過ぎるので除外(数的計算の破綻回避)
+  const C=(TUNING.cards)||{};
+  const pk=kind==="pk";
+  if(Math.random()<(pk?(C.pkDirectRed||0.045):(C.directRed||0.012))){ await sendOff(df,team,min,true); return; }
+  if(Math.random()<(pk?(C.pkYellow||0.30):(C.yellow||0.14))){
+    df.yellow=(df.yellow||0)+1;
+    if(df.yellow>=2){ feed(`🟨🟨 ${df.c.name} 2枚目の警告! 退場!`,"chance"); await sendOff(df,team,min,false); }
+    else feed(`🟨 ${df.c.name} に警告(イエローカード)`,"chance");
+  }
+}
+async function sendOff(p,team,min,direct){
+  if(!p||p.sentOff)return; p.sentOff=true;
+  try{ await wordCutin(p,team,"🟥 RED CARD",false,850); }catch(e){} // 退場演出(選手が盤上のうちに)
+  const i=team.players.indexOf(p); if(i>=0)team.players.splice(i,1); // 数的不利へ
+  if(typeof recalcAuras==="function")recalcAuras(team);               // ケミストリー/オーラ再計算
+  feed(`🟥 ${direct?"一発退場! ":""}${p.c.name} が退場! ${team.side==="H"?"自陣":"相手"}は ${team.players.length}人に`,"goal");
+  if(team.side==="H"){ MC.sentOffHome=MC.sentOffHome||[]; if(!MC.sentOffHome.some(x=>x.id===p.c.id))MC.sentOffHome.push({id:p.c.id,name:p.c.name}); } // キャリアの欠場記録用
+}
 // ファウル → FK or PK。再帰防止フラグでガードしつつレジストリへディスパッチ。
 async function setPiece(kind,A,D,min){
   if(_spActive)return; _spActive=true;
@@ -618,6 +639,7 @@ function startCareer(){
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
     growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], captain:null, kickers:{pk:null,fk:null,ck:null}, // 成長/調子/加齢＋手動編成(空=自動)＋交代枠＋ロール
+    events:[], // クラブに起きているイベント(レッド欠場/今後ケガ/トロフィー等・汎用)
     loan:null}; // 名声/施設はアカウント恒久(S.prestige/S.fac)に移行
   save(); gotoCareer();
 }
@@ -889,6 +911,14 @@ const MATCH_MODES={
     S._careerMatch=false;
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
+    if(cr){ // レッドカード欠場: 既存の欠場を1試合消化 → この試合の自チーム退場者を次戦欠場に登録(練習週は消化しない=試合をまたいで有効)
+      cr.events=cr.events||[];
+      cr.events.forEach(ev=>{ if(ev.type==="redcard"&&ev.left>0)ev.left--; });
+      (MC.sentOffHome||[]).forEach(so=>{ const comp=inCup?"カップ":"リーグ";
+        const ex=cr.events.find(ev=>ev.type==="redcard"&&ev.cardId===so.id&&ev.left>0);
+        if(ex)ex.left++; else cr.events.push({type:"redcard",cardId:so.id,name:so.name,comp,left:1}); });
+      cr.events=cr.events.filter(ev=>ev.left>0);
+    }
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
     if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減
     const e=document.getElementById("matchEnd");

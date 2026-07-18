@@ -840,6 +840,25 @@ function cupBracketView(cup,cr){
   return wrap;
 }
 // カップ一覧: 各カップの規模・条件・次エントリー週。進行中はトーナメント表(ドロー)を表示。
+// クラブに起きているイベントを汎用タイルで表示(レッド欠場/今後: ケガ/トロフィー/連勝 等)。
+// EVT_DEF に type ごとの見た目を定義しておけば新イベントは1エントリ追加で対応。
+const EVT_DEF={
+  redcard:{ icon:"🟥", cls:"evt-red", title:ev=>`${ev.comp}: レッドカードで ${ev.name} 欠場`, sub:ev=>`次の試合を欠場(残り ${ev.left})` },
+};
+function renderEventTile(ev){
+  const d=EVT_DEF[ev.type]||{icon:"📌",title:e=>e.name||e.type,sub:()=>""};
+  const el=document.createElement("div");el.className="evt-tile "+(d.cls||"");
+  const sub=d.sub?d.sub(ev):"";
+  el.innerHTML=`<span class="evt-ic">${d.icon}</span><span class="evt-body"><b>${d.title(ev)}</b>${sub?`<span class="evt-sub">${sub}</span>`:""}</span>`;
+  return el;
+}
+function renderCareerEvents(cr){
+  const wrap=document.createElement("div");wrap.className="evt-list";
+  const evs=(cr.events||[]).filter(ev=>ev.type!=="redcard"||ev.left>0);
+  if(!evs.length){const e=document.createElement("div");e.className="lg";e.textContent="現在クラブに起きているイベントはありません。";wrap.appendChild(e);return wrap;}
+  evs.forEach(ev=>wrap.appendChild(renderEventTile(ev)));
+  return wrap;
+}
 function careerCupsView(cr){
   const wrap=document.createElement("div");
   const list=(cr.cup)?CUPS.filter(c=>c.id===cr.cup.id):CUPS; // 参加中は当該カップのみ、未参加時は全カップ(エントリー一覧)
@@ -922,6 +941,9 @@ function renderCareer(){
     body.appendChild(mk("div","banner","― 👤 選手のコンディション / 成長 ―"));
     const sq=careerSquadView(cr);
     if(sq)body.appendChild(sq); else body.appendChild(mk("div","lg","編成を組むと選手のコンディション/成長が表示されます"));
+    // イベント(レッド欠場/今後ケガ/トロフィー等の汎用タイル)。コンディションの下に配置。
+    body.appendChild(mk("div","banner","― 📋 イベント ―"));
+    body.appendChild(renderCareerEvents(cr));
     body.appendChild(mk("div","banner","― 🎓 監督の成長 ―"));
     body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
     if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.6">(獲得バフ ${cr.boosts.length}件を合算表示)</span>`));

@@ -114,7 +114,7 @@ async function loadGame(){                                       // つづきか
   if(S.captain===undefined)S.captain=null;                     // キャプテン/プレースキッカーの後方互換
   if(!S.kickers||typeof S.kickers!=="object")S.kickers={pk:null,fk:null,ck:null};
   if(S.career&&!Array.isArray(S.career.bench))S.career.bench=[];
-  if(S.career){ if(S.career.captain===undefined)S.career.captain=null; if(!S.career.kickers)S.career.kickers={pk:null,fk:null,ck:null}; } // キャリアのロール後方互換
+  if(S.career){ if(S.career.captain===undefined)S.career.captain=null; if(!S.career.kickers)S.career.kickers={pk:null,fk:null,ck:null}; if(!Array.isArray(S.career.events))S.career.events=[]; } // キャリアのロール/イベント後方互換
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。

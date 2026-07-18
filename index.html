@@ -987,6 +987,14 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 .cup-team.lost{color:#5a6b80;text-decoration:line-through}
 .cup-team.tbd{color:#42566f;text-align:center}
 .cup-vs{display:none}
+/* イベントタイル(レッド欠場/今後ケガ/トロフィー等・汎用) */
+.evt-list{display:flex;flex-direction:column;gap:6px;margin:4px 0}
+.evt-tile{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #2a3a54;border-radius:8px;background:#111c2e}
+.evt-tile.evt-red{border-color:#a33;background:linear-gradient(90deg,#2a1216,#131c2c)}
+.evt-ic{font-size:18px;flex:0 0 auto}
+.evt-body{display:flex;flex-direction:column;min-width:0}
+.evt-body b{font-size:12px;color:#eef2f8}
+.evt-sub{font-size:10px;color:#8fa3b8;margin-top:1px}
 /* PK戦オーバーレイ */
 .pkshoot{position:fixed;inset:0;z-index:210;background:rgba(6,12,22,.97);display:flex;align-items:center;justify-content:center;padding:14px}
 .pkshoot .pk-in{width:100%;max-width:440px;text-align:center}
@@ -1517,6 +1525,8 @@ const TUNING={
     cornerOnClear:0.11,   // 危険なクリアがCKになる割合
     cornerOnSave:0.10,    // GKセーブがCKになる割合
   },
+  // カード: ファウル発生時に反則した守備側へ抽選。イエロー2枚→レッド退場。稀にダイレクトレッド。
+  cards:{ yellow:0.14, pkYellow:0.30, directRed:0.012, pkDirectRed:0.045 }, // fk=通常ファウル / pk=エリア内(重い)
   worldSigDrop:0.10,    // ワールドツアー: 署名保有国に勝利時の固有ドロップ基礎確率(スカウティングLv5で最大2倍=20%)
   worldSigPackDrop:0.05,// ワールドツアー: 勝利時にシグネチャーパックがドロップする確率(暫定・入手機会の拡充)
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
@@ -4951,7 +4961,7 @@ async function loadGame(){                                       // つづきか
   if(S.captain===undefined)S.captain=null;                     // キャプテン/プレースキッカーの後方互換
   if(!S.kickers||typeof S.kickers!=="object")S.kickers={pk:null,fk:null,ck:null};
   if(S.career&&!Array.isArray(S.career.bench))S.career.bench=[];
-  if(S.career){ if(S.career.captain===undefined)S.career.captain=null; if(!S.career.kickers)S.career.kickers={pk:null,fk:null,ck:null}; } // キャリアのロール後方互換
+  if(S.career){ if(S.career.captain===undefined)S.career.captain=null; if(!S.career.kickers)S.career.kickers={pk:null,fk:null,ck:null}; if(!Array.isArray(S.career.events))S.career.events=[]; } // キャリアのロール/イベント後方互換
   if(checkAchievements())await save();  // 旧セーブが既に条件を満たしていれば付与
 }
 // 後方互換(テスト/旧呼び出し): スプライト準備を待ってから、既存セーブを読込or新規。
@@ -6654,6 +6664,25 @@ function cupBracketView(cup,cr){
   return wrap;
 }
 // カップ一覧: 各カップの規模・条件・次エントリー週。進行中はトーナメント表(ドロー)を表示。
+// クラブに起きているイベントを汎用タイルで表示(レッド欠場/今後: ケガ/トロフィー/連勝 等)。
+// EVT_DEF に type ごとの見た目を定義しておけば新イベントは1エントリ追加で対応。
+const EVT_DEF={
+  redcard:{ icon:"🟥", cls:"evt-red", title:ev=>`${ev.comp}: レッドカードで ${ev.name} 欠場`, sub:ev=>`次の試合を欠場(残り ${ev.left})` },
+};
+function renderEventTile(ev){
+  const d=EVT_DEF[ev.type]||{icon:"📌",title:e=>e.name||e.type,sub:()=>""};
+  const el=document.createElement("div");el.className="evt-tile "+(d.cls||"");
+  const sub=d.sub?d.sub(ev):"";
+  el.innerHTML=`<span class="evt-ic">${d.icon}</span><span class="evt-body"><b>${d.title(ev)}</b>${sub?`<span class="evt-sub">${sub}</span>`:""}</span>`;
+  return el;
+}
+function renderCareerEvents(cr){
+  const wrap=document.createElement("div");wrap.className="evt-list";
+  const evs=(cr.events||[]).filter(ev=>ev.type!=="redcard"||ev.left>0);
+  if(!evs.length){const e=document.createElement("div");e.className="lg";e.textContent="現在クラブに起きているイベントはありません。";wrap.appendChild(e);return wrap;}
+  evs.forEach(ev=>wrap.appendChild(renderEventTile(ev)));
+  return wrap;
+}
 function careerCupsView(cr){
   const wrap=document.createElement("div");
   const list=(cr.cup)?CUPS.filter(c=>c.id===cr.cup.id):CUPS; // 参加中は当該カップのみ、未参加時は全カップ(エントリー一覧)
@@ -6736,6 +6765,9 @@ function renderCareer(){
     body.appendChild(mk("div","banner","― 👤 選手のコンディション / 成長 ―"));
     const sq=careerSquadView(cr);
     if(sq)body.appendChild(sq); else body.appendChild(mk("div","lg","編成を組むと選手のコンディション/成長が表示されます"));
+    // イベント(レッド欠場/今後ケガ/トロフィー等の汎用タイル)。コンディションの下に配置。
+    body.appendChild(mk("div","banner","― 📋 イベント ―"));
+    body.appendChild(renderCareerEvents(cr));
     body.appendChild(mk("div","banner","― 🎓 監督の成長 ―"));
     body.appendChild(mk("div","lg",`🔼 バフ効果(合算): ${cr.boosts.length?boostSummary(cr.boosts):"(まだ無し)"}`));
     if(cr.boosts.length>1)body.appendChild(mk("div","lg",`<span style="font-size:10px;opacity:.6">(獲得バフ ${cr.boosts.length}件を合算表示)</span>`));
@@ -6942,6 +6974,8 @@ function wasGiantKilled(home,away,sh,sa){return sh<sa && teamAvgOvr(home)>teamAv
 function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
 // ベンチ(交代枠)に指定された cardId 集合。先発の自動補完から除外(先発と控えは重複しない)。
 function careerBenchSet(cr){return new Set(((cr&&cr.bench)||[]).filter(v=>v!=null));}
+// 出場停止(レッドカード欠場)中の cardId 集合。先発・控えの両方から除外(=次戦は出られない)。
+function careerSuspended(cr){return new Set(((cr&&cr.events)||[]).filter(ev=>ev.type==="redcard"&&ev.left>0).map(ev=>ev.cardId));}
 // 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
 // exclude=先発に使わないカードid集合(=ベンチ指定選手)。
 function careerPicks(cr,exclude){
@@ -6963,7 +6997,7 @@ function careerPicks(cr,exclude){
 function careerTeam(cap){
   const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
   const cr=(typeof S!=="undefined")&&S.career, pool=careerPool(cr);
-  const ex=careerBenchSet(cr);
+  const ex=careerBenchSet(cr); careerSuspended(cr).forEach(id=>ex.add(id)); // 出場停止(レッド欠場)も先発から除外
   const xiCap=cap; // 統制はXIのみ対象(ベンチはCap外)。exでベンチ選手を先発の自動補完から除外
   const {picks,used}=careerPicks(cr,ex);
   // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
@@ -7016,8 +7050,8 @@ function homeBaseTotal(home){
 function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager())+coachCtrlBonus():9999);}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
-  const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
-  return ((cr&&cr.bench)||[]).map(id=>pool.find(k=>k.id===id)).filter(c=>c&&!xi.has(c.id));
+  const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id)), susp=careerSuspended(cr);
+  return ((cr&&cr.bench)||[]).map(id=>pool.find(k=>k.id===id)).filter(c=>c&&!xi.has(c.id)&&!susp.has(c.id)); // 出場停止は控えにも入れない
 }
 // ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
 // 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
@@ -7909,7 +7943,7 @@ async function egoRun(ctx,type){
   const ex=gx-dir*15;
   movePlayer(carrier,ex-dir*3,ey,0.4);movePlayer(df,ex+dir*2,ey+ri(-4,4),0.4);
   await ballTo(ex-dir*3,ey,0.4,null,A.side);hot(carrier);hot(df);
-  const foul=rollFoul(df,type,carrier); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
+  const foul=rollFoul(df,type,carrier); if(foul){feed(`${who}${df.c.name}が${carrier.c.name}を倒した!`);await bookFoul(df,D,min,foul);await setPiece(foul,A,D,min);return {shot:true};}
   const won=resolveLink(type,carrier,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
   await maybeVs(carrier,A,df,D,type==="cutin"?"⚡ カットイン(攻×技)":"⚡ 仕掛けのドリブル(攻×速)",won);
   if(won){
@@ -7959,7 +7993,7 @@ const LINKS={
     const lx=gx-dir*18, ly=20+ri(0,60);
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
     await ballTo(lx,ly,0.5,null,A.side);hot(r);hot(df);
-    const foul=rollFoul(df,"through",r); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await setPiece(foul,A,D,min);return {shot:true};}
+    const foul=rollFoul(df,"through",r); if(foul){feed(`${who}${df.c.name}が${r.c.name}を倒した!`);await bookFoul(df,D,min,foul);await setPiece(foul,A,D,min);return {shot:true};}
     const won=resolveLink("through",r,df,A,D,min,tf.a,tf.d,tf.bonus); // 先に判定し、VSで勝者を表示
     await maybeVs(r,A,df,D,"🚀 裏抜けの駆けっこ(速)",won);
     if(won){
@@ -8219,6 +8253,27 @@ const SETPIECES={
     await aerialBox(A,D,min,kicker,{a:1.05,d:1,bonus:1},who);
   }},
 };
+// カード判定: ファウルした守備側 df へイエロー/レッドを抽選。2枚目イエロー→退場。稀にダイレクトレッド。
+// kind: "pk"=エリア内(重い) / "fk"=通常。team=df の所属チーム(D)。
+async function bookFoul(df,team,min,kind){
+  if(!df||df.sentOff||df.role==="GK")return; // GKの退場はレア過ぎるので除外(数的計算の破綻回避)
+  const C=(TUNING.cards)||{};
+  const pk=kind==="pk";
+  if(Math.random()<(pk?(C.pkDirectRed||0.045):(C.directRed||0.012))){ await sendOff(df,team,min,true); return; }
+  if(Math.random()<(pk?(C.pkYellow||0.30):(C.yellow||0.14))){
+    df.yellow=(df.yellow||0)+1;
+    if(df.yellow>=2){ feed(`🟨🟨 ${df.c.name} 2枚目の警告! 退場!`,"chance"); await sendOff(df,team,min,false); }
+    else feed(`🟨 ${df.c.name} に警告(イエローカード)`,"chance");
+  }
+}
+async function sendOff(p,team,min,direct){
+  if(!p||p.sentOff)return; p.sentOff=true;
+  try{ await wordCutin(p,team,"🟥 RED CARD",false,850); }catch(e){} // 退場演出(選手が盤上のうちに)
+  const i=team.players.indexOf(p); if(i>=0)team.players.splice(i,1); // 数的不利へ
+  if(typeof recalcAuras==="function")recalcAuras(team);               // ケミストリー/オーラ再計算
+  feed(`🟥 ${direct?"一発退場! ":""}${p.c.name} が退場! ${team.side==="H"?"自陣":"相手"}は ${team.players.length}人に`,"goal");
+  if(team.side==="H"){ MC.sentOffHome=MC.sentOffHome||[]; if(!MC.sentOffHome.some(x=>x.id===p.c.id))MC.sentOffHome.push({id:p.c.id,name:p.c.name}); } // キャリアの欠場記録用
+}
 // ファウル → FK or PK。再帰防止フラグでガードしつつレジストリへディスパッチ。
 async function setPiece(kind,A,D,min){
   if(_spActive)return; _spActive=true;
@@ -8503,6 +8558,7 @@ function startCareer(){
     ovrCap:CAREER.startCap, boosts:[], tacs:[], history:[], cupsWon:[],
     cup:null, contId:null, contWon:[], stepsMax:CAREER.steps, term:0, finished:false,
     growth:{}, form:{}, cond:{}, season:0, squad:{}, bench:[], captain:null, kickers:{pk:null,fk:null,ck:null}, // 成長/調子/加齢＋手動編成(空=自動)＋交代枠＋ロール
+    events:[], // クラブに起きているイベント(レッド欠場/今後ケガ/トロフィー等・汎用)
     loan:null}; // 名声/施設はアカウント恒久(S.prestige/S.fac)に移行
   save(); gotoCareer();
 }
@@ -8774,6 +8830,14 @@ const MATCH_MODES={
     S._careerMatch=false;
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
+    if(cr){ // レッドカード欠場: 既存の欠場を1試合消化 → この試合の自チーム退場者を次戦欠場に登録(練習週は消化しない=試合をまたいで有効)
+      cr.events=cr.events||[];
+      cr.events.forEach(ev=>{ if(ev.type==="redcard"&&ev.left>0)ev.left--; });
+      (MC.sentOffHome||[]).forEach(so=>{ const comp=inCup?"カップ":"リーグ";
+        const ex=cr.events.find(ev=>ev.type==="redcard"&&ev.cardId===so.id&&ev.left>0);
+        if(ex)ex.left++; else cr.events.push({type:"redcard",cardId:so.id,name:so.name,comp,left:1}); });
+      cr.events=cr.events.filter(ev=>ev.left>0);
+    }
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
     if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減
     const e=document.getElementById("matchEnd");

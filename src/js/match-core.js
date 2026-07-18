@@ -95,6 +95,8 @@ function wasGiantKilled(home,away,sh,sa){return sh<sa && teamAvgOvr(home)>teamAv
 function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
 // ベンチ(交代枠)に指定された cardId 集合。先発の自動補完から除外(先発と控えは重複しない)。
 function careerBenchSet(cr){return new Set(((cr&&cr.bench)||[]).filter(v=>v!=null));}
+// 出場停止(レッドカード欠場)中の cardId 集合。先発・控えの両方から除外(=次戦は出られない)。
+function careerSuspended(cr){return new Set(((cr&&cr.events)||[]).filter(ev=>ev.type==="redcard"&&ev.left>0).map(ev=>ev.cardId));}
 // 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
 // exclude=先発に使わないカードid集合(=ベンチ指定選手)。
 function careerPicks(cr,exclude){
@@ -116,7 +118,7 @@ function careerPicks(cr,exclude){
 function careerTeam(cap){
   const ovr=cardOvr, form=FORMS[S.form]||FORMS["4-4-2"], kp=KEYPOS[S.form]||{};
   const cr=(typeof S!=="undefined")&&S.career, pool=careerPool(cr);
-  const ex=careerBenchSet(cr);
+  const ex=careerBenchSet(cr); careerSuspended(cr).forEach(id=>ex.add(id)); // 出場停止(レッド欠場)も先発から除外
   const xiCap=cap; // 統制はXIのみ対象(ベンチはCap外)。exでベンチ選手を先発の自動補完から除外
   const {picks,used}=careerPicks(cr,ex);
   // 上限超過なら「自動枠」だけを弱い候補へ差し替えてトリム(手動枠は尊重=選んだ主力は残す)
@@ -169,8 +171,8 @@ function homeBaseTotal(home){
 function homeCtrlMul(home){return ovrOverloadMul(homeBaseTotal(home), (typeof mgrCtrlOVR==="function")?mgrCtrlOVR(effectiveManager())+coachCtrlBonus():9999);}
 // 現在のベンチ(交代枠)の実カード配列(所持・先発と重複しない)。試合開始時の MC.bench 供給に使う。
 function careerBenchCards(cr){
-  const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id));
-  return ((cr&&cr.bench)||[]).map(id=>pool.find(k=>k.id===id)).filter(c=>c&&!xi.has(c.id));
+  const pool=careerPool(cr), xi=new Set(careerPicks(cr).picks.filter(p=>p.c).map(p=>p.c.id)), susp=careerSuspended(cr);
+  return ((cr&&cr.bench)||[]).map(id=>pool.find(k=>k.id===id)).filter(c=>c&&!xi.has(c.id)&&!susp.has(c.id)); // 出場停止は控えにも入れない
 }
 // ===== 選手のシーズン内成長・コンディション(キャリア限定・ローグライク) =====
 // 成長する主ステ(役割ベース)。出場・高評価でこれらが少しずつ伸びる。
