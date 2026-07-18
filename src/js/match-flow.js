@@ -658,6 +658,7 @@ function startCup(id){ // ②カップ: エントリー週かつ条件を満た�
   if(!cup.cond(cr)){toast(`出場条件を満たしていません(${cup.condText})`);return;}
   if(!cupEntryWeek(cup,cr.step)){toast(`${cup.name}は${cup.period}の倍数の週のみエントリー可能です`);return;}
   cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,pool:cup.pool,size:cup.size,rounds:cup.rounds,round:0,bracket:drawCupBracket(cup)};
+  if(typeof _careerTab!=="undefined")_careerTab="cup"; // エントリー直後はカップタブへ(トーナメント表を見ながら進行)
   save(); renderCareer();
   toast(`${cup.emoji} ${cup.name}(${cup.size}強)のドロー確定! 決勝まで勝ち抜け`);
 }
@@ -897,6 +898,7 @@ const MATCH_MODES={
       let pk=null;
       if(sh===sa){ pk=await pkShootout(M.home,M.away); } // 規定時間 引分 → PK戦で決着
       const o=careerCupResult(cr,sh,sa,pk);
+      if(typeof _careerTab!=="undefined")_careerTab=o.advance?"cup":"schedule"; // 勝ち上がり中はカップ表を継続、敗退/優勝の確定で日程タブへ
       if(pk){ headRes=pk.win?"W":"L"; pkNote=` (PK ${pk.sa}-${pk.sd})`; // ヘッダーの勝敗もPK結果を反映
         html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}

@@ -842,7 +842,8 @@ function cupBracketView(cup,cr){
 // カップ一覧: 各カップの規模・条件・次エントリー週。進行中はトーナメント表(ドロー)を表示。
 function careerCupsView(cr){
   const wrap=document.createElement("div");
-  CUPS.forEach(cup=>{
+  const list=(cr.cup)?CUPS.filter(c=>c.id===cr.cup.id):CUPS; // 参加中は当該カップのみ、未参加時は全カップ(エントリー一覧)
+  list.forEach(cup=>{
     const active=cr.cup&&cr.cup.id===cup.id, met=cup.cond(cr), nextWk=nextCupEntryWeek(cup,cr.step);
     const card=document.createElement("div");card.className="cup-card"+(active?" active":"");
     let h=`<div class="cup-head">${cup.emoji} <b>${cup.name}</b> ・ ${cup.size}強トーナメント`;
