@@ -891,17 +891,18 @@ function scaleTo(c,target){ // 既存6ステの合計をtargetへ比例スケー
 // フェーズ→各レバー倍率(全盛期=1.0が基準)。若手=走り回るが息切れ・勝負は荒い / ベテラン=省エネで出番少だが成功率高。
 const AGE_DEF=27; // 年齢欠落時は全盛期扱い(=各レバー1.0=無効)
 const AGE_PHASES=[
-  {key:"young",   label:"若手",   icon:"🌱", max:21, inv:1.15, drain:1.15, compose:0.94, growth:1.6,  condVol:1.5, decline:0},
-  {key:"rising",  label:"成長期", icon:"🌿", max:25, inv:1.08, drain:1.06, compose:0.98, growth:1.3,  condVol:1.2, decline:0},
-  {key:"prime",   label:"全盛期", icon:"⭐", max:29, inv:1.00, drain:1.00, compose:1.00, growth:0.8,  condVol:1.0, decline:0},
-  {key:"vet",     label:"ベテラン",icon:"🎖", max:33, inv:0.90, drain:0.92, compose:1.06, growth:0.4,  condVol:0.85,decline:0.4},
-  {key:"twilight",label:"老雄",   icon:"🔥", max:99, inv:0.82, drain:0.85, compose:1.10, growth:0.15, condVol:0.8, decline:1.0},
-];
+  {key:"young",   label:"若手",   icon:"🌱", max:21, inv:1.15, drain:1.15, compose:0.94, growth:1.6,  condVol:1.5, decline:0,   foul:1.12},
+  {key:"rising",  label:"成長期", icon:"🌿", max:25, inv:1.08, drain:1.06, compose:0.98, growth:1.3,  condVol:1.2, decline:0,   foul:1.05},
+  {key:"prime",   label:"全盛期", icon:"⭐", max:29, inv:1.00, drain:1.00, compose:1.00, growth:0.8,  condVol:1.0, decline:0,   foul:1.00},
+  {key:"vet",     label:"ベテラン",icon:"🎖", max:33, inv:0.90, drain:0.92, compose:1.06, growth:0.4,  condVol:0.85,decline:0.4, foul:0.90},
+  {key:"twilight",label:"老雄",   icon:"🔥", max:99, inv:0.82, drain:0.85, compose:1.10, growth:0.15, condVol:0.8, decline:1.0, foul:0.84},
+]; // foul=ファウル発生倍率(経験でベテラン/老雄ほど僅かに減・若手は僅かに増)
 function agePhase(age){age=(age==null)?AGE_DEF:age;for(const ph of AGE_PHASES){if(age<=ph.max)return ph;}return AGE_PHASES[AGE_PHASES.length-1];}
 function ageOf(c){return (c&&c.age!=null)?c.age:AGE_DEF;}
 // 選手オブジェクト(p)またはカード(c)から実効年齢を得る。ageBonus=育成中のシーズン加齢(カード本体は不変)。
 function effAge(p){const c=(p&&p.c)?p.c:p; return ageOf(c)+((p&&p.ageBonus)||0);}
 function ageInv(p){return agePhase(effAge(p)).inv;}         // 関与(選出)倍率
+function ageFoul(p){return agePhase(effAge(p)).foul||1;}    // ファウル発生倍率(ベテランほど僅かに減)
 function ageDrain(p){return agePhase(effAge(p)).drain;}     // スタミナ消費倍率
 function ageCompose(p){return agePhase(effAge(p)).compose;} // アクション成功倍率
 // 通常カードの年齢: 17〜34あたり・ピーク24-26のなだらかな分布。
