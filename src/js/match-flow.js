@@ -15,10 +15,23 @@ function linkAvailable(type,ctx){
   if(type==="cross"||type==="cutin")return ctx.wide; // 幅がある(サイドに開いている)時のみ
   return true; // combination/through/dribble は常時可能
 }
+// 負傷: 1人を負傷させる。負傷者は eff で全能力ダウン(通常戦=その試合限り / キャリア=onEndでイベント化)。
+function injurePlayer(p,T,min){
+  if(!p||p.injured||p.role==="GK")return; // 既に負傷/GKは対象外(数的・演出の破綻回避)
+  p.injured=true;
+  feed(`🤕 ${whoPrefix(T)}<b>${p.c.name}</b> が負傷! 全能力がダウン…`,"chance");
+  if(T&&T.side==="H"&&typeof MC!=="undefined"&&MC){ MC.injuredHome=MC.injuredHome||[]; if(!MC.injuredHome.some(x=>x.id===p.c.id))MC.injuredHome.push({id:p.c.id,name:p.c.name}); }
+}
+// デュエルのたびに勝敗によらず、攻撃側・守備側の各選手へごく低確率で負傷判定(TUNING.injury.perDuel)。
+function rollDuelInjury(atk,df,A,D,min){
+  const I=TUNING.injury; if(!I||!I.perDuel)return;
+  if(atk&&!atk.injured&&Math.random()<I.perDuel)injurePlayer(atk,A,min);
+  if(df&&!df.injured&&Math.random()<I.perDuel)injurePlayer(df,D,min);
+}
 // 自分で持ち込む系(dribble/cut-in)の共通実行。carrierがマッチアップ守備者を抜いて自らシュート(エゴ)。
 async function egoRun(ctx,type){
   const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A),gx=goalXOf(A);
-  const df=matchupDefender(carrier,D); recMatch(carrier,df);
+  const df=matchupDefender(carrier,D); recMatch(carrier,df); rollDuelInjury(carrier,df,A,D,min);
   carrier.stat.inv++;df.stat.inv++;
   const ey=type==="cutin"?(curP(carrier).y<50?38:62):30+ri(0,40);
   const ex=gx-dir*15;
@@ -51,7 +64,7 @@ const LINKS={
     const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A);
     const mate=pickW(A.players.filter(p=>p!==carrier&&p.role!=="GK"),p=>1+(dir>0?curP(p).x:100-curP(p).x)/40);
     if(!mate)return {lost:true};
-    const df=matchupDefender(mate,D); recMatch(mate,df);
+    const df=matchupDefender(mate,D); recMatch(mate,df); rollDuelInjury(mate,df,A,D,min);
     carrier.stat.inv++;mate.stat.inv++;df.stat.inv++;hot(carrier);hot(mate);
     await ballTo(curP(carrier).x+dir*2,curP(carrier).y,0.3);
     await ballTo(curP(mate).x+dir*3,curP(mate).y,0.3,null,A.side);
@@ -69,7 +82,7 @@ const LINKS={
   // 縦パス(終端): 抜け出すランナーへ。成功でGKと1対1。
   through:{ run:async ctx=>{
     const {A,D,min,tf,who,carrier}=ctx; const dir=dirOf(A),gx=goalXOf(A);
-    const r=pickTarget(A),df=matchupDefender(r,D); recMatch(r,df);
+    const r=pickTarget(A),df=matchupDefender(r,D); recMatch(r,df); rollDuelInjury(r,df,A,D,min);
     carrier.stat.inv++;r.stat.inv++;df.stat.inv++;
     const lx=gx-dir*18, ly=20+ri(0,60);
     movePlayer(r,lx-dir*2,ly,0.5);movePlayer(df,lx+dir*2,ly+ri(-5,5),0.5);
@@ -263,7 +276,7 @@ async function spShot(taker,A,D,min,base,label,kind,opt={}){
 // 空中戦(クロス/CK/クロスFK 共用): ターゲットがヘディング → シュート。CK/危険クリアは派生元。
 async function aerialBox(A,D,min,deliverer,tf,who){
   const dir=dirOf(A),gx=goalXOf(A);
-  const t=pickTarget(A),df=matchupDefender(t,D); recMatch(t,df);
+  const t=pickTarget(A),df=matchupDefender(t,D); recMatch(t,df); rollDuelInjury(t,df,A,D,min);
   t.stat.inv++;df.stat.inv++;
   const cx=gx-dir*7, cy=42+ri(0,16);
   collapseDefenders(D,cx,cy,2,0.4); // B: 守備陣がボックスに密集
@@ -663,6 +676,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   team.ctrlSurge=ctrlSurge(careerBaseTotal(cr),cap); // 統率に余裕があれば采配の発動率アップ(隠し)
   cr.cond=cr.cond||{}; // 調子(コンディション)を試合開始時に決定→eff(p.cond)へ反映
   team.players.forEach(p=>{const cnd=careerCondition(cr,p.c,agePhase(effAge(p)));p.cond=cnd.mul;cr.cond[p.c.id]=cnd.key;});
+  const injSet=careerInjured(cr); team.players.forEach(p=>{if(injSet.has(p.c.id))p.injured=true;}); // 負傷中(イベント持続)は出場時に全能力デバフ
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
@@ -679,6 +693,8 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const cold=team.players.filter(p=>cr.cond[p.c.id]==="poor").map(p=>p.c.name);
   if(hot.length)feed(`⤴ 絶好調: ${hot.join("、")}`,"chance");
   if(cold.length)feed(`⤵ 不調: ${cold.join("、")}`);
+  const injN=team.players.filter(p=>p.injured).map(p=>p.c.name); // 負傷中(能力半減)を試合開始で明示
+  if(injN.length)feed(`🤕 負傷中(能力ダウン): ${injN.join("、")}`);
 }
 function startCup(id){ // ②カップ: エントリー週かつ条件を満たせばカップを開始(以後 startCareerMatch がカップ戦になる)
   const cr=S.career; if(!cr||cr.finished||cr.cup)return;
@@ -699,6 +715,20 @@ function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   (cr.history=cr.history||[])[cr.step]={act:"P",cap:cr.ovrCap,gain}; cr.step++;
   save(); if(!finalizeCareerIfDone())renderCareer();
   if(typeof secDialog==="function")secDialog(SEC_EVENT_MSG.practice); // 秘書: 練習で統率OVRアップを通知
+}
+function careerTreat(){ // ③治療(メディカルLv1以上かつ負傷者がいる時に練習の代わり): 各負傷を Lv×15% で残り週に関係なく完治。1ステップ消費。
+  const cr=S.career; if(!cr||cr.finished)return;
+  if(finalizeCareerIfDone())return;
+  const med=(typeof facLv==="function")?facLv("medical"):0; if(med<1){careerPractice();return;} // 施設未所持なら通常練習へ
+  const rate=med*0.15;
+  const injuries=(cr.events||[]).filter(ev=>ev.type==="injury"&&ev.left>0);
+  const healed=[]; injuries.forEach(ev=>{ if(Math.random()<rate){ev.left=0;healed.push(ev.name);} });
+  cr.events=(cr.events||[]).filter(ev=>ev.left>0);
+  (cr.history=cr.history||[])[cr.step]={act:"T",healed:healed.length,total:injuries.length}; cr.step++;
+  save(); if(!finalizeCareerIfDone())renderCareer();
+  if(typeof secDialog==="function")secDialog(healed.length
+    ?`治療が実を結びました！${healed.join("、")} が回復しました。`
+    :"治療を施しましたが、まだ回復には至りませんでした…焦らず続けましょう。");
 }
 function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCareerMatch がその大陸の6節になる。
   const cr=S.career; if(!cr||cr.finished||cr.cup||cr.contId)return;
@@ -925,6 +955,11 @@ const MATCH_MODES={
         const ex=cr.events.find(ev=>ev.type==="redcard"&&ev.cardId===so.id&&ev.left>0);
         if(ex)ex.left++; else cr.events.push({type:"redcard",cardId:so.id,name:so.name,comp,left:1}); });
       if((MC.sentOffHome||[]).length)secMsgs.push("redcard");
+      const injWk=(TUNING.injury&&TUNING.injury.careerWeeks)||3; // 負傷 → 今後 injWk 試合デバフ(治療で早期回復可)
+      (MC.injuredHome||[]).forEach(ij=>{
+        const ex=cr.events.find(ev=>ev.type==="injury"&&ev.cardId===ij.id&&ev.left>0);
+        if(ex)ex.left=injWk; else cr.events.push({type:"injury",cardId:ij.id,name:ij.name,left:injWk}); });
+      if((MC.injuredHome||[]).length)secMsgs.push("injury");
     }
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
     if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減

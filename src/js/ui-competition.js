@@ -597,6 +597,8 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
       wrap.appendChild(row("played",h.season?"🏆":"⚽",wk,sub,chip));
     }else if(h&&h.act==="P"){
       wrap.appendChild(row("played","💪",wk,`練習 ・ OVR上限+${h.gain||"?"}→${h.cap||""}`,`<span class="wt-res">💪</span>`));
+    }else if(h&&h.act==="T"){
+      wrap.appendChild(row("played","🏥",wk,`治療 ・ ${h.healed?`${h.healed}名 回復`:"回復ならず"}`,`<span class="wt-res">🏥</span>`));
     }else if(h&&h.act==="C"){
       const chip=`<span class="wt-res ${h.res}">${resWordEmoji(h.res)}${h.pk?"<br><span style='font-size:8px'>PK</span>":""}</span>`;
       wrap.appendChild(row("played","🏆",wk,`${h.name||"カップ"} ${h.round||""}${h.opp?" vs "+h.opp:""} ・ ${h.sc||""}`,chip));
@@ -625,7 +627,9 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
           if(needCont)panel.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
           else panel.appendChild(actBtn(cont?`① ${cont.name}リーグ進行`:"① リーグ進行",startCareerMatch));
           panel.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr)))); // 参加不可なら非活性
-          panel.appendChild(actBtn("③ 練習",careerPractice));
+          { const med=(typeof facLv==="function")?facLv("medical"):0; // メディカルLv1以上かつ負傷者がいれば練習→治療
+            if(med>=1&&careerInjured(cr).size>0)panel.appendChild(actBtn(`③ 治療 (完治${med*15}%)`,careerTreat));
+            else panel.appendChild(actBtn("③ 練習",careerPractice)); }
           if(!needCont)panel.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
           wrap.appendChild(panel);
         }
@@ -797,7 +801,9 @@ function careerCurrentActivity(cr){
     if(needCont)p.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
     else p.appendChild(actBtn(cont?`① ${cont.name}リーグ進行`:"① リーグ進行",startCareerMatch));
     p.appendChild(actBtn("② カップ挑戦",careerCupPicker,!CUPS.some(c=>cupEnterable(c,cr))));
-    p.appendChild(actBtn("③ 練習",careerPractice));
+    { const med=(typeof facLv==="function")?facLv("medical"):0; // メディカルLv1以上かつ負傷者がいれば練習→治療
+      if(med>=1&&careerInjured(cr).size>0)p.appendChild(actBtn(`③ 治療 (完治${med*15}%)`,careerTreat));
+      else p.appendChild(actBtn("③ 練習",careerPractice)); }
     if(!needCont)p.appendChild(actBtn("🔍 偵察",()=>careerScout(cr)));
     wrap.appendChild(p);
   }
@@ -846,6 +852,7 @@ const SEC_EVENT_MSG={
   practice:"統率力がアップしましたね！",
   cupentry:"カップ戦へのエントリーが完了しました！",
   redcard:"カードで次の試合に出られない選手がいますね。編成を確認しておきましょう。",
+  injury:"負傷者が出てしまいました…しばらく能力が下がります。メディカルがあれば治療も検討しましょう。",
   growthboom:"コツをつかんだ選手がいます。今後の成長に期待しましょう！",
   grit:"敗北を糧に、チームが一丸となっています！",
   extend:"オーナーからの要請で契約を延長しました。これからの活躍に期待しています。",
@@ -881,6 +888,7 @@ async function secDialogSeq(keys){ for(const k of (keys||[])){ await secDialog(S
 // EVT_DEF に type ごとの見た目を定義しておけば新イベントは1エントリ追加で対応。
 const EVT_DEF={
   redcard:{ icon:"🟥", cls:"evt-red", title:ev=>`${ev.comp}: レッドカードで ${ev.name} 欠場`, sub:ev=>`次の試合を欠場(残り ${ev.left})` },
+  injury:{ icon:"🤕", cls:"evt-injury", title:ev=>`負傷: ${ev.name} 全能力ダウン`, sub:ev=>`今後 ${ev.left} 試合 能力半減(メディカルの治療で早期回復可)` },
   growthboom:{ icon:"🌿", cls:"evt-boom", title:ev=>`成長爆発: ${ev.name} の成長率2倍`, sub:ev=>`今後 ${ev.left} 試合(成長期MOMの覚醒)` },
   grit:{ icon:"🔥", cls:"evt-grit", title:ev=>`不屈: チームのコンディション +1段階`, sub:ev=>`今後 ${ev.left} 試合(逆境からの奮起)` },
 };

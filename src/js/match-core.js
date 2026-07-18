@@ -97,6 +97,8 @@ function careerPool(cr){return (cr&&cr.loan)?S.coll.concat([cr.loan]):S.coll;}
 function careerBenchSet(cr){return new Set(((cr&&cr.bench)||[]).filter(v=>v!=null));}
 // 出場停止(レッドカード欠場)中の cardId 集合。先発・控えの両方から除外(=次戦は出られない)。
 function careerSuspended(cr){return new Set(((cr&&cr.events)||[]).filter(ev=>ev.type==="redcard"&&ev.left>0).map(ev=>ev.cardId));}
+// 負傷中(イベント持続)のカードid集合。除外はせず、出場時に全能力デバフ(eff の p.injured)を掛けるための参照。
+function careerInjured(cr){return new Set(((cr&&cr.events)||[]).filter(ev=>ev.type==="injury"&&ev.left>0).map(ev=>ev.cardId));}
 // 手動選択(cr.squad{slot:cardId})を尊重しつつ空き枠を自動補完した picks を返す(枠順)。手動枠は manual:true。
 // exclude=先発に使わないカードid集合(=ベンチ指定選手)。
 function careerPicks(cr,exclude){
@@ -415,7 +417,8 @@ function eff(p,k,min,T,opT){
   const km=p.keyStat===k?(p.keyMul||1):1;
   const surge=(T&&T._surgeUntil&&min<T._surgeUntil)?(T._surgeMul||1):1; // 国際チームスキル(kind:team)発動中の一時バフ
   const base=p.c[k]+(p.grow?(p.grow[k]||0):0); // 育成の成長値(キャリア限定・上限別枠。非キャリアはnull=不変)
-  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1)*(T&&T.ctrl||1); // p.cond=調子 / T.ctrl=統制超過ペナルティ
+  const inj=p.injured?((TUNING.injury&&TUNING.injury.debuff)||0.5):1; // 負傷: 全能力ダウン(通常戦=その試合限り / キャリア=イベント持続)
+  return base*p.pen*fatigue(p,min)*situ(p,T,opT,min)*(T&&T.chem||1)*km*mgrMul(p,k,T)*surge*(p.cond||1)*(T&&T.ctrl||1)*inj; // p.cond=調子 / T.ctrl=統制超過ペナルティ
 }
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=ブロック / gk=セーブ)を1つ返す(発動抽選は呼び出し側)。
