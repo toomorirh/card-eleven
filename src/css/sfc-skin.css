@@ -238,6 +238,15 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 .evt-tile.evt-red{border-color:#a33;background:linear-gradient(90deg,#2a1216,#131c2c)}
 .evt-tile.evt-boom{border-color:#3a8f5a;background:linear-gradient(90deg,#12261a,#131c2c)}
 .evt-tile.evt-grit{border-color:#b5722e;background:linear-gradient(90deg,#2a1e10,#131c2c)}
+/* 秘書メッセージダイアログ(キャリアのイベント通知・画面中段) */
+.sec-dialog-ov{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;background:rgba(4,8,16,.62);padding:16px;animation:fade .2s}
+.sec-dialog{width:100%;max-width:360px;background:linear-gradient(160deg,#152233,#0d1626);border:1px solid #3a5680;border-radius:14px;
+  box-shadow:0 10px 34px rgba(0,0,0,.6);padding:14px 14px 12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.sec-dialog .mgrpic,.sec-dialog canvas{filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
+.sec-dialog-body{width:100%;background:#0e1826;border:1px solid #2a3a54;border-radius:10px;padding:9px 11px}
+.sec-dialog-name{font:900 11px sans-serif;color:#9fe0ff;margin-bottom:3px}
+.sec-dialog-say{font-size:13px;line-height:1.6;color:#eaf1fa}
+.sec-dialog-ok{width:100%;margin-top:2px}
 .evt-ic{font-size:18px;flex:0 0 auto}
 .evt-body{display:flex;flex-direction:column;min-width:0}
 .evt-body b{font-size:12px;color:#eef2f8}

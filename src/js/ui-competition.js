@@ -753,7 +753,7 @@ function careerLoanOffer(cr){
   pick.forEach(id=>{const s=signatureById(id);if(!s)return;
     const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
     b.innerHTML=`<b>${s.flag} ${s.name}</b> <span class="lv">${s.age}歳${agePhase(s.age).icon} ${s.pos}</span><br><span class="lg" style="font-size:10px">✦${s.skill.name}</span>`;
-    b.onclick=async()=>{cr.loan=makeSignature(id);S.prestige-=CAREER.loanCost;await save();ov.remove();toast(`💫 ${s.name}が加入! 編成盤で起用しよう`);renderCareer();};
+    b.onclick=async()=>{cr.loan=makeSignature(id);S.prestige-=CAREER.loanCost;await save();ov.remove();renderCareer();secDialog(SEC_EVENT_MSG.loan);};
     inn.appendChild(b);});
   ov.appendChild(inn);document.body.appendChild(ov);
 }
@@ -840,6 +840,43 @@ function cupBracketView(cup,cr){
   return wrap;
 }
 // カップ一覧: 各カップの規模・条件・次エントリー週。進行中はトーナメント表(ドロー)を表示。
+// ===== 秘書メッセージダイアログ(キャリアのイベント通知・画面中段) =====
+// イベント発生時に秘書がコメントし、「次へ」で確認してから進める。SEC_EVENT_MSG に台詞を集約。
+const SEC_EVENT_MSG={
+  practice:"統率力がアップしましたね！",
+  cupentry:"カップ戦へのエントリーが完了しました！",
+  redcard:"カードで次の試合に出られない選手がいますね。編成を確認しておきましょう。",
+  growthboom:"コツをつかんだ選手がいます。今後の成長に期待しましょう！",
+  grit:"敗北を糧に、チームが一丸となっています！",
+  extend:"オーナーからの要請で契約を延長しました。これからの活躍に期待しています。",
+  // 追加(同種の既存イベント)
+  promote:"昇格おめでとうございます！上のディビジョンでも戦っていきましょう。",
+  relegate:"降格は残念ですが、ここから立て直しましょう。",
+  cupwin:"カップ優勝、見事です！采配の引き出しも増えましたね。",
+  cupout:"カップは敗退となりました…次の大会で雪辱を果たしましょう。",
+  contUnlock:"大陸リーグが解禁されました！新たな挑戦の始まりですね。",
+  contWin:"大陸制覇、素晴らしいです！監督としての格が上がりました。",
+  derbyWin:"ダービー制覇！チームの士気は最高潮です。",
+  loan:"助っ人選手が加入しました。編成で起用してみましょう。",
+  tac:"新しい采配を習得しました！次の試合で試してみましょう。",
+};
+function secDialog(msg){
+  return new Promise(resolve=>{
+    if(!msg){resolve();return;}
+    const ov=document.createElement("div");ov.className="sec-dialog-ov";
+    const inn=document.createElement("div");inn.className="sec-dialog";
+    try{ inn.appendChild(secretaryPortrait(S.secViz,96)); }catch(e){}
+    const b=document.createElement("div");b.className="sec-dialog-body";
+    b.innerHTML=`<div class="sec-dialog-name">👩‍💼 秘書</div><div class="sec-dialog-say">「${msg}」</div>`;
+    inn.appendChild(b);
+    const btn=document.createElement("button");btn.className="btn sec-dialog-ok";btn.textContent="▶ 次へ";
+    const close=()=>{ov.remove();resolve();};
+    btn.onclick=close; ov.onclick=e=>{if(e.target===ov)close();};
+    inn.appendChild(btn);ov.appendChild(inn);document.body.appendChild(ov);
+  });
+}
+// 複数メッセージ(keyの配列)を順に表示。onEnd等でまとめて確認させる。
+async function secDialogSeq(keys){ for(const k of (keys||[])){ await secDialog(SEC_EVENT_MSG[k]||k); } }
 // クラブに起きているイベントを汎用タイルで表示(レッド欠場/今後: ケガ/トロフィー/連勝 等)。
 // EVT_DEF に type ごとの見た目を定義しておけば新イベントは1エントリ追加で対応。
 const EVT_DEF={

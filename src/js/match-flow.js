@@ -689,7 +689,7 @@ function startCup(id){ // ②カップ: エントリー週かつ条件を満た�
   cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,pool:cup.pool,size:cup.size,rounds:cup.rounds,round:0,bracket:drawCupBracket(cup)};
   if(typeof _careerTab!=="undefined")_careerTab="cup"; // エントリー直後はカップタブへ(トーナメント表を見ながら進行)
   save(); renderCareer();
-  toast(`${cup.emoji} ${cup.name}(${cup.size}強)のドロー確定! 決勝まで勝ち抜け`);
+  if(typeof secDialog==="function")secDialog(SEC_EVENT_MSG.cupentry); // 秘書: カップ参加を通知
 }
 function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const cr=S.career; if(!cr||cr.finished)return;
@@ -697,8 +697,8 @@ function careerPractice(){ // ③練習: OVR上限を緩和(1ステップ消費)
   const gain=ri(CAREER.practiceMin,CAREER.practiceMax); // 練習効果は30〜50でランダム
   cr.ovrCap=Math.min(CAREER.capMax, cr.ovrCap+gain);
   (cr.history=cr.history||[])[cr.step]={act:"P",cap:cr.ovrCap,gain}; cr.step++;
-  toast(`💪 練習試合! 編成OVR上限 +${gain}(現在 ${cr.ovrCap})`);
   save(); if(!finalizeCareerIfDone())renderCareer();
+  if(typeof secDialog==="function")secDialog(SEC_EVENT_MSG.practice); // 秘書: 練習で統率OVRアップを通知
 }
 function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCareerMatch がその大陸の6節になる。
   const cr=S.career; if(!cr||cr.finished||cr.cup||cr.contId)return;
@@ -728,7 +728,7 @@ function offerContractExtension(){ // 契約延長 or 引退の選択(オーバ�
   const inn=document.createElement("div");inn.className="tac-offer-in";
   inn.innerHTML=`<div class="banner">📜 契約満了(${cr.step}週)</div><div class="lg">好成績につき<b>契約延長(+${CAREER.extendWeeks}週)</b>が可能(残り${CAREER.extendMax-(cr.term||0)}回)。延長で大陸制覇やカップをさらに積み、監督を強化できます。</div>`;
   const ext=document.createElement("button");ext.className="btn";ext.style.marginTop="6px";ext.textContent=`✍ 契約延長 (+${CAREER.extendWeeks}週)`;
-  ext.onclick=()=>{cr.stepsMax=(cr.stepsMax||CAREER.steps)+CAREER.extendWeeks;cr.term=(cr.term||0)+1;save();ov.remove();toast(`契約を延長! 任期 ${cr.stepsMax}週まで`);renderCareer();};
+  ext.onclick=()=>{cr.stepsMax=(cr.stepsMax||CAREER.steps)+CAREER.extendWeeks;cr.term=(cr.term||0)+1;save();ov.remove();renderCareer();if(typeof secDialog==="function")secDialog(SEC_EVENT_MSG.extend);}; // 秘書: 契約延長を通知
   const ret=document.createElement("button");ret.className="btn ghost";ret.style.marginTop="6px";ret.textContent="🎓 引退して監督を確定";
   ret.onclick=()=>{ov.remove();careerFinalize();};
   inn.appendChild(ext);inn.appendChild(ret);ov.appendChild(inn);document.body.appendChild(ov);
@@ -916,7 +916,7 @@ const MATCH_MODES={
   }},
   career:{ async onEnd(M,sh,sa){ // 監督キャリアのリーグ/カップ1試合
     S._careerMatch=false;
-    const cr=S.career, inCup=cr&&cr.cup;
+    const cr=S.career, inCup=cr&&cr.cup, secMsgs=[]; // secMsgs=結果画面から戻る時に秘書がまとめて確認するイベント
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
     if(cr){ // イベント持続: 全イベントをこの試合で1消化(練習週は消化せず試合をまたいで有効) → 発生分は後段で新規登録
       cr.events=cr.events||[];
@@ -924,6 +924,7 @@ const MATCH_MODES={
       (MC.sentOffHome||[]).forEach(so=>{ const comp=inCup?"カップ":"リーグ"; // レッドカード → 次戦欠場
         const ex=cr.events.find(ev=>ev.type==="redcard"&&ev.cardId===so.id&&ev.left>0);
         if(ex)ex.left++; else cr.events.push({type:"redcard",cardId:so.id,name:so.name,comp,left:1}); });
+      if((MC.sentOffHome||[]).length)secMsgs.push("redcard");
     }
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
     if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減
@@ -936,6 +937,7 @@ const MATCH_MODES={
       if(mom&&agePhase(effAge(mom)).key==="rising"&&Math.random()<0.10&&!cr.events.some(ev=>ev.type==="growthboom"&&ev.cardId===mom.c.id)){
         cr.events.push({type:"growthboom",cardId:mom.c.id,name:mom.c.name,left:3});
         html+=`<div class="banner" style="font-size:14px;color:#7dff9e">🌿 成長爆発! <b>${mom.c.name}</b>(成長期MOM)の成長率が今後3試合 倍増!</div>`;
+        secMsgs.push("growthboom");
       }
     }
     if(inCup){
@@ -946,33 +948,33 @@ const MATCH_MODES={
       if(typeof _careerTab!=="undefined")_careerTab=o.advance?"cup":"schedule"; // 勝ち上がり中はカップ表を継続、敗退/優勝の確定で日程タブへ
       if(pk){ headRes=pk.win?"W":"L"; pkNote=` (PK ${pk.sa}-${pk.sd})`; // ヘッダーの勝敗もPK結果を反映
         html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
-      if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
+      if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`; secMsgs.push("cupwin");}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
-      else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`;
-        html+=gritRoll(cr); // ② 敗退 → 20%で不屈
+      else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`; secMsgs.push("cupout");
+        const gh=gritRoll(cr); if(gh){html+=gh;secMsgs.push("grit");} // ② 敗退 → 20%で不屈
       }
     }else{
       const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};
       if(wasDerby){ // ダービーの結果(勝利=士気ボーナス、それ以外=雪辱)
         if(sh>sa){cr.boosts.push({pos:"all",stat:"all",mul:CAREER.derbyMul}); pp+=3;
-          html+=`<div class="banner" style="color:#ffd24a">⚔ ダービー制覇! 士気が高まった(監督バフ 全能力+${Math.round((CAREER.derbyMul-1)*1000)/10}%)</div>`;}
+          html+=`<div class="banner" style="color:#ffd24a">⚔ ダービー制覇! 士気が高まった(監督バフ 全能力+${Math.round((CAREER.derbyMul-1)*1000)/10}%)</div>`; secMsgs.push("derbyWin");}
         else html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⚔ 宿敵レガリアに屈した…次こそ雪辱を</div>`;
       }
       if(o.seasonEnd){
         const pct=Math.round((o.boost.mul-1)*1000)/10;
         if(o.contName){ // 大陸リーグ制覇→系統ステboost
           const st=MGR_STAT_JP[o.contStat]||o.contStat; pp+=15;
-          html+=`<div class="banner" style="color:#ffd24a">🌐 ${o.contName}リーグ制覇! → 監督バフ「${st} +${pct}%」獲得!</div>`;
+          html+=`<div class="banner" style="color:#ffd24a">🌐 ${o.contName}リーグ制覇! → 監督バフ「${st} +${pct}%」獲得!</div>`; secMsgs.push("contWin");
         }else{ // DIVシーズン終了(順位で昇降格)
           const rankTxt=o.champion?"🏆 優勝":`${o.rank}位`;
           pp+=o.toCont?20:o.promoted?10:o.champion?8:(o.rank<=2?5:2);
           html+=`<div class="banner" style="color:#7dff9e">📅 DIV${o.seasonDiv} シーズン終了 ${rankTxt}(全${o.size}チーム) 勝点${o.seasonPts} → 監督バフ「全能力 +${pct}%」</div>`;
-          if(o.promoted)html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`;
-          else if(o.relegated)html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⬇ DIV${cr.div}へ降格…立て直そう</div>`;
+          if(o.promoted){html+=`<div class="banner" style="font-size:14px">⬆ DIV${cr.div}へ昇格!</div>`; secMsgs.push("promote");}
+          else if(o.relegated){html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⬇ DIV${cr.div}へ降格…立て直そう</div>`; secMsgs.push("relegate");}
           else if(o.stayed)html+=`<div class="banner" style="font-size:14px">→ DIV${cr.div}に残留(来季 上位${CAREER.promote[cr.div]||1}位以内で昇格)</div>`;
-          if(o.toCont)html+=`<div class="banner" style="color:#ffd24a;font-size:14px">🌐 大陸リーグ解禁! 各大陸を制覇して系統特化バフを狙え</div>`;
-          if(o.relegated||(o.rank&&o.size&&o.rank>o.size/2))html+=gritRoll(cr); // ② リーグ下位(降格/下位半分)で終了 → 20%で不屈
+          if(o.toCont){html+=`<div class="banner" style="color:#ffd24a;font-size:14px">🌐 大陸リーグ解禁! 各大陸を制覇して系統特化バフを狙え</div>`; secMsgs.push("contUnlock");}
+          if(o.relegated||(o.rank&&o.size&&o.rank>o.size/2)){const gh=gritRoll(cr); if(gh){html+=gh;secMsgs.push("grit");}} // ② リーグ下位で終了 → 20%で不屈
         }
       }
     }
@@ -982,8 +984,8 @@ const MATCH_MODES={
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";
-    // 優勝時は先に采配報酬を提示(習得後にfinalize判定=延長任期の確定に間に合わせる)。それ以外は任期満了なら確定。
-    b.onclick=()=>{MC=null; if(champCup)offerCareerTac(champCup.pool,champCup); else if(!finalizeCareerIfDone())gotoCareer();};
+    // 戻る時: 発生イベントを秘書がまとめてコメント(確認)→ 優勝は采配報酬 / それ以外は任期満了なら確定。
+    b.onclick=async()=>{MC=null; if(typeof secDialogSeq==="function")await secDialogSeq(secMsgs); if(champCup)offerCareerTac(champCup.pool,champCup); else if(!finalizeCareerIfDone())gotoCareer();};
     e.appendChild(b);
     await save();MC=null;
   }},
@@ -1006,7 +1008,7 @@ function offerCareerTac(pool,cup){
     const b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;text-align:left";
     const eff=tacEffText(t);
     b.innerHTML=`<b>${t.flag||""}${t.name}</b><br><span class="lv">${eff} ・ 発動率${Math.round(t.chance*100)}%</span>`;
-    b.onclick=()=>{cr.tacs.push({...t}); save(); ov.remove(); toast(`采配「${t.name}」を習得!`); if(!finalizeCareerIfDone())renderCareer();};
+    b.onclick=()=>{cr.tacs.push({...t}); save(); ov.remove(); if(typeof secDialog==="function")secDialog(SEC_EVENT_MSG.tac); if(!finalizeCareerIfDone())renderCareer();};
     inn.appendChild(b);
   });
   document.body.appendChild(ov);
