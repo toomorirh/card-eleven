@@ -814,22 +814,28 @@ function careerTabBar(){
 // 次にこのカップにエントリーできる週(period の倍数・1基点)。
 function nextCupEntryWeek(cup,step){for(let w=step;w<CAREER.steps*3+CAREER.extendWeeks*2+10;w++){if(((w+1)%cup.period)===0)return w+1;}return null;}
 // 進行中カップのトーナメント表: 各回戦のカード(ペア)を並べ、自チームを金・勝者を緑で表示。
+// トーナメント表(ブラケット): ラウンドを左→右の列で並べ、各試合は上下2チーム積み。勝者を強調し、
+// まだ確定していない先のラウンドは「?」枠で全体像(size強)を見せる。チーム名タップで偵察。
 function cupBracketView(cup,cr){
   const wrap=document.createElement("div");wrap.className="cup-bracket";
   const nm=id=>id==="__me"?myName():((OPP_CLUBS[id]||{}).name||id);
-  for(let r=0;r<cup.bracket.length;r++){
+  const totalRounds=cup.rounds||cup.bracket.length;
+  for(let r=0;r<totalRounds;r++){
     const teams=cup.bracket[r], next=cup.bracket[r+1];
     const round=document.createElement("div");round.className="cup-round";
-    let h=`<div class="cup-rn">${roundLabel(teams.length)}${r===cup.round?" ▶":""}</div><div class="cup-matches">`;
-    for(let k=0;k<teams.length;k+=2){
-      const a=teams[k], b=teams[k+1], winner=next?next[k/2]:null, mine=(a==="__me"||b==="__me");
-      const chip=id=>{const me=id==="__me",won=winner&&winner===id,lost=winner&&winner!==id, scout=!me&&OPP_CLUBS[id];
-        return `<span class="cup-team${me?" me":""}${won?" won":""}${lost?" lost":""}${scout?" scout-td":""}"${scout?` data-club="${id}"`:""}>${nm(id)}</span>`;};
-      h+=`<span class="cup-match${mine?" mine":""}${(r===cup.round&&mine)?" now":""}">${chip(a)}<span class="cup-vs">v</span>${chip(b)}</span>`;
+    let h=`<div class="cup-rn">${roundLabel(cup.size>>r)}${r===cup.round?" ▶":""}</div><div class="cup-matches">`;
+    if(teams){
+      for(let k=0;k<teams.length;k+=2){
+        const a=teams[k], b=teams[k+1], winner=next?next[k/2]:null, mine=(a==="__me"||b==="__me");
+        const chip=id=>{const me=id==="__me",won=winner&&winner===id,lost=winner&&winner!==id, scout=!me&&OPP_CLUBS[id];
+          return `<span class="cup-team${me?" me":""}${won?" won":""}${lost?" lost":""}${scout?" scout-td":""}"${scout?` data-club="${id}"`:""}>${nm(id)}</span>`;};
+        h+=`<span class="cup-match${mine?" mine":""}${(r===cup.round&&mine)?" now":""}">${chip(a)}${chip(b)}</span>`;
+      }
+    }else{ // 未確定ラウンド: size強に応じた空きブラケット(?)を表示
+      for(let k=0;k<(cup.size>>(r+1));k++) h+=`<span class="cup-match tbd"><span class="cup-team tbd">?</span><span class="cup-team tbd">?</span></span>`;
     }
     h+=`</div>`; round.innerHTML=h; wrap.appendChild(round);
   }
-  if(cup.bracket.length<cup.rounds){const t=document.createElement("div");t.className="lg";t.style.fontSize="9px";t.textContent="この先の対戦は勝ち上がりで決定";wrap.appendChild(t);}
   wrap.querySelectorAll("[data-club]").forEach(el=>{el.onclick=()=>scoutClub(careerClubById(cr,el.dataset.club));}); // 表中のチーム名タップで偵察
   return wrap;
 }
