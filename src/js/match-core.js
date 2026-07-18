@@ -183,6 +183,7 @@ function growthStatsFor(p){
 function careerCondition(cr,c,phase){
   const f=(cr.form&&cr.form[c.id])||{}, lastR=(f.lastR!=null)?f.lastR:6.0, vol=(phase&&phase.condVol)||1;
   let v=(lastR-6.0)*0.06+(Math.random()*2-1)*0.09*vol+facCondShift(); // メディカル施設で底上げ
+  if((cr.events||[]).some(ev=>ev.type==="grit"&&ev.left>0))v+=0.06; // 不屈イベント中はコンディション+1段階
   v=Math.max(-0.12,Math.min(0.18,v));
   let key,label,icon;
   if(v>=0.10){key="peak";label="絶好調";icon="⤴";}
@@ -200,7 +201,8 @@ function careerApplyGrowth(cr,homeTeam,awayTeam){
     const f=cr.form[id]||(cr.form[id]={apps:0,lastR:6}); f.apps++; f.lastR=r;
     const g=cr.growth[id]||(cr.growth[id]={off:0,def:0,pow:0,tec:0,spd:0,sta:0});
     if(r>=CAREER.growthThresh){ // 高評価→主ステが伸びる(若手ほど大きい・アカデミーで加速)
-      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8)*facGrowthMul(), ks=growthStatsFor(p);
+      const boom=(cr.events||[]).some(ev=>ev.type==="growthboom"&&ev.cardId===id&&ev.left>0)?2:1; // 成長爆発イベント中は成長率2倍
+      const amt=(r>=8.5?0.5:r>=7.5?0.32:0.2)*(phase.growth||0.8)*facGrowthMul()*boom, ks=growthStatsFor(p);
       ks.forEach(k=>{ g[k]=Math.min(CAREER.growthCap,(g[k]||0)+amt/ks.length); });
     }
     if((phase.decline||0)>0 && r<5.0){ // 老雄/ベテランの低調な酷使→spd/staが微減
@@ -585,7 +587,7 @@ function resolveLink(type,atk,df,A,D,min,tfA,tfD,bonus){
 function rollFoul(df,linkType,atk){
   const sp=TUNING.setpiece;
   const draw=(atk&&fx(atk).drawFoul)||1;   // 仕掛けの名手はファウルを誘発(エモーショナル等)=看板FK/PKの登場を増やす
-  if(Math.random()>=sp.foulBase*(typeOf(df.c).defSel?1.15:1)*draw)return null; // 守備的な型ほど僅かにファウル増
+  if(Math.random()>=sp.foulBase*(typeOf(df.c).defSel?1.15:1)*draw*ageFoul(df))return null; // 守備的な型ほど僅かにファウル増・ベテランほど僅かに減
   return Math.random()<(sp.boxChance[linkType]||0.25)?"pk":"fk";
 }
 // セットプレーのキッカー: FK専門家(fx.freekick=エモーショナル等)が居れば最優先、無ければ最良シューター(攻×技)。

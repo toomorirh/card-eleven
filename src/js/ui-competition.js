@@ -844,6 +844,8 @@ function cupBracketView(cup,cr){
 // EVT_DEF に type ごとの見た目を定義しておけば新イベントは1エントリ追加で対応。
 const EVT_DEF={
   redcard:{ icon:"🟥", cls:"evt-red", title:ev=>`${ev.comp}: レッドカードで ${ev.name} 欠場`, sub:ev=>`次の試合を欠場(残り ${ev.left})` },
+  growthboom:{ icon:"🌿", cls:"evt-boom", title:ev=>`成長爆発: ${ev.name} の成長率2倍`, sub:ev=>`今後 ${ev.left} 試合(成長期MOMの覚醒)` },
+  grit:{ icon:"🔥", cls:"evt-grit", title:ev=>`不屈: チームのコンディション +1段階`, sub:ev=>`今後 ${ev.left} 試合(逆境からの奮起)` },
 };
 function renderEventTile(ev){
   const d=EVT_DEF[ev.type]||{icon:"📌",title:e=>e.name||e.type,sub:()=>""};
@@ -854,7 +856,7 @@ function renderEventTile(ev){
 }
 function renderCareerEvents(cr){
   const wrap=document.createElement("div");wrap.className="evt-list";
-  const evs=(cr.events||[]).filter(ev=>ev.type!=="redcard"||ev.left>0);
+  const evs=(cr.events||[]).filter(ev=>ev.left>0);
   if(!evs.length){const e=document.createElement("div");e.className="lg";e.textContent="現在クラブに起きているイベントはありません。";wrap.appendChild(e);return wrap;}
   evs.forEach(ev=>wrap.appendChild(renderEventTile(ev)));
   return wrap;

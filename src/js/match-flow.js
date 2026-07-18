@@ -355,6 +355,13 @@ async function sendOff(p,team,min,direct){
   feed(`🟥 ${direct?"一発退場! ":""}${p.c.name} が退場! ${team.side==="H"?"自陣":"相手"}は ${team.players.length}人に`,"goal");
   if(team.side==="H"){ MC.sentOffHome=MC.sentOffHome||[]; if(!MC.sentOffHome.some(x=>x.id===p.c.id))MC.sentOffHome.push({id:p.c.id,name:p.c.name}); } // キャリアの欠場記録用
 }
+// ② 不屈イベント抽選(20%): 逆境(カップ敗退/リーグ下位)で発動。今後3試合チームのコンディションを1段階底上げ。
+// 返り値=結果表示html(発動時のみ)。同時多重は避ける(既存の不屈があれば発動しない)。
+function gritRoll(cr){
+  if(!cr||(cr.events||[]).some(ev=>ev.type==="grit"&&ev.left>0)||Math.random()>=0.20)return "";
+  cr.events.push({type:"grit",left:3});
+  return `<div class="banner" style="font-size:14px;color:#ff9e54">🔥 不屈! 逆境をバネにチームのコンディションが今後3試合 底上げ!</div>`;
+}
 // ファウル → FK or PK。再帰防止フラグでガードしつつレジストリへディスパッチ。
 async function setPiece(kind,A,D,min){
   if(_spActive)return; _spActive=true;
@@ -911,18 +918,26 @@ const MATCH_MODES={
     S._careerMatch=false;
     const cr=S.career, inCup=cr&&cr.cup;
     if(cr)careerApplyGrowth(cr,M.home,M.away); // 出場した選手の成長/衰退を反映(この試合の評価から)
-    if(cr){ // レッドカード欠場: 既存の欠場を1試合消化 → この試合の自チーム退場者を次戦欠場に登録(練習週は消化しない=試合をまたいで有効)
+    if(cr){ // イベント持続: 全イベントをこの試合で1消化(練習週は消化せず試合をまたいで有効) → 発生分は後段で新規登録
       cr.events=cr.events||[];
-      cr.events.forEach(ev=>{ if(ev.type==="redcard"&&ev.left>0)ev.left--; });
-      (MC.sentOffHome||[]).forEach(so=>{ const comp=inCup?"カップ":"リーグ";
+      cr.events.forEach(ev=>{ if(ev.left>0)ev.left--; });
+      (MC.sentOffHome||[]).forEach(so=>{ const comp=inCup?"カップ":"リーグ"; // レッドカード → 次戦欠場
         const ex=cr.events.find(ev=>ev.type==="redcard"&&ev.cardId===so.id&&ev.left>0);
         if(ex)ex.left++; else cr.events.push({type:"redcard",cardId:so.id,name:so.name,comp,left:1}); });
-      cr.events=cr.events.filter(ev=>ev.left>0);
     }
     let pp=cr?(sh>sa?2:sh===sa?1:0):0; // 名声(プレステージ)獲得: 勝2/分1 + イベント加点
     if(cr&&wasGiantKilled(M.home,M.away,sh,sa))pp-=3; // 格下にジャイキリ被弾で名声減
     const e=document.getElementById("matchEnd");
     let html="", champCup=null, headRes=(sh>sa?"W":sh===sa?"D":"L"), pkNote="";
+    // ① 成長爆発: 勝利かつMOM(最高評価)が「成長期」なら10%で発動 → 今後3試合その選手の成長率2倍
+    if(cr&&sh>sa&&M.home.players.length){
+      let mom=M.home.players[0], mr=-Infinity;
+      M.home.players.forEach(p=>{const r=statRating(p,M.away); if(r>mr){mr=r;mom=p;}});
+      if(mom&&agePhase(effAge(mom)).key==="rising"&&Math.random()<0.10&&!cr.events.some(ev=>ev.type==="growthboom"&&ev.cardId===mom.c.id)){
+        cr.events.push({type:"growthboom",cardId:mom.c.id,name:mom.c.name,left:3});
+        html+=`<div class="banner" style="font-size:14px;color:#7dff9e">🌿 成長爆発! <b>${mom.c.name}</b>(成長期MOM)の成長率が今後3試合 倍増!</div>`;
+      }
+    }
     if(inCup){
       const cupName=cr.cup.name;
       let pk=null;
@@ -933,7 +948,9 @@ const MATCH_MODES={
         html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
       if(o.champion){champCup=o.cup; pp+=15; html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキルを獲得!</div>`;}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
-      else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`;}
+      else{const champ=(OPP_CLUBS[o.champId]||{}).name||o.champId; html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">${o.roundName}敗退…(優勝: ${champ||"—"})</div>`;
+        html+=gritRoll(cr); // ② 敗退 → 20%で不屈
+      }
     }else{
       const wasDerby=cr&&cr.derby; if(cr)cr.derby=false;
       const o=cr?careerRecordResult(cr,sh,sa):{};
@@ -955,10 +972,12 @@ const MATCH_MODES={
           else if(o.relegated)html+=`<div class="banner" style="font-size:14px;color:#ff8e8e">⬇ DIV${cr.div}へ降格…立て直そう</div>`;
           else if(o.stayed)html+=`<div class="banner" style="font-size:14px">→ DIV${cr.div}に残留(来季 上位${CAREER.promote[cr.div]||1}位以内で昇格)</div>`;
           if(o.toCont)html+=`<div class="banner" style="color:#ffd24a;font-size:14px">🌐 大陸リーグ解禁! 各大陸を制覇して系統特化バフを狙え</div>`;
+          if(o.relegated||(o.rank&&o.size&&o.rank>o.size/2))html+=gritRoll(cr); // ② リーグ下位(降格/下位半分)で終了 → 20%で不屈
         }
       }
     }
     if(cr&&pp){S.prestige=Math.max(0,(S.prestige||0)+pp); html+=`<div class="banner" style="font-size:13px;color:${pp<0?"#ff8e8e":"#ffd24a"}">🏛 名声 ${pp>0?"+":""}${pp}(計 ${S.prestige})</div>`;}
+    if(cr)cr.events=(cr.events||[]).filter(ev=>ev.left>0); // 消化済みイベントを除去
     checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
