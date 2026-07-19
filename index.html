@@ -8976,7 +8976,9 @@ const MATCH_MODES={
       if(pk){ headRes=pk.win?"W":"L"; pkNote=` (PK ${pk.sa}-${pk.sd})`; // ヘッダーの勝敗もPK結果を反映
         html+=`<div class="banner" style="font-size:14px;color:${pk.win?"#7dff9e":"#ff8e8e"}">⚽ PK戦 ${pk.sa}-${pk.sd} → ${pk.win?"WIN":"LOSE"}</div>`; }
       if(o.champion){champCup=o.cup; pp+=15;
-        const rw=o.cup.reward||{}; if(rw.coins)S.coins=(S.coins||0)+rw.coins; if(rw.sigPacks)S.sigPacks=(S.sigPacks||0)+rw.sigPacks; // 賞金+シグネチャーパック
+        const rw=((cupById(o.cup.id)||{}).reward)||o.cup.reward||{}; // reward はCUPS正本から引く(cr.cupにはrewardを持たせていないため)
+        if(rw.coins)S.coins=(S.coins||0)+rw.coins; if(rw.sigPacks)S.sigPacks=(S.sigPacks||0)+rw.sigPacks; // 賞金+シグネチャーパック
+        if(typeof coinUI==="function")coinUI(); // 付与したコインをヘッダへ即反映
         const rwTxt=[rw.coins?`🪙${rw.coins}`:"",rw.sigPacks?`🌟シグネチャーパック×${rw.sigPacks}`:""].filter(Boolean).join(" / ");
         html+=`<div class="banner" style="color:#ffd24a">${o.cup.emoji} ${cupName} 優勝!! 采配スキル${rwTxt?` + ${rwTxt}`:""}を獲得!</div>`; secMsgs.push("cupwin");}
       else if(o.advance){pp+=2; html+=`<div class="banner" style="color:#7dff9e">▶ ${o.roundName}突破! 次の回戦へ</div>`;}
