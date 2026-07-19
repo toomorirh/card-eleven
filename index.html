@@ -6672,7 +6672,10 @@ function careerStatusCard(cr){
 function careerCurrentActivity(cr){
   const wrap=document.createElement("div");wrap.className="career-now";
   const actBtn=(label,fn,dis)=>{const b=document.createElement("button");b.className="btn"+(dis?" ghost":"");b.textContent=label;if(dis){b.disabled=true;b.style.opacity=".45";}else b.onclick=fn;return b;};
-  if(cr.step>=(cr.stepsMax||CAREER.steps)){wrap.innerHTML=`<div class="cn-head">🎓 任期満了</div><div class="lg">「①」で監督を確定します</div>`;
+  // 任期満了パネルは finalizeCareerIfDone が実際に確定/延長オファーへ進める時のみ表示する。
+  // カップ/大陸シーズン進行中(cup/contId)は step が stepsMax を超えていても確定を保留=決着まで継続プレー
+  // (パネルを出すと「①任期を締める」が finalizeCareerIfDone=false で無反応になるため、下の通常操作へフォールスルー)。
+  if(cr.step>=(cr.stepsMax||CAREER.steps)&&!cr.cup&&!cr.contId){wrap.innerHTML=`<div class="cn-head">🎓 任期満了</div><div class="lg">「①」で監督を確定します</div>`;
     const p=document.createElement("div");p.className="cur-actions";p.appendChild(actBtn("① 任期を締める",()=>finalizeCareerIfDone()||renderCareer()));wrap.appendChild(p);return wrap;}
   const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
   if(cr.cup){
