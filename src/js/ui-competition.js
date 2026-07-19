@@ -41,22 +41,34 @@ function updateModeButtons(){
 }
 // 偵察(事前調査): 相手の固定ロスターをフルサイズのフォーメーション図で表示(数値はOVRのみ)。
 // 直接的な相性表現はせず、平均OVR+陣形+チーム解説(間接表現)を見せる。ステージ/ワールド共用。
+// 偵察: 自分の編成画面と同じ盤(スロット/キーポジ⭐/適性✓⚠/ロール徽章CAP・PK/FK/CK/ケミ線・名コンビ/監督札)で相手XIを表示。
 function renderScout(title,infoHtml,away){
   document.getElementById("scoutTitle").textContent=title;
-  document.getElementById("scoutInfo").innerHTML=infoHtml;
+  const players=away.players, form=away.form||"4-4-2";
+  const squad={}; players.forEach((p,i)=>{squad[i]=p.c.id;}); // スロットindex→cardId(playersはFORMS[form]順)
+  const byId=id=>{const p=players.find(x=>x.c.id===id);return p&&p.c;};
+  // 読み取り専用ロールctx: 主将=teamCaptain(away)(6ステ最上位) / キッカー=away.kickers(自動指名)
+  const roleCtx={ form, squad:()=>squad, find:byId,
+    getCap:()=>{const c=(typeof teamCaptain==="function")&&teamCaptain(away);return c&&c.c.id;},
+    getKick:r=>(away.kickers||{})[r], setCap(){}, setKick(){}, rerender(){} };
+  // 監督+性格の情報行
+  let mgrLine="";
+  if(away.mgr){ const per=away.personality;
+    mgrLine=`<br>🎓 <b>${away.mgr.title||away.mgr.name||"監督"}</b>`+(per?`<span class="lc-desc"> (${OPP_MAIN_JP[per.main]}・${OPP_SUB_JP[per.sub]})</span>`:""); }
+  document.getElementById("scoutInfo").innerHTML=infoHtml+mgrLine;
   const wrap=document.getElementById("scoutList");wrap.innerHTML="";
-  const pitch=document.createElement("div");pitch.className="pitch scoutpitch";
-  pitch.innerHTML='<div class="circle"></div>';
-  away.players.forEach(p=>{
-    const ovr=p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta;
-    const s=document.createElement("div");s.className="sslot";
-    s.style.left=p.x+"%";s.style.top=p.y+"%";
-    s.innerHTML=`<span class="pos ${p.role}">${p.subRole||p.role}</span>
-      <div class="ssp"></div><span class="sovr">${ovr}</span>`;
-    s.querySelector(".ssp").appendChild(spriteCanvas(p.c,38));
-    s.onclick=()=>{const base=`${p.c.flag} ${p.c.name}(${p.c.sub})`;toast(p.c.skill?`${base}|【${p.c.skill.name}】${p.c.skill.desc}`:base);};
-    pitch.appendChild(s);
-  });
+  // 監督アドバイス札(全身絵/プレースホルダ+バフ+采配)
+  if(away.mgr){ const adv=document.createElement("div");adv.className="mgr-advice scout-mgr";wrap.appendChild(adv);
+    renderManagerAdvice(adv, away.mgr, roleCtx); }
+  // ピッチ盤(編成画面と同じ .pitch/.slot)
+  const pitch=document.createElement("div");pitch.className="pitch scoutboard";
+  pitch.innerHTML='<div class="zones"><div class="zone fw"><span>FW</span></div><div class="zone mf"><span>MF</span></div><div class="zone df"><span>DF</span></div><div class="zone gk"><span>GK</span></div></div><div class="circle"></div>';
+  renderChemLines(pitch, squad, byId, form); // 同国籍ケミ線 + 名コンビ(ホットライン)
+  pitchSlots(pitch, { form, squad, find:byId,
+    slotOvr:c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta,
+    tacCond:sub=>{ for(const t of mgrTacs(away.mgr)){const c=t.cond&&t.cond.find(([cs])=>cs===sub);if(c)return c;} return null; }, // 相手監督の采配KP(自監督は混ぜない)
+    onSlot:i=>{const c=byId(squad[i]);if(c){const b=`${c.flag} ${c.name}(${c.sub})`;toast(c.skill?`${b}|【${c.skill.name}】${c.skill.desc}`:b);}},
+    roleBadges:id=>roleBadges(roleCtx,id) });
   wrap.appendChild(pitch);
   document.getElementById("scoutModal").classList.add("on"); // 情報専用(試合開始はKickOffから)
 }

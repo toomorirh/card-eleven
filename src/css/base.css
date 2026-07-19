@@ -258,6 +258,9 @@ canvas.sprite{image-rendering:auto}
 /* 偵察(対戦相手プレビュー): 画面高に合わせたフルサイズのフォーメーション表示(スクロールなし) */
 #scoutModal .sheet{max-width:520px;max-height:92vh;overflow:hidden}
 .scoutpitch{width:min(90vw,51vh);aspect-ratio:3/4;margin:4px auto}
+.pitch.scoutboard{width:min(82vw,42vh);margin:6px auto} /* 偵察盤: モーダル内に収まるよう高さで制約 */
+#scoutList{max-height:78vh;overflow-y:auto}
+.scout-mgr{margin:2px 0 6px}
 /* ステージカード: 情報(タップで偵察) + KickOffボタン1つ */
 .lc-info{flex:1;min-width:0;cursor:pointer}
 .lc-desc{font-size:10px;color:#8fa3b8;margin-top:3px;line-height:1.5}

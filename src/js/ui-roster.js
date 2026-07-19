@@ -96,8 +96,9 @@ function slotTacCond(sub){const am=activeManager();for(const t of mgrTacs(am)){c
 // ctx: {squad(slot→id), find(id→card), onSlot(i,sub), slotOvr?(c,sub,i), tacCond?(sub)}
 function pitchSlots(pitchEl, ctx){
   pitchEl.querySelectorAll(".slot").forEach(e=>e.remove());
-  const kp=KEYPOS[S.form]||{}, tacCond=ctx.tacCond||slotTacCond, slotOvr=ctx.slotOvr||slotEffOVR;
-  FORMS[S.form].forEach((sl,i)=>{
+  const form=ctx.form||S.form; // ctx.form指定で相手偵察など別フォーメーションも同じ盤で描ける
+  const kp=KEYPOS[form]||{}, tacCond=ctx.tacCond||slotTacCond, slotOvr=ctx.slotOvr||slotEffOVR;
+  FORMS[form].forEach((sl,i)=>{
     const [sub,x,y]=sl, role=subGroup(sub);
     const d=document.createElement("div");d.className="slot";d.style.left=x+"%";d.style.top=y+"%";
     const key=kp[i]; if(key)d.classList.add("keypos");
@@ -207,7 +208,7 @@ function roleCtxNormal(){return {squad:()=>S.squad, find:id=>S.coll.find(k=>k.id
 function roleCtxCareer(cr){return {squad:()=>cr.squad||{}, find:id=>careerPool(cr).find(k=>k.id===id),
   getCap:()=>cr.captain, setCap:id=>{cr.captain=id;},
   getKick:r=>(cr.kickers||{})[r], setKick:(r,id)=>{(cr.kickers=cr.kickers||{pk:null,fk:null,ck:null})[r]=id;}, rerender:renderCareer};}
-function roleStarters(ctx){const sq=ctx.squad();return FORMS[S.form].map((_,i)=>ctx.find(sq[i])).filter(Boolean);}
+function roleStarters(ctx){const sq=ctx.squad();const form=(ctx&&ctx.form)||S.form;return FORMS[form].map((_,i)=>ctx.find(sq[i])).filter(Boolean);}
 // 指定があり出場中ならそのid、無ければ自動(captain=6ステ合計最上位 / キッカーは未指定=その場選出でnull)。
 function resolveRoleId(ctx,role){
   const st=roleStarters(ctx); if(!st.length)return null;
@@ -263,12 +264,12 @@ function openRolePicker(ctx,role){
 // ケミストリー線: 同国籍の選手同士を結ぶ(位置順に鎖状)。最多同国籍=実際にボーナスが出ているグループは
 // 強調(シアン実線)、その他の同国籍ペアは控えめ(破線)。最多の選び方は recalcAuras と同じ(スロット順で先に
 // 最大数に達した国籍=同数時はスロット順で先のもの)。
-function renderChemLines(pitch, squad, find){
+function renderChemLines(pitch, squad, find, form){
   if(!document||!document.createElementNS)return; // SVG非対応環境(テスト等)ではケミ線を描かない
-  squad=squad||S.squad; find=find||(id=>S.coll.find(k=>k.id===id));
+  squad=squad||S.squad; find=find||(id=>S.coll.find(k=>k.id===id)); form=form||S.form;
   const old=pitch.querySelector("#chemLines");if(old)old.remove();
   const cnt={},groups={};let mx=0,nat=null;
-  FORMS[S.form].forEach((sl,i)=>{const c=find(squad[i]);if(!c)return;
+  FORMS[form].forEach((sl,i)=>{const c=find(squad[i]);if(!c)return;
     const f=c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}
     (groups[f]=groups[f]||[]).push({x:sl[1],y:sl[2]});});
   const NS="http://www.w3.org/2000/svg";
@@ -288,7 +289,7 @@ function renderChemLines(pitch, squad, find){
   }
   // 名コンビ(ホットライン): 固有ペアが両方スタメンなら金線で結ぶ
   const sigPos={};
-  FORMS[S.form].forEach((sl,i)=>{const c=find(squad[i]);if(c&&c.sig)sigPos[c.sig]={x:sl[1],y:sl[2]};});
+  FORMS[form].forEach((sl,i)=>{const c=find(squad[i]);if(c&&c.sig)sigPos[c.sig]={x:sl[1],y:sl[2]};});
   DUOS.forEach(duo=>{const pa=sigPos[duo.a],pb=sigPos[duo.b];if(!pa||!pb)return;
     const ln=document.createElementNS(NS,"line");
     ln.setAttribute("x1",pa.x);ln.setAttribute("y1",pa.y);ln.setAttribute("x2",pb.x);ln.setAttribute("y2",pb.y);
@@ -296,7 +297,7 @@ function renderChemLines(pitch, squad, find){
   if(svg.childNodes.length)pitch.appendChild(svg);
 }
 // 編成左上の監督アドバイス: 全身絵+効果の吹き出し(采配の発動条件と達成状況も提示)。
-function squadHasCond(ctx,sub,st,th){const sq=ctx.squad();return FORMS[S.form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=ctx.find(sq[i]);return c&&c[st]>=th;});}
+function squadHasCond(ctx,sub,st,th){const sq=ctx.squad();const form=(ctx&&ctx.form)||S.form;return FORMS[form].some((sl,i)=>{if(sl[0]!==sub)return false;const c=ctx.find(sq[i]);return c&&c[st]>=th;});}
 // 監督アドバイス札(全身絵+バフ+采配の発動条件)。通常/キャリアで共通: host(描画先)・m(監督)・ctx(編成ソース)を渡す。
 function renderManagerAdvice(host,m,ctx){
   if(!host)return;host.innerHTML="";
@@ -305,7 +306,7 @@ function renderManagerAdvice(host,m,ctx){
   host.appendChild(mgrPortrait(m,86));
   const bub=document.createElement("div");bub.className="mgr-bubble";
   // 監督名を表示(カスタム/見習いは名前のみ・名将は肩書+氏名)。
-  const nameLine=(m.custom||m.id==="rookie")?m.name:`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`;
+  const nameLine=(m.custom||m.id==="rookie")?m.name:(m.name?`${m.title}<span class="lv" style="opacity:.8"> ${m.name}</span>`:m.title);
   const bd=mgrBoostDesc(m), hasBuff=bd&&bd!=="ブースト無し";
   // 起用中監督が強化するポジション×能力(バフ)を明示。無バフ(見習い)は入手の導線を案内。
   let html=`<div class="mgr-name">🎯 ${nameLine}</div>`
@@ -314,7 +315,8 @@ function renderManagerAdvice(host,m,ctx){
   mgrTacs(m).forEach(t=>{ // 全采配(カスタムは複数)を発動条件つきで提示
     const ready=(t.cond||[]).every(([sub,st,th])=>squadHasCond(ctx,sub,st,th));
     const conds=(t.cond||[]).map(([sub,st,th])=>`${sub}の${MGR_STAT_JP[st]||st}${th}`).join("・");
-    html+=`<div class="mgr-tac${ready?" met":""}">采配「${t.name}」: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}</div>`;
+    const condTxt=conds?`: ${conds} ${ready?"✅ 発動可!":"を揃えると発動"}`:" ✅"; // cond無し(相手CPU采配)は常時発動可
+    html+=`<div class="mgr-tac${ready?" met":""}">采配「${t.name}」${condTxt}</div>`;
   });
   bub.innerHTML=html;host.appendChild(bub);
 }

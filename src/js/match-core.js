@@ -77,7 +77,8 @@ function assignOppManager(t){
   else if(tier>=3){mul=1.015+(tier-3)*0.004; pool="basic";}  // 3-5: 小バフ+下位采配
   else {mul=1.008+(tier-1)*0.004;}                            // 1-2: 小バフのみ
   const tacs=pool?[cpuTac(pool,t)].filter(Boolean):[];
-  return {title:"監督", boosts:[{pos:"all",stat:"all",mul:Math.round(mul*1000)/1000}], tacs, tier, personality:per};
+  const title=tier>=6?"老練な監督":tier>=3?"堅実な監督":"見習い監督"; // Tier帯の肩書き(名将以外・汎用)
+  return {title, boosts:[{pos:"all",stat:"all",mul:Math.round(mul*1000)/1000}], tacs, tier, personality:per};
 }
 // 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
 //  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)
