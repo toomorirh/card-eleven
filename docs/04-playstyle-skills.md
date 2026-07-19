@@ -40,7 +40,7 @@
 ---
 ## 5. スキル
 
-`fx` のキーが試合エンジンで参照される効果フラグ。
+`fx` のキーが試合エンジンで参照される効果フラグ。全スキルの名称・効果・fxの一覧は自動生成の [スキル一覧](reference/skills.md) を参照(正本は `data.js` `SKILLS`/`LSKILLS`)。
 
 ### 5.1 効果キー
 `save`(GKセーブ) `duelD`(守備マッチアップ) `duelSpd/duelPow/duelTec`(各勝負) `shoot`(シュート) `mid`(個人支配率) `teamChance`(チーム創出) `teamDef`(チーム守備) `iron`(消耗なし) `clutch`(70分以降) `losing`(ビハインド時) `miracle`(失点無効・LEGEND)

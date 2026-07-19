@@ -17,7 +17,7 @@
 ### 1.1 ソース構成(開発時は分割 → build.py で単一HTMLへ結合)
 `src/js/*.js` を `build.py` の `JS_FILES` 順(`data, qr, state, ui-roster, ui-gacha, ui-competition, match-core, match-render, match-flow, boot`)に連結し index.html の `<script>` へ埋め込む(成果物は単一HTML)。`src/css/*.css` も同様に連結して `<style>` へ埋め込む(§9.9 デザインシステムの2層 base→sfc-skin)。
 - **アセット注入**: `build.py` は `"use strict"` 直後に画像データURIのグローバルを注入する — `SIG_IMG`(固有選手/エモーショナル)・`GEN_IMG`(汎用ボディ・現状空)・`MGR_SHEET`/`MGR_SHEET2`(監督ポートレート2枚)・`SEC_SHEET`(秘書)・`CARD_BG`(カード背景tier別)・`TOP_BG`(タイトル)。各 `_*_block` が `src/assets/**` を走査し WebP/JPEG 化して埋め込む(§10.2・[アセット](07-legend-and-assets.md))。`--dev` で `_dev.js` を含む `index.dev.html`(gitignore)を出力。
-- **参照表の自動生成**: `tools/gen_reference.js` が `data.js` の `SIGNATURES`/`EMOTIONALS`/`TYPES` から `docs/reference/*.md` を生成(データ二重管理の回避)。
+- **参照表の自動生成**: `tools/gen_reference.js` が `data.js` の `SIGNATURES`/`EMOTIONALS`/`TYPES`/`SKILLS`/`LSKILLS` から `docs/reference/*.md`(選手・タイプ・スキル)を生成(データ二重管理の回避)。
 
 試合の中核は関心ごとに3ファイルへ分離している:
 

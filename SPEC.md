@@ -37,6 +37,7 @@
 |---|---|---|
 | [固有選手パラメータ表](docs/reference/signatures.md) | 全シグネチャー/エモーショナルのステ・スキル一覧 | `data.js` `SIGNATURES`/`EMOTIONALS` |
 | [プレースタイル係数表](docs/reference/playstyles.md) | タイプ20種の係数(前線度/遊動/選出率…) | `data.js` `TYPES` |
+| [スキル一覧](docs/reference/skills.md) | 通常(R/SR)+レジェンド専用スキルの効果・fx | `data.js` `SKILLS`/`LSKILLS` |
 
 > **参照表を更新するには**: `data.js` を編集 → `node tools/gen_reference.js` を実行。
 > 手で `docs/reference/*.md` を編集しない(次回生成で上書きされる)。

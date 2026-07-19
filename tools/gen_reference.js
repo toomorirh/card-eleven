@@ -38,11 +38,14 @@ function extractLiteral(name, open, close) {
 const SIGNATURES = extractLiteral("SIGNATURES", "[", "]");
 const EMOTIONALS = extractLiteral("EMOTIONALS", "[", "]");
 const TYPES = extractLiteral("TYPES", "{", "}");
+const SKILLS = extractLiteral("SKILLS", "{", "}");   // 通常スキル(ポジ×レア r/sr の [name,desc,fx])
+const LSKILLS = extractLiteral("LSKILLS", "{", "}"); // レジェンド専用スキル(ポジ別 [name,desc,fx])
 
 const ovr = s => s.off + s.def + s.pow + s.tec + s.spd + s.sta;
 // 20到達(最大値)のステは太字で長所を強調
 const cell = v => (v >= 20 ? "**" + v + "**" : "" + v);
-const fxStr = fx => fx ? Object.entries(fx).map(([k, v]) => `${k}×${v}`).join(", ") : "";
+// fx: 値1はフラグ効果(iron/miracle等)としてキーのみ、それ以外は key×倍率 で表記
+const fxStr = fx => fx ? Object.entries(fx).map(([k, v]) => (v === 1 ? k : `${k}×${v}`)).join(", ") : "";
 const esc = s => String(s == null ? "" : s).replace(/\|/g, "\\|");
 
 const HEAD = "<!-- 自動生成 (tools/gen_reference.js)。手で編集しない。値の正本は src/js/data.js。-->\n";
@@ -91,10 +94,36 @@ for (const pos of Object.keys(TYPES)) {
   }
 }
 
+// ---- skills.md ----------------------------------------------------------
+// SKILLS[pos]={r:[[name,desc,fx]...],sr:[...]} / LSKILLS[pos]=[[name,desc,fx]...]。
+// ポジションごとに R / SR / LEGEND を1表にまとめる。固有選手のスキルは signatures.md 側。
+const RAR_JP = { r: "R", sr: "SR" };
+function skillRows(list, rarLabel) {
+  return (list || []).map(([name, desc, fx]) =>
+    `| ${rarLabel} | ${esc(name)} | ${esc(desc)} | ${esc(fxStr(fx))} |`);
+}
+let skMd = HEAD + "# スキル一覧(参照用・自動生成)\n\n"
+  + "> 正本は [`src/js/data.js`](../../src/js/data.js) の `SKILLS`(通常 R/SR)/ `LSKILLS`(レジェンド専用)。"
+  + "追加・調整後は `node tools/gen_reference.js` で再生成。\n"
+  + "> 効果キー(fx)の意味は [スキル仕様](../04-playstyle-skills.md)を参照。"
+  + "固有選手のユニークスキルは [固有選手パラメータ表](signatures.md) にある。\n";
+let skillCount = 0;
+for (const pos of Object.keys(SKILLS)) {
+  skMd += `\n## ${POS_JP[pos] || pos}\n\n`;
+  skMd += "| レア | スキル名 | 効果 | fx |\n|---|---|---|---|\n";
+  const rows = [];
+  for (const rk of Object.keys(SKILLS[pos])) rows.push(...skillRows(SKILLS[pos][rk], RAR_JP[rk] || rk.toUpperCase()));
+  rows.push(...skillRows(LSKILLS[pos], "LEGEND"));
+  skillCount += rows.length;
+  skMd += rows.join("\n") + "\n";
+}
+
 // ---- write --------------------------------------------------------------
 const outDir = path.join(ROOT, "docs/reference");
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, "signatures.md"), sigMd);
 fs.writeFileSync(path.join(outDir, "playstyles.md"), psMd);
+fs.writeFileSync(path.join(outDir, "skills.md"), skMd);
 console.log(`generated docs/reference/signatures.md (${SIGNATURES.length} sig + ${EMOTIONALS.length} emo)`);
 console.log(`generated docs/reference/playstyles.md (${Object.keys(TYPES).reduce((n, p) => n + Object.keys(TYPES[p]).length, 0)} types)`);
+console.log(`generated docs/reference/skills.md (${skillCount} skills)`);
