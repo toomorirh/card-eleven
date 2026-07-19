@@ -630,8 +630,10 @@ const MGR_IMG=new Image();
 if(typeof window!=="undefined"&&window.MGR_SHEET)MGR_IMG.src=window.MGR_SHEET;
 const MGR_IMG2=new Image();
 if(typeof window!=="undefined"&&window.MGR_SHEET2)MGR_IMG2.src=window.MGR_SHEET2;
+const MGR_IMG_MOB=new Image(); // モブ監督(汎用・低Tierの相手監督アバター)
+if(typeof window!=="undefined"&&window.MGR_MOB)MGR_IMG_MOB.src=window.MGR_MOB;
 const MGR_CELL_W=252, MGR_CELL_H=529; // シート1セルの実寸(全身)
-function mgrSheetImg(m){return (m&&m.sheet===2)?MGR_IMG2:MGR_IMG;}
+function mgrSheetImg(m){return (m&&m.sheet==="mob")?MGR_IMG_MOB:(m&&m.sheet===2)?MGR_IMG2:MGR_IMG;}
 function mgrPortrait(m,h){
   h=h||72; const w=Math.round(h*MGR_CELL_W/MGR_CELL_H);
   const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.className="mgrpic";

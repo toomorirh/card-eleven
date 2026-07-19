@@ -78,7 +78,9 @@ function assignOppManager(t){
   else {mul=1.008+(tier-1)*0.004;}                            // 1-2: 小バフのみ
   const tacs=pool?[cpuTac(pool,t)].filter(Boolean):[];
   const title=tier>=6?"老練な監督":tier>=3?"堅実な監督":"見習い監督"; // Tier帯の肩書き(名将以外・汎用)
-  return {title, boosts:[{pos:"all",stat:"all",mul:Math.round(mul*1000)/1000}], tacs, tier, personality:per};
+  const mob=ri(0,7); // モブ監督シート(4x2=8種)からアバターを1つ割り当て(低Tierの相手監督の見た目)
+  return {title, boosts:[{pos:"all",stat:"all",mul:Math.round(mul*1000)/1000}], tacs, tier, personality:per,
+    sheet:"mob", col:mob%4, row:(mob>=4)?1:0};
 }
 // 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
 //  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)

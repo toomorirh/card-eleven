@@ -109,9 +109,10 @@ def _gen_block():
 
 def _mgr_block():
     """監督シートを base64 データURI化。第1シート ce_mg_managers.png(4x2=8名)を `window.MGR_SHEET`、
-    第2シート ce_mg2_managers.png(4x2=追加8名・sheet:2)を `window.MGR_SHEET2` に。無ければ空文字。"""
+    第2シート ce_mg2_managers.png(4x2=追加8名・sheet:2)を `window.MGR_SHEET2`、
+    モブシート ce_mob_managers.png(4x2=汎用8名・sheet:"mob")を `window.MGR_MOB` に。無ければ空文字。"""
     out = []
-    for var, name in (("MGR_SHEET", "ce_mg_managers.png"), ("MGR_SHEET2", "ce_mg2_managers.png")):
+    for var, name in (("MGR_SHEET", "ce_mg_managers.png"), ("MGR_SHEET2", "ce_mg2_managers.png"), ("MGR_MOB", "ce_mob_managers.png")):
         f = ROOT / "src" / "assets" / "manager" / name
         if f.is_file():
             b64 = base64.b64encode(f.read_bytes()).decode("ascii")

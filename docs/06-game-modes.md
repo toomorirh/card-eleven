@@ -27,13 +27,14 @@
   - **Tier9-10**: **獲得可能な名将(`MANAGERS`)**が指揮(実boost/tac・シート絵アバター)。ワールドツアー相手に相当。
   - **Tier6-8**: 中バフ(全能力×1.03〜1.042)+**上位采配**(`CAREER_TACS.strong`から1つ)。
   - **Tier3-5**: 小バフ(×1.015〜1.023)+**下位采配**(`CAREER_TACS.basic`から1つ)。
-  - **Tier1-2**: 小バフのみ(×1.008〜1.012)。アバター無し(プレースホルダ、汎用アバターは今後)。
+  - **Tier1-2**: 小バフのみ(×1.008〜1.012)。
+  - **アバター**: 名将(9-10)は本人シート絵。**汎用(1-8)はモブ監督シート(`ce_mob_managers.png`・4x2=8種・`sheet:"mob"`)からランダムに1つ**割り当て(`assignOppManager` が `col/row`)。`mgrPortrait` が `sheet==="mob"` で `MGR_MOB` を切り出す。
   - CPUの采配は `cpuTac` で**cond緩和**(起点ポジ+chanceのみで発火。低ステでも采配が出る)。采配はチームに存在する起点ポジのものを選ぶ。
 - **性格(ランダム2軸)**: `t.personality={main,sub}`。
   - **メイン(基本戦術)**: 攻撃重視→`atk` / バランス重視→`bal` / 守備重視→`def`(キックオフで固定)。
   - **サブ(ポジ戦術=スタイルの入替・交代挙動)**: **きまぐれ**=`styleUpdMins`ごとにランダムに頻繁入替 / **初志貫徹**=一切変えない / **心配性**=固定スタイル1つだが交代が早い(`aiSubMinsWorry`+wear閾値−0.15) / **合理的**=`counterBestStyle(相手form)`で有利スタイルを定期選択。
 - 攻撃スタイルの初期値は `oppPickStyle`(初志貫徹)またはサブ性格で上書き。バランス影響は小(matchsim EVEN 得点2.3前後・相手やや手強く)。
-- **偵察(`renderScout`)は自チーム編成画面と同じ盤で表示**: `pitchSlots`/`renderChemLines`/`roleBadges`/`renderManagerAdvice` を **`ctx.form` 対応に一般化**して相手XIを描画。スロット(細分pos/OVR/適性✓⚠)・**キーポジ⭐**・**ロール徽章(CAP/PK/FK/CK)**・**ケミ線/名コンビ(ホットライン)**・**監督札(全身絵 or プレースホルダ+バフ+采配)+性格**・**控え(交代要員=`away.bench`を編成画面と同じ `.bench-slot` レイアウトで表示)**を一望できる。相手主将=`teamCaptain(away)`、キッカー=`away.kickers`、監督采配KPは相手監督から算出(自監督は混ぜない)。
+- **偵察(`renderScout`)は自チーム編成画面と同じ盤で表示**: `pitchSlots`/`renderChemLines`/`roleBadges`/`renderManagerAdvice` を **`ctx.form` 対応に一般化**して相手XIを描画。スロット(細分pos/OVR/適性✓⚠)・**キーポジ⭐**・**ロール徽章(CAP/PK/FK/CK)**・**ケミ線/名コンビ(ホットライン)**・**監督札(全身絵=名将 or モブ+バフ+采配)+性格**・**控え(交代要員=`away.bench`を編成画面と同じ `.bench-slot` レイアウトで表示)**を一望できる。相手主将=`teamCaptain(away)`、キッカー=`away.kickers`、監督采配KPは相手監督から算出(自監督は混ぜない)。
 
 ### 7.2 リーグ戦
 - 自チーム+8クラブ=全9チームの総当たり(円卓法・BYE枠で偶数化 → 9節・各チーム8試合・ユニーク対戦36)。
