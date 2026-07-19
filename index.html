@@ -1509,7 +1509,8 @@ const TUNING={
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
   // 試合進行の時間・閾値(分・ティック間隔ms・各種トリガー分/閾値)
   match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45,
-    aiSubMins:[63,75,84], aiSubWear:0.5, aiSubs:3}, // 相手AI交代: 指定分に、消耗wear超の先発を控えと交代(最大aiSubs回)
+    aiSubMins:[63,75,84], aiSubMinsWorry:[50,62,72], aiSubWear:0.5, aiSubs:3, // 相手AI交代: 指定分に消耗wear超の先発を控えと交代(心配性は早め)
+    styleUpdMins:[30,52,70,82]}, // 相手監督の性格によるポジ戦術(スタイル)入替の判定分
   // 相手クラブのポジション適性: Tierが低いほど稀に近接ポジの選手を起用しpen<1(弱いクラブほど編成が歪む)。
   oppPos:{mismatchBase:0.24, perLv:0.024, min:0.04, benchN:4},
   // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
@@ -2164,6 +2165,12 @@ function counterFactor(style,form){
   if(c.worst===style)return COUNTER_PENALTY;
   return 1;
 }
+// 指定フォーメーションに対して最も有利な攻撃スタイル(相手監督「合理的」が選ぶ)。未定義formはnull。
+function counterBestStyle(form){const c=FORM_COUNTER[form];return (c&&c.best)?c.best:null;}
+// 相手監督(CPU)の性格ラベル。メイン=基本戦術 / サブ=ポジ戦術の入替・交代挙動。
+const OPP_MAIN_JP={atk:"攻撃重視",bal:"バランス重視",def:"守備重視"};
+const OPP_SUB_JP={whim:"きまぐれ",steadfast:"初志貫徹",worry:"心配性",rational:"合理的"};
+const OPP_MAIN_TACTIC={atk:"atk",bal:"bal",def:"def"};
 // クラブ定義(データ駆動)。相手は seed で決定的に生成されるため、毎回同じ11人が出る(=ロスター固定)。
 // 強さは lv 駆動のままで現行と同一。各スタイル(side/short/long/center)が有効なクラブを2つずつ、
 // Lv1〜4で全4種を学べる配置。
@@ -7009,6 +7016,30 @@ function buildTeam(cards,side,form){
 }
 // 上位相手の監督バフ(仮置きの難度レバー): 全能力を僅かに底上げ。「強いチームに強い監督」の第一歩。
 function aiMgr(mul,title){return mul>1?{title:title||"敵将", boosts:[{pos:"all",stat:"all",mul}]}:null;}
+// 采配プールから、そのチームに存在する起点ポジの采配を1つ選び cond を緩和して返す(CPUは低ステでも采配が出るよう起点+chanceのみで発火)。
+function cpuTac(pool,team){
+  const list=CAREER_TACS[pool]||[]; if(!list.length)return null;
+  const subs=new Set((team.players||[]).map(p=>p.subRole));
+  const ok=list.filter(t=>t.kind==="team"||tacFromSubs(t.from).some(s=>subs.has(s)));
+  const pick=rnd(ok.length?ok:list); if(!pick)return null;
+  return Object.assign({},pick,{cond:[]}); // cond緩和=起点ポジ+chanceのみで発火
+}
+// 相手監督(CPU): チームTierに応じたバフ+采配+性格を付与。t.tier 必須(oppTeam/worldTeamで設定済み)。
+// Tier9-10=獲得可能な名将(MANAGERS・アバター有り) / 6-8=中バフ+上位采配 / 3-5=小バフ+下位采配 / 1-2=小バフのみ(アバター無し)。
+function assignOppManager(t){
+  const tier=t.tier||1, per={main:rnd(["atk","bal","def"]), sub:rnd(["whim","steadfast","worry","rational"])};
+  t.personality=per;
+  if(tier>=9&&typeof MANAGERS!=="undefined"&&MANAGERS.length){ // 名将が指揮(実boost/tac・シート絵)
+    const m=rnd(MANAGERS);
+    return Object.assign({},m,{title:m.name, tier, personality:per, named:true});
+  }
+  let mul,pool=null;
+  if(tier>=6){mul=1.03+(tier-6)*0.006; pool="strong";}       // 6-8: 中バフ+上位采配
+  else if(tier>=3){mul=1.015+(tier-3)*0.004; pool="basic";}  // 3-5: 小バフ+下位采配
+  else {mul=1.008+(tier-1)*0.004;}                            // 1-2: 小バフのみ
+  const tacs=pool?[cpuTac(pool,t)].filter(Boolean):[];
+  return {title:"監督", boosts:[{pos:"all",stat:"all",mul:Math.round(mul*1000)/1000}], tacs, tier, personality:per};
+}
 // 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
 //  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)
 //  ・離散イベント(ゴール/アシスト/デュエル/タックル/セーブ)をスパイクとして加減
@@ -7312,11 +7343,11 @@ function oppTeam(lv,club){
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
   const t=buildTeam(cards,"A",form);
-  if(lv>=8)t.mgr=aiMgr(1+Math.min(0.05,(lv-5)*0.01), lv>=10?"大陸の名将":lv>=9?"百戦の指揮官":"堅実な戦術家"); // 上位クラブ(ボス級)に監督バフ(仮)
   t.kickers=assignAutoKickers(t);                 // 相手のプレースキッカー(PK/FK/CK)を自動指名
   t.bench=makeOppBench(avg,club);                 // AI交代の控え(先発よりやや弱め)
   t.subsLeft=TUNING.match.aiSubs;                 // 相手の交代枠
   t.tier=teamTier(t);                             // 統一Tier(OVR算出・CPU相手のみ。監督バフ等の物差し)
+  t.mgr=assignOppManager(t);                      // Tier別の相手監督(バフ+采配+性格)
   if(restore)restore();
   return t;
 }
@@ -7359,8 +7390,8 @@ function worldTeam(nation,idx){
     });
   }
   const t=buildTeam(cards,"A",form);
-  t.mgr=aiMgr(1+Math.min(0.04,Math.max(0,((idx||0)-8))*0.008),"代表監督"); // ツアー上位代表に監督バフ(仮)
-  t.tier=teamTier(t); // 統一Tier(OVR算出・CPU相手のみ)
+  t.tier=teamTier(t); // 統一Tier(OVR算出・CPU相手のみ) → 代表(Tier9-10)は名将が指揮
+  t.mgr=assignOppManager(t);
   if(restore)restore();
   return t;
 }
@@ -7407,7 +7438,7 @@ function eff(p,k,min,T,opT){
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=ブロック / gk=セーブ)を1つ返す(発動抽選は呼び出し側)。
 function mgrCbTac(team){
-  if(!team||team.side!=="H"||!team.mgr)return null;
+  if(!team||!team.mgr)return null; // 守備采配は自チーム/相手監督どちらも可(呼び出し側が守る側チームを渡す)
   for(const t of mgrTacs(team.mgr)){ if(tacIsDef(t.from)&&tacCondMet(t,team))return t; }
   return null;
 }
@@ -8161,7 +8192,7 @@ const LINKS={
 // ボルテージが一定以上(熱気が高まった局面)かつ条件達成・確率で発動。
 function mgrCarryTac(A,carrier){
   if(!MC||(MC.volt||0)<TUNING.volt.tacGate)return null;       // ボルテージが一定以上
-  if(A.side!=="H"||!A.mgr)return null;
+  if(!A||!A.mgr)return null;                                   // 自チーム/相手監督どちらの攻撃采配も発火
   const surge=1+(A.ctrlSurge||0); // 統率に余裕があるほど采配が出やすい(隠し・最大×1.20)
   for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
     if(tacIsDef(tac.from))continue;                           // 守備采配(cb=ブロック/gk=セーブ)は tryShot 側で発火
@@ -8174,12 +8205,12 @@ function mgrCarryTac(A,carrier){
 async function mgrTacAction(A,D,min,carrier,tac,who){
   if(tac.kind==="team"){ // 国際チームスキル: チーム全体を数ティック底上げ(surge)
     const s=tac.surge||{}; A._surgeUntil=min+(s.ticks||3)*TUNING.match.tickMin; A._surgeMul=s.mul||1.2;
-    feed(`${who}🌟 監督の采配!【${tac.name}】 チーム全体が覚醒した!`,"goal");
+    feed(`${A.side==="H"?"🌟 監督":"⚠ 相手監督"}の采配!【${tac.name}】 チーム全体が覚醒した!`,"goal");
     addVolt(TUNING.volt.goal);
     await tacCutin(tac,A.mgr,carrier);
     return;
   }
-  feed(`${who}🎓 監督の采配!【${tac.name}】が炸裂!`,"goal");
+  feed(`${A.side==="H"?"🎓 監督":"⚠ 相手監督"}の采配!【${tac.name}】が炸裂!`,"goal");
   addVolt(TUNING.volt.shot);
   await tacCutin(tac,A.mgr,carrier);
   const pw=tac.pow||1; // 強化采配は効果増
@@ -8475,19 +8506,20 @@ async function goalCelebrate(scorer,A,D,min,opts={}){
 }
 // シュート: 演出 → resolveShot で判定 → ゴール/セーブ(奇跡の手は1試合1回失点無効)
 async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
-  // 名将の采配シグネ(守備): 相手にシュートされた瞬間、熱気が一定以上なら守備采配で失点を防ぐ(cb=ブロック / gk=セーブ)
-  if(A.side==="A"&&MC&&MC.home&&(MC.volt||0)>=TUNING.volt.tacGate){
-    const dtac=mgrCbTac(MC.home); // 自チームの守備采配(cb/gk)を1つ取得(カスタム監督の複数tacにも対応)
-    if(dtac&&Math.random()<dtac.chance*(1+(MC.home.ctrlSurge||0))){ // 統率の余裕で発動率アップ(隠し)
+  // 監督の采配(守備): シュートされた瞬間、守る側の監督が守備采配で失点を防ぐ(cb=ブロック / gk=セーブ)。自チーム/相手監督どちらも。
+  if(MC&&D&&D.mgr&&(MC.volt||0)>=TUNING.volt.tacGate){
+    const dtac=mgrCbTac(D); // 守る側(D)の守備采配(cb/gk)を1つ取得
+    if(dtac&&Math.random()<dtac.chance*(1+(D.ctrlSurge||0))){ // 統率の余裕で発動率アップ(隠し)
+      const dlabel=D.side==="H"?"🎓 監督":"⚠ 相手監督";
       if(tacAct(dtac.from)==="save"){ // 守護神のセーブ: GKがスーパーセーブ
-        const gk=pickGK(MC.home);gk.stat.saves++;gk.stat.inv++;
-        feed(`🎓 監督の采配!【${dtac.name}】<b>${gk.c.name}</b>が驚異のセーブ!`,"chance");
-        await tacCutin(dtac,MC.home.mgr,gk);
+        const gk=pickGK(D);gk.stat.saves++;gk.stat.inv++;
+        feed(`${dlabel}の采配!【${dtac.name}】<b>${gk.c.name}</b>が驚異のセーブ!`,"chance");
+        await tacCutin(dtac,D.mgr,gk);
       }else{ // 密集ブロック等: CBが身体を投げ出してブロック
-        const cb=MC.home.players.find(p=>p.subRole==="CB")||pickDefender(MC.home);
+        const cb=D.players.find(p=>p.subRole==="CB")||pickDefender(D);
         cb.stat.tkl++;cb.stat.inv++;
-        feed(`🎓 監督の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
-        await tacCutin(dtac,MC.home.mgr,cb);
+        feed(`${dlabel}の采配!【${dtac.name}】<b>${cb.c.name}</b>が身体を投げ出してブロック!`,"chance");
+        await tacCutin(dtac,D.mgr,cb);
       }
       await ballTo(goalXOf(A)-dirOf(A)*16,50,0.45); // 弾き出し
       return;
@@ -8547,11 +8579,9 @@ async function tickAsync(){
   M.mom=(M.mom||0)*TUNING.flow.decay; // モメンタム: 毎ティック中立へ減衰(流れは移ろう)
   M.home._ctrl=flowControl(M.home); M.away._ctrl=flowControl(M.away); // 支配力(mid支配率スキル/支配型)を毎ティック算出
   M.home.tactic=S.tactic;M.home.style=S.style;
-  if(M.min===MT.oppAdjustMin){
-    M.away.tactic=M.away.score<M.home.score?"atk":M.away.score>M.home.score?"def":"bal";
-    if(M.away.tactic==="atk")feed(`${M.name}がカードを前に動かしてきた!攻勢だ!`);
-  }
-  if((MT.aiSubMins||[]).indexOf(M.min)>=0)aiAwaySub(M); // 相手AI交代(消耗した先発を控えと交代)
+  if((MT.styleUpdMins||[]).indexOf(M.min)>=0)oppStyleUpdate(M); // 相手監督の性格(サブ)によるポジ戦術の入替
+  { const worry=M.away.personality&&M.away.personality.sub==="worry"; // 心配性は交代が早い
+    if(((worry?MT.aiSubMinsWorry:MT.aiSubMins)||[]).indexOf(M.min)>=0)aiAwaySub(M); }
   // 支配率シェア = midPower比 に モメンタム(勢い)を反映(良いプレーを続けた側が実際に支配を上げる)。
   const fk=TUNING.flow.possK;
   const mh=midPower(M.home,M.away,M.min)*Math.max(0.2,1+M.mom*fk), ma=midPower(M.away,M.home,M.min)*Math.max(0.2,1-M.mom*fk);
@@ -8642,6 +8672,13 @@ function _beginMatch(away,name,form,lv,idx,home0){
   if(!away.kickers)away.kickers=assignAutoKickers(away);            // 相手のプレースキッカー(oppTeam未設定の相手=フレンド等にも付与)
   away.subbedOut=new Set();                                          // 相手AI交代: 交代退場者(再投入不可)の管理
   if(away.subsLeft==null)away.subsLeft=(away.bench&&away.bench.length)?TUNING.match.aiSubs:0;
+  if(away.personality){ // 相手監督の性格: メイン=基本戦術 / サブ=初期ポジ戦術
+    away.tactic=OPP_MAIN_TACTIC[away.personality.main]||"bal";
+    const sub=away.personality.sub;
+    if(sub==="rational"){const b=counterBestStyle(home.form);if(b)away.style=b;} // 相手formに有利なスタイル
+    else if(sub==="whim"||sub==="worry")away.style=rnd(Object.keys(STYLES));      // ランダムに1つ
+    // steadfast: oppPickStyle のまま(初志貫徹=以後も変えない)
+  }
   if(MC.mode!=="career"){ // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
     const _b=homeBaseTotal(home), _cap=mgrCtrlOVR(effectiveManager())+coachCtrlBonus();
     home.ctrl=ovrOverloadMul(_b,_cap); home.ctrlSurge=ctrlSurge(_b,_cap); // 余裕ぶんで采配の発動率アップ(隠し)
@@ -8660,7 +8697,7 @@ function _beginMatch(away,name,form,lv,idx,home0){
   feed(`相手の攻撃スタイル:${STYLE_LABEL[away.style]}`);
   if(home.mgr)feed(`🎯 監督『${home.mgr.title}』起用中! ${mgrBoostDesc(home.mgr)}`,"chance");
   if(MC.mode!=="career"&&home.ctrl<1)feed(`⚠ 統制超過! 編成OVRが監督の統制可能OVRを上回り 全能力 -${Math.round((1-home.ctrl)*100)}%(指揮が追いつかない)`,"chance");
-  if(away.mgr)feed(`⚠ 相手監督『${away.mgr.title}』! ${mgrBoostDesc(away.mgr)}`,"chance");
+  if(away.mgr)feed(`⚠ 相手監督『${away.mgr.title}』${away.personality?`(${OPP_MAIN_JP[away.personality.main]}・${OPP_SUB_JP[away.personality.sub]})`:""}! ${mgrBoostDesc(away.mgr)}`,"chance");
   if(home.chemN>=3)feed(`🤝 ${home.chemNat} ${natName(home.chemNat)}勢${home.chemN}人のケミストリー! チーム能力 +${Math.round((home.chem-1)*100)}%`,"chance");
   if(away.chemN>=3)feed(`⚠ 相手は ${away.chemNat}${natName(away.chemNat)}勢${away.chemN}人! 国籍ボーナス +${Math.round((away.chem-1)*100)}%`,"chance");
   const srs=away.players.filter(p=>p.c.sig||p.c.rar==="l");
@@ -9222,13 +9259,25 @@ function renderBench(pi){
     g.appendChild(e);
   });
 }
-// 相手AI交代: 最も消耗した先発(GK除く)がwear閾値を超えていれば、控えから最適ポジの選手と入替。
+// 相手監督の性格(サブ)に応じてポジ戦術(スタイル)を入替: きまぐれ=ランダム頻繁 / 合理的=相手form有利 / 初志貫徹・心配性=固定。
+function oppStyleUpdate(M){
+  const A=M.away, per=A.personality; if(!per)return;
+  if(per.sub==="whim"){
+    const opts=Object.keys(STYLES).filter(s=>s!==A.style); A.style=rnd(opts.length?opts:Object.keys(STYLES));
+    feed(`🔀 ${M.name}が急に戦い方を変えた!【${STYLE_LABEL[A.style]}】`);
+  }else if(per.sub==="rational"){
+    const b=counterBestStyle(M.home.form);
+    if(b&&b!==A.style){A.style=b;feed(`🎯 ${M.name}が弱点を突く布陣に変えた!【${STYLE_LABEL[A.style]}】`,"chance");}
+  } // steadfast / worry: スタイルは変えない
+}
+// 相手AI交代: 最も消耗した先発(GK除く)がwear閾値を超えていれば、控えから最適ポジの選手と入替。心配性は閾値を下げ早めに交代。
 function aiAwaySub(M){
   const A=M.away;
   if(!A||!(A.bench&&A.bench.length)||(A.subsLeft||0)<=0)return;
   const worn=A.players.filter(p=>p.role!=="GK")
     .map(p=>({p,w:1-fatigue(p,M.min)})).sort((x,y)=>y.w-x.w)[0];
-  if(!worn||worn.w<TUNING.match.aiSubWear)return; // まだ十分動ける
+  const wearTh=(A.personality&&A.personality.sub==="worry")?Math.max(0.3,TUNING.match.aiSubWear-0.15):TUNING.match.aiSubWear;
+  if(!worn||worn.w<wearTh)return; // まだ十分動ける
   const out=worn.p, benchedOut=A.subbedOut||(A.subbedOut=new Set());
   const onF=new Set(A.players.map(p=>p.c.id));
   const cand=(A.bench||[]).filter(c=>!onF.has(c.id)&&!benchedOut.has(c.id))

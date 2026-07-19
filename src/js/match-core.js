@@ -55,6 +55,30 @@ function buildTeam(cards,side,form){
 }
 // 上位相手の監督バフ(仮置きの難度レバー): 全能力を僅かに底上げ。「強いチームに強い監督」の第一歩。
 function aiMgr(mul,title){return mul>1?{title:title||"敵将", boosts:[{pos:"all",stat:"all",mul}]}:null;}
+// 采配プールから、そのチームに存在する起点ポジの采配を1つ選び cond を緩和して返す(CPUは低ステでも采配が出るよう起点+chanceのみで発火)。
+function cpuTac(pool,team){
+  const list=CAREER_TACS[pool]||[]; if(!list.length)return null;
+  const subs=new Set((team.players||[]).map(p=>p.subRole));
+  const ok=list.filter(t=>t.kind==="team"||tacFromSubs(t.from).some(s=>subs.has(s)));
+  const pick=rnd(ok.length?ok:list); if(!pick)return null;
+  return Object.assign({},pick,{cond:[]}); // cond緩和=起点ポジ+chanceのみで発火
+}
+// 相手監督(CPU): チームTierに応じたバフ+采配+性格を付与。t.tier 必須(oppTeam/worldTeamで設定済み)。
+// Tier9-10=獲得可能な名将(MANAGERS・アバター有り) / 6-8=中バフ+上位采配 / 3-5=小バフ+下位采配 / 1-2=小バフのみ(アバター無し)。
+function assignOppManager(t){
+  const tier=t.tier||1, per={main:rnd(["atk","bal","def"]), sub:rnd(["whim","steadfast","worry","rational"])};
+  t.personality=per;
+  if(tier>=9&&typeof MANAGERS!=="undefined"&&MANAGERS.length){ // 名将が指揮(実boost/tac・シート絵)
+    const m=rnd(MANAGERS);
+    return Object.assign({},m,{title:m.name, tier, personality:per, named:true});
+  }
+  let mul,pool=null;
+  if(tier>=6){mul=1.03+(tier-6)*0.006; pool="strong";}       // 6-8: 中バフ+上位采配
+  else if(tier>=3){mul=1.015+(tier-3)*0.004; pool="basic";}  // 3-5: 小バフ+下位采配
+  else {mul=1.008+(tier-1)*0.004;}                            // 1-2: 小バフのみ
+  const tacs=pool?[cpuTac(pool,t)].filter(Boolean):[];
+  return {title:"監督", boosts:[{pos:"all",stat:"all",mul:Math.round(mul*1000)/1000}], tacs, tier, personality:per};
+}
 // 試合後評価。勝敗ロジックには一切影響しない「採点レイヤー」。
 //  ・関与度(inv)を主軸にして全選手に差をつける(出番が少ない=低評価)
 //  ・離散イベント(ゴール/アシスト/デュエル/タックル/セーブ)をスパイクとして加減
@@ -358,11 +382,11 @@ function oppTeam(lv,club){
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   }
   const t=buildTeam(cards,"A",form);
-  if(lv>=8)t.mgr=aiMgr(1+Math.min(0.05,(lv-5)*0.01), lv>=10?"大陸の名将":lv>=9?"百戦の指揮官":"堅実な戦術家"); // 上位クラブ(ボス級)に監督バフ(仮)
   t.kickers=assignAutoKickers(t);                 // 相手のプレースキッカー(PK/FK/CK)を自動指名
   t.bench=makeOppBench(avg,club);                 // AI交代の控え(先発よりやや弱め)
   t.subsLeft=TUNING.match.aiSubs;                 // 相手の交代枠
   t.tier=teamTier(t);                             // 統一Tier(OVR算出・CPU相手のみ。監督バフ等の物差し)
+  t.mgr=assignOppManager(t);                      // Tier別の相手監督(バフ+采配+性格)
   if(restore)restore();
   return t;
 }
@@ -405,8 +429,8 @@ function worldTeam(nation,idx){
     });
   }
   const t=buildTeam(cards,"A",form);
-  t.mgr=aiMgr(1+Math.min(0.04,Math.max(0,((idx||0)-8))*0.008),"代表監督"); // ツアー上位代表に監督バフ(仮)
-  t.tier=teamTier(t); // 統一Tier(OVR算出・CPU相手のみ)
+  t.tier=teamTier(t); // 統一Tier(OVR算出・CPU相手のみ) → 代表(Tier9-10)は名将が指揮
+  t.mgr=assignOppManager(t);
   if(restore)restore();
   return t;
 }
@@ -453,7 +477,7 @@ function eff(p,k,min,T,opT){
 // 名将/カスタム監督の采配シグネ(条件付き戦略アクション・演出のみのトリガー判定)。
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=ブロック / gk=セーブ)を1つ返す(発動抽選は呼び出し側)。
 function mgrCbTac(team){
-  if(!team||team.side!=="H"||!team.mgr)return null;
+  if(!team||!team.mgr)return null; // 守備采配は自チーム/相手監督どちらも可(呼び出し側が守る側チームを渡す)
   for(const t of mgrTacs(team.mgr)){ if(tacIsDef(t.from)&&tacCondMet(t,team))return t; }
   return null;
 }

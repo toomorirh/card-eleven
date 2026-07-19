@@ -28,6 +28,9 @@ function mockCanvas() {
     fillText(){}, strokeText(){}, beginPath(){}, closePath(){},
     moveTo(){}, lineTo(){}, arc(){}, fill(){}, stroke(){}, save(){}, restore(){},
     translate(){}, rotate(){}, scale(){},
+    createLinearGradient(){ return { addColorStop(){} }; },
+    createRadialGradient(){ return { addColorStop(){} }; },
+    createPattern(){ return {}; },
   });
   return c;
 }

@@ -163,7 +163,8 @@ const TUNING={
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
   // 試合進行の時間・閾値(分・ティック間隔ms・各種トリガー分/閾値)
   match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45,
-    aiSubMins:[63,75,84], aiSubWear:0.5, aiSubs:3}, // 相手AI交代: 指定分に、消耗wear超の先発を控えと交代(最大aiSubs回)
+    aiSubMins:[63,75,84], aiSubMinsWorry:[50,62,72], aiSubWear:0.5, aiSubs:3, // 相手AI交代: 指定分に消耗wear超の先発を控えと交代(心配性は早め)
+    styleUpdMins:[30,52,70,82]}, // 相手監督の性格によるポジ戦術(スタイル)入替の判定分
   // 相手クラブのポジション適性: Tierが低いほど稀に近接ポジの選手を起用しpen<1(弱いクラブほど編成が歪む)。
   oppPos:{mismatchBase:0.24, perLv:0.024, min:0.04, benchN:4},
   // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
@@ -818,6 +819,12 @@ function counterFactor(style,form){
   if(c.worst===style)return COUNTER_PENALTY;
   return 1;
 }
+// 指定フォーメーションに対して最も有利な攻撃スタイル(相手監督「合理的」が選ぶ)。未定義formはnull。
+function counterBestStyle(form){const c=FORM_COUNTER[form];return (c&&c.best)?c.best:null;}
+// 相手監督(CPU)の性格ラベル。メイン=基本戦術 / サブ=ポジ戦術の入替・交代挙動。
+const OPP_MAIN_JP={atk:"攻撃重視",bal:"バランス重視",def:"守備重視"};
+const OPP_SUB_JP={whim:"きまぐれ",steadfast:"初志貫徹",worry:"心配性",rational:"合理的"};
+const OPP_MAIN_TACTIC={atk:"atk",bal:"bal",def:"def"};
 // クラブ定義(データ駆動)。相手は seed で決定的に生成されるため、毎回同じ11人が出る(=ロスター固定)。
 // 強さは lv 駆動のままで現行と同一。各スタイル(side/short/long/center)が有効なクラブを2つずつ、
 // Lv1〜4で全4種を学べる配置。
