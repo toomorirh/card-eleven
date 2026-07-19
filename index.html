@@ -1542,6 +1542,10 @@ const TUNING={
   // ケガ: デュエルのたびに勝敗によらず敵味方の各選手へごく低確率で発生。負傷者は全能力×debuff。
   // 通常モードはその試合限りのデバフ。キャリアはイベント化して careerWeeks 試合持続(治療で早期回復可)。
   injury:{ perDuel:0.0035, debuff:0.5, careerWeeks:3 },
+  // チームオーラ(teamChance/teamDef)の合算上限。recalcAurasが乗算スタックしていたため、複数の
+  // teamDefスキル(例 マルディーニ1.3×ファンダイク1.12×…)を集めると青天井で守備が暴走していた。
+  // 加算(Σ(fx-1))して上限を掛けることで、スキル1個なら従来通り・多重スタック時だけ頭打ちにする。
+  auraCap:0.40,
   worldSigDrop:0.10,    // ワールドツアー: 署名保有国に勝利時の固有ドロップ基礎確率(スカウティングLv5で最大2倍=20%)
   worldSigPackDrop:0.05,// ワールドツアー: 勝利時にシグネチャーパックがドロップする確率(暫定・入手機会の拡充)
   // ボルテージ(試合の熱気): 0..1。スキル「発動演出」の出やすさを左右する(勝敗計算の係数は不変)。
@@ -2009,9 +2013,9 @@ function secretaryPortrait(v,h){
 // shoot:シュート成功 / mid:支配率(個人) / teamChance:チャンス創出 / teamDef:チーム守備
 // iron:スタミナ消耗なし / clutch:70分以降全能力 / losing:ビハインド時全能力
 const SKILLS={
- GK:{r:[["セービング","シュートストップ率アップ",{save:1.2}],
+ GK:{r:[["セービング","シュートストップ率アップ",{save:1.18}],
         ["飛び出し","至近距離のシュートに強い",{save:1.12,duelD:1.1}]],
-     sr:[["神の手","シュートストップ率が大幅アップ",{save:1.45}],
+     sr:[["神の手","シュートストップ率が大幅アップ",{save:1.3}],
          ["守護神","70分以降、全能力アップ",{clutch:1.35,save:1.1}]]},
  DF:{r:[["ハードプレス","マッチアップ時の守備力アップ",{duelD:1.2}],
         ["鉄人","スタミナが消耗しない",{iron:1}]],
@@ -2028,7 +2032,7 @@ const SKILLS={
 };
 const LSKILLS={ // レジェンド専用スキル
  GK:[["奇跡の手","1試合に1度だけ、失点を無効化する",{miracle:1,save:1.2}],
-     ["絶対領域","シュートストップ率が極めて高い",{save:1.7}]],
+     ["絶対領域","シュートストップ率が極めて高い",{save:1.4}]],
  DF:[["鉄壁の壁","マッチアップ守備が極めて強力",{duelD:1.7}],
      ["守護王","チーム全体の守備力を大きく強化",{teamDef:1.3}]],
  MF:[["王の視野","チームのチャンス創出率を大きく強化",{teamChance:1.4}],
@@ -2329,7 +2333,7 @@ const SIGNATURES=[
    skill:{name:"イル・カピターノ", desc:"統率と読みで最終ラインを支配。チーム守備と対人守備を強化", fx:{teamDef:1.3,duelD:1.3}}},
   {id:"neuer", name:"ノイアー", flag:"🇩🇪", pos:"GK", sub:"GK", type:"sweeper", age:38,
    stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
-   skill:{name:"世界の門番", desc:"驚異的なセービングと統率。セーブとチーム守備を強化", fx:{save:1.6,teamDef:1.12}}},
+   skill:{name:"世界の門番", desc:"驚異的なセービングと統率。セーブとチーム守備を強化", fx:{save:1.35,teamDef:1.1}}},
   {id:"kubo", name:"久保建英", flag:"🇯🇵", pos:"FW", sub:"RWG", type:"dribbler", age:23,
    stats:{off:17,def:15,pow:15,tec:20,spd:18,sta:15},
    skill:{name:"和製の天才", desc:"技術とスピードで違いを生むアタッカー。技・速の勝負を大幅強化", fx:{duelTec:1.4,duelSpd:1.3}}},
@@ -2344,7 +2348,7 @@ const SIGNATURES=[
    skill:{name:"ヴァンガ", desc:"圧倒的なスピードと精度の高い決定力。スピード勝負とシュートを大幅強化", fx:{duelSpd:1.4,shoot:1.35}}},
   {id:"buffon", name:"ジャンルイジ・ブッフォン", flag:"🇮🇹", pos:"GK", sub:"GK", type:"liner", age:41,
    stats:{off:15,def:20,pow:16,tec:16,spd:16,sta:17},
-   skill:{name:"伝説の守護神", desc:"年齢を感じさせぬ反応。セーブを大幅強化し終盤に真価を発揮", fx:{save:1.6,clutch:1.15}}},
+   skill:{name:"伝説の守護神", desc:"年齢を感じさせぬ反応。セーブを大幅強化し終盤に真価を発揮", fx:{save:1.35,clutch:1.15}}},
   {id:"cucurella", name:"マルク・ククレジャ", flag:"🇪🇸", pos:"DF", sub:"LSB", type:"stopper", age:26,
    stats:{off:15,def:17,pow:14,tec:16,spd:20,sta:18},
    skill:{name:"闘犬の左", desc:"上下動を止めぬ執拗なプレッサー。スピードと対人守備を大幅強化", fx:{duelD:1.3,duelSpd:1.3}}},
@@ -2389,7 +2393,7 @@ const SIGNATURES=[
    skill:{name:"万能の名手", desc:"知性で守りも組み立ても担う万能SB。対人守備と支配率を強化", fx:{duelD:1.3,mid:1.2}}},
   {id:"higuita", name:"レネ・イギータ", flag:"🇨🇴", pos:"GK", sub:"GK", type:"sweeper", age:31,
    stats:{off:16,def:20,pow:16,tec:16,spd:16,sta:16},
-   skill:{name:"エル・ロコ", desc:"飛び出しと奇抜な反応で守る型破りの守護神。セーブとチーム守備を強化", fx:{save:1.55,teamDef:1.1}}},
+   skill:{name:"エル・ロコ", desc:"飛び出しと奇抜な反応で守る型破りの守護神。セーブとチーム守備を強化", fx:{save:1.35,teamDef:1.1}}},
   {id:"figo", name:"ルイス・フィーゴ", flag:"🇵🇹", pos:"FW", sub:"RWG", type:"dribbler", age:28,
    stats:{off:17,def:14,pow:14,tec:20,spd:18,sta:17},
    skill:{name:"イベリアの快速", desc:"右サイドを切り裂き 正確なクロスと仕掛けで違いを生む。技術勝負とチャンス創出を大幅強化", fx:{duelTec:1.4,teamChance:1.3}}},
@@ -6977,12 +6981,16 @@ function lineDefMul(D,min){
   return 1-over*F.linePenalty;                             // 例: 50%消耗・不感帯30% → ×(1-0.2*0.8)=0.84
 }
 function recalcAuras(t){
-  t.teamChance=1;t.teamDef=1;
+  // オーラは加算(Σ(fx-1))して上限でクランプ=乗算スタックの暴走を防ぐ。スキル1個なら従来と同値。
+  let tc=0,td=0;
   t.players.forEach(p=>{
     const f=p.c.skill?p.c.skill.fx:{};
-    if(f.teamChance)t.teamChance*=f.teamChance;
-    if(f.teamDef)t.teamDef*=f.teamDef;
+    if(f.teamChance)tc+=(f.teamChance-1);
+    if(f.teamDef)td+=(f.teamDef-1);
   });
+  const cap=(typeof TUNING!=="undefined"&&TUNING.auraCap!=null)?TUNING.auraCap:0.35;
+  t.teamChance=1+Math.min(cap,tc);
+  t.teamDef=1+Math.min(cap,td);
   // 同国籍ケミストリー: 最多同国籍人数に応じてチーム全体を微強化(両チーム共通・対称)
   const cnt={};let mx=0,nat=null;
   t.players.forEach(p=>{const f=p.c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}});

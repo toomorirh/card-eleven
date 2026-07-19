@@ -30,12 +30,16 @@ function lineDefMul(D,min){
   return 1-over*F.linePenalty;                             // 例: 50%消耗・不感帯30% → ×(1-0.2*0.8)=0.84
 }
 function recalcAuras(t){
-  t.teamChance=1;t.teamDef=1;
+  // オーラは加算(Σ(fx-1))して上限でクランプ=乗算スタックの暴走を防ぐ。スキル1個なら従来と同値。
+  let tc=0,td=0;
   t.players.forEach(p=>{
     const f=p.c.skill?p.c.skill.fx:{};
-    if(f.teamChance)t.teamChance*=f.teamChance;
-    if(f.teamDef)t.teamDef*=f.teamDef;
+    if(f.teamChance)tc+=(f.teamChance-1);
+    if(f.teamDef)td+=(f.teamDef-1);
   });
+  const cap=(typeof TUNING!=="undefined"&&TUNING.auraCap!=null)?TUNING.auraCap:0.35;
+  t.teamChance=1+Math.min(cap,tc);
+  t.teamDef=1+Math.min(cap,td);
   // 同国籍ケミストリー: 最多同国籍人数に応じてチーム全体を微強化(両チーム共通・対称)
   const cnt={};let mx=0,nat=null;
   t.players.forEach(p=>{const f=p.c.flag||"?";cnt[f]=(cnt[f]||0)+1;if(cnt[f]>mx){mx=cnt[f];nat=f;}});
