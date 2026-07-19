@@ -93,6 +93,10 @@ function myTeam(){
 // 監督キャリア用: 手持ち(S.coll)から「OVR合計が cap 以内」の最強XIを組む(貪欲に最良→超過なら弱い候補へ差し替え)。
 const cardOvr=c=>c.off+c.def+c.pow+c.tec+c.spd+c.sta;
 function teamAvgOvr(t){const p=(t&&t.players)||[];return p.length?p.reduce((s,x)=>s+cardOvr(x.c),0)/p.length:0;}
+// 統一チームTier(1〜10): 平均OVR(6ステ合計)から算出。oppTeam(avg=6.6+lv)と整合し、lv相当が同値に戻る
+// (例: lv3の相手→OVR約58→Tier3 / ワールド代表 OVR約92→Tier9)。監督のTier別バフ等の共通の物差し。
+// フレンド対戦・自チームには付与しない(=CPU相手のみ)ため、呼び出し側で t.tier をセットする。
+function teamTier(t){return Math.max(1,Math.min(10,Math.round(teamAvgOvr(t)/6-6.6)));}
 // ジャイアントキリング被弾: 自分の方が明確に格上(平均OVR差)なのに敗北した=番狂わせ。名声減の判定に使う。
 function wasGiantKilled(home,away,sh,sa){return sh<sa && teamAvgOvr(home)>teamAvgOvr(away)+2;}
 // 育成で選べる選手プール = 手持ち + 招へい中の助っ人(固有選手・シーズン限定)。
@@ -358,6 +362,7 @@ function oppTeam(lv,club){
   t.kickers=assignAutoKickers(t);                 // 相手のプレースキッカー(PK/FK/CK)を自動指名
   t.bench=makeOppBench(avg,club);                 // AI交代の控え(先発よりやや弱め)
   t.subsLeft=TUNING.match.aiSubs;                 // 相手の交代枠
+  t.tier=teamTier(t);                             // 統一Tier(OVR算出・CPU相手のみ。監督バフ等の物差し)
   if(restore)restore();
   return t;
 }
@@ -401,6 +406,7 @@ function worldTeam(nation,idx){
   }
   const t=buildTeam(cards,"A",form);
   t.mgr=aiMgr(1+Math.min(0.04,Math.max(0,((idx||0)-8))*0.008),"代表監督"); // ツアー上位代表に監督バフ(仮)
+  t.tier=teamTier(t); // 統一Tier(OVR算出・CPU相手のみ)
   if(restore)restore();
   return t;
 }
