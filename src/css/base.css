@@ -385,6 +385,8 @@ canvas.sprite{image-rendering:auto}
   padding:8px 10px;font-size:12px;line-height:1.8}
 .feed .goal{color:var(--gold);font-weight:900}
 .feed .chance{color:var(--cyan)}
+.feed .ally{color:#7fb4ff}  /* 味方のプレー=青字 */
+.feed .opp{color:#ff9a8f}   /* 相手のプレー=赤字 */
 /* 試合結果(リザルト)は画面下部に固定=スクロール不要で結果と戻るボタンが常に見える。
    内容が空の時は非表示。試合画面を離れると親(scr-match)が非表示になり自動的に消える。 */
 #matchEnd:empty{display:none}

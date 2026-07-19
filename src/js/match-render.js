@@ -3,9 +3,18 @@
 // 「何が起きるか(match-core)」と「進行(match-flow)」から呼ばれる表示層。
 const HOME_KIT=["#1565c0","#ffffff"],AWAY_KIT=["#d32f2f","#ffffff"];
 
+// 実況の side センチネル(不可視制御文字): whoPrefix がプレー文に埋め、feed が判定して除去する。
+const FEED_ALLY=String.fromCharCode(1), FEED_OPP=String.fromCharCode(2); // 味方/相手プレーの不可視センチネル
 function feed(msg,cls){
+  // 色分け: ゴール系=金 > 味方のプレー=青(ally) / 相手のプレー=赤(opp) > その他=白。
+  let side="";
+  if(typeof msg==="string"){
+    if(msg.indexOf(FEED_ALLY)>=0){side="ally";msg=msg.split(FEED_ALLY).join("");}
+    else if(msg.indexOf(FEED_OPP)>=0){side="opp";msg=msg.split(FEED_OPP).join("");}
+  }
+  const c=(cls==="goal")?"goal":side; // ゴール系を最優先(味方/相手のゴールも金)
   const f=document.getElementById("feed");
-  const d=document.createElement("div");if(cls)d.className=cls;d.innerHTML=msg;
+  const d=document.createElement("div");if(c)d.className=c;d.innerHTML=msg;
   f.appendChild(d);f.scrollTop=f.scrollHeight;
 }
 
@@ -148,7 +157,7 @@ function hot(p,ms){
 // カットイン背景のチーム識別チント。チーム(.side)/選手(.fside)/側文字列いずれからも判定(味方=home青/相手=away赤)。
 function _tint(x){const s=(x&&(x.side||x.fside))||x;return s==="A"?"away":"home";}
 async function vsCutin(a,A,d,D,label,won){
-  const o=document.createElement("div");o.className="cutin "+_tint(a);
+  const o=document.createElement("div");o.className="cutin"; // マッチアップは中立色から開始→決着で勝者チームの色
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
     <div class="side l"><div class="fph"></div><div class="fn">${a.c.name}</div><div class="fst">${a.c.skill?"✦"+a.c.skill.name:""}</div></div>
@@ -162,6 +171,7 @@ async function vsCutin(a,A,d,D,label,won){
   document.body.appendChild(o);
   if(typeof won==="boolean"){
     await sleep(560);
+    o.classList.add(_tint(won?a:d)); // 決着=勝者チームの色(味方が勝てば青 / 相手が勝てば赤)
     const sides=o.querySelectorAll(".side"), win=sides[won?0:1], lose=sides[won?1:0];
     win.classList.add("win"); lose.classList.add("lose");
     // 決着語/色は勝者のタイプ別フレーバー(攻=突破系暖色 / 守=ブロック系青)
@@ -307,7 +317,7 @@ async function trademark(p,at){
 }
 // 名将の采配シグネ発動カットイン: 監督の全身絵を左に表示→左へスワイプ退場→発動選手(exec)が右から登場。
 async function tacCutin(tac,mgr,exec){
-  const o=_actFrame("tacx","H"); // 監督の采配は常に自チーム(味方=青)
+  const o=_actFrame("tacx",exec); // 発動選手のside=采配チームの色(味方=青 / 相手=赤)
   if(mgr&&typeof mgrPortrait==="function"){const mf=document.createElement("div");mf.className="afig tm";mf.appendChild(mgrPortrait(mgr,152));o.appendChild(mf);}
   o.appendChild(_aword("🎓 監督の采配!","tw ok"));   // 監督とともに左から中央へ→左へフェードアウト
   o.appendChild(_aword(`✦ ${tac.name} ✦`,"tw2"));    // 起点選手が右から入る時に采配スキル名を表示

@@ -4,7 +4,8 @@
 // マッチアップ(matchupDefender)・判定(resolveLink)は match-core(純粋)、演出は match-render。
 
 // 実況の相手側プレフィックス(相手=A側のイベントには🔴を付けて見分ける)。
-const whoPrefix=T=>T.side==="A"?"🔴 ":"";
+// プレー文の先頭に付く相手識別。不可視センチネル(1=味方/2=相手)を先頭に埋め、feed が青/赤に色分け・除去する。
+const whoPrefix=T=>T&&T.side==="A"?String.fromCharCode(2)+"🔴 ":String.fromCharCode(1);
 // 守備負荷(dload)をDFライン全体に分担加算(被攻撃/被シュートでDFも疲れる=A案)。
 // DFは満額、低い位置のMF(アンカー等=isDeep)は0.4倍。inv(関与表示)とは別系統。
 function defLoad(D,w){D&&D.players.forEach(p=>{if(p.role==="DF")p.stat.dload=(p.stat.dload||0)+w;else if(p.role==="MF"&&isDeep(p))p.stat.dload=(p.stat.dload||0)+w*0.4;});}
