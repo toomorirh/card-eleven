@@ -516,6 +516,7 @@ async function tickAsync(){
     M.away.tactic=M.away.score<M.home.score?"atk":M.away.score>M.home.score?"def":"bal";
     if(M.away.tactic==="atk")feed(`${M.name}がカードを前に動かしてきた!攻勢だ!`);
   }
+  if((MT.aiSubMins||[]).indexOf(M.min)>=0)aiAwaySub(M); // 相手AI交代(消耗した先発を控えと交代)
   // 支配率シェア = midPower比 に モメンタム(勢い)を反映(良いプレーを続けた側が実際に支配を上げる)。
   const fk=TUNING.flow.possK;
   const mh=midPower(M.home,M.away,M.min)*Math.max(0.2,1+M.mom*fk), ma=midPower(M.away,M.home,M.min)*Math.max(0.2,1-M.mom*fk);
@@ -602,6 +603,10 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(MC.mode確定後=activeRoleStoreが正しいstoreを返す。pre-match表記・スタミナ緩和・スキルトリガ)
+  { const _capA=teamCaptain(away); if(_capA)_capA.isCaptain=true; } // 相手も主将にスタミナ緩和(対称)
+  if(!away.kickers)away.kickers=assignAutoKickers(away);            // 相手のプレースキッカー(oppTeam未設定の相手=フレンド等にも付与)
+  away.subbedOut=new Set();                                          // 相手AI交代: 交代退場者(再投入不可)の管理
+  if(away.subsLeft==null)away.subsLeft=(away.bench&&away.bench.length)?TUNING.match.aiSubs:0;
   if(MC.mode!=="career"){ // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
     const _b=homeBaseTotal(home), _cap=mgrCtrlOVR(effectiveManager())+coachCtrlBonus();
     home.ctrl=ovrOverloadMul(_b,_cap); home.ctrlSurge=ctrlSurge(_b,_cap); // 余裕ぶんで采配の発動率アップ(隠し)
@@ -1181,6 +1186,27 @@ function renderBench(pi){
     };
     g.appendChild(e);
   });
+}
+// 相手AI交代: 最も消耗した先発(GK除く)がwear閾値を超えていれば、控えから最適ポジの選手と入替。
+function aiAwaySub(M){
+  const A=M.away;
+  if(!A||!(A.bench&&A.bench.length)||(A.subsLeft||0)<=0)return;
+  const worn=A.players.filter(p=>p.role!=="GK")
+    .map(p=>({p,w:1-fatigue(p,M.min)})).sort((x,y)=>y.w-x.w)[0];
+  if(!worn||worn.w<TUNING.match.aiSubWear)return; // まだ十分動ける
+  const out=worn.p, benchedOut=A.subbedOut||(A.subbedOut=new Set());
+  const onF=new Set(A.players.map(p=>p.c.id));
+  const cand=(A.bench||[]).filter(c=>!onF.has(c.id)&&!benchedOut.has(c.id))
+    .sort((a,b)=>posFitOf(b,out.subRole)-posFitOf(a,out.subRole)||teamTotal6(b)-teamTotal6(a))[0];
+  if(!cand)return;
+  const np={c:cand,role:out.role,subRole:out.subRole,pen:posFitOf(cand,out.subRole),x:out.x,y:out.y,enter:M.min,fside:"A",el:out.el,cur:out.cur,
+    stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0},
+    keyStat:out.keyStat||null,keyMul:out.keyMul||1};
+  const i=A.players.indexOf(out); if(i<0)return;
+  A.players[i]=np; benchedOut.add(out.c.id); A.subsLeft--;
+  if(np.el){ np.el.innerHTML=""; const rg=document.createElement("div");rg.className="ring A";np.el.appendChild(rg);np.el.appendChild(spriteCanvas(cand,26)); }
+  recalcAuras(A);
+  feed(`🔁 ${M.name}が交代! OUT:${out.c.name} → IN:<b>${cand.name}</b>(${cand.sub})`,"chance");
 }
 function closeSub(){
   document.getElementById("subModal").classList.remove("on");

@@ -162,7 +162,10 @@ const TUNING={
   reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
   // 試合進行の時間・閾値(分・ティック間隔ms・各種トリガー分/閾値)
-  match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45},
+  match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45,
+    aiSubMins:[63,75,84], aiSubWear:0.5, aiSubs:3}, // 相手AI交代: 指定分に、消耗wear超の先発を控えと交代(最大aiSubs回)
+  // 相手クラブのポジション適性: Tierが低いほど稀に近接ポジの選手を起用しpen<1(弱いクラブほど編成が歪む)。
+  oppPos:{mismatchBase:0.24, perLv:0.024, min:0.04, benchN:4},
   // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
   origin:{
     turnoverBase:0.20,         // 奪取(カウンター)の基準率。press(D)/(press+buildSec(T)) を掛ける

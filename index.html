@@ -1508,7 +1508,10 @@ const TUNING={
   reward:{base:100,perLv:40,draw:50,lose:30},      // ステージ報酬コイン
   drop:{win:0.18,draw:0.08,lose:0.04},             // レジェンドパックの試合後ドロップ率
   // 試合進行の時間・閾値(分・ティック間隔ms・各種トリガー分/閾値)
-  match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45},
+  match:{tickMin:3, fullMin:90, tickMs:420, lateMin:85, lastChanceMin:87, oppAdjustMin:60, streakHeat:3, fillerFeed:0.45,
+    aiSubMins:[63,75,84], aiSubWear:0.5, aiSubs:3}, // 相手AI交代: 指定分に、消耗wear超の先発を控えと交代(最大aiSubs回)
+  // 相手クラブのポジション適性: Tierが低いほど稀に近接ポジの選手を起用しpen<1(弱いクラブほど編成が歪む)。
+  oppPos:{mismatchBase:0.24, perLv:0.024, min:0.04, benchN:4},
   // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
   origin:{
     turnoverBase:0.20,         // 奪取(カウンター)の基準率。press(D)/(press+buildSec(T)) を掛ける
@@ -7278,13 +7281,18 @@ function oppTeam(lv,club){
   const restore=(club.seed!=null)?seedRandom(club.seed):null; // seed指定でロスター固定(生成ロジックは不変=強さ不変)
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
   const kp=KEYPOS[form]||{};
+  const mmRate=Math.max(TUNING.oppPos.min, TUNING.oppPos.mismatchBase - lv*TUNING.oppPos.perLv); // Tierが低いほどポジ不一致が増える
   const cards=FORMS[form].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
-    const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
+    const grp=subGroup(sl[0]);
+    // ポジション適性: 稀に近接ポジの選手を起用し pen<1(弱いクラブほど編成が歪む)。GKは常に専任。
+    let cardSub=sl[0];
+    if(grp!=="GK"&&Math.random()<mmRate){ const mates=subClusterMates(grp,sl[0]).filter(s=>s!==sl[0]); if(mates.length)cardSub=rnd(mates); }
+    const c=makeCard(grp,rar,null,cardSub);
     if(club.flags)c.flag=rnd(club.flags); // テーマ国籍(任意・ワールドツアー用)
     scaleTo(c,a*6); // チームLvに応じて合計を微調整
-    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
+    return {c,role:grp,subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
   const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
@@ -7301,8 +7309,23 @@ function oppTeam(lv,club){
   }
   const t=buildTeam(cards,"A",form);
   if(lv>=8)t.mgr=aiMgr(1+Math.min(0.05,(lv-5)*0.01), lv>=10?"大陸の名将":lv>=9?"百戦の指揮官":"堅実な戦術家"); // 上位クラブ(ボス級)に監督バフ(仮)
+  t.kickers=assignAutoKickers(t);                 // 相手のプレースキッカー(PK/FK/CK)を自動指名
+  t.bench=makeOppBench(avg,club);                 // AI交代の控え(先発よりやや弱め)
+  t.subsLeft=TUNING.match.aiSubs;                 // 相手の交代枠
   if(restore)restore();
   return t;
+}
+// 相手AI交代の控え要員: DF/MF/MF/FW を数枚、先発平均よりやや低めで生成。試合中に消耗した先発と入替。
+function makeOppBench(avg,club){
+  const slots=["DF","MF","MF","FW"].slice(0, (TUNING.oppPos&&TUNING.oppPos.benchN)||4);
+  return slots.map(grp=>{
+    const a=Math.max(3, avg-1+ri(-1,1)); // 控えは先発よりやや低め
+    const rar=a>=13?"sr":a>=10?"r":"n";
+    const c=makeCard(grp,rar,null,rnd(SUBS_BY[grp]));
+    if(club&&club.flags)c.flag=rnd(club.flags);
+    scaleTo(c,a*6);
+    return c;
+  });
 }
 // ワールドツアーの相手国代表。全選手が同一国籍(=ケミ満タン)・高OVR(idxで上昇)。
 // その国のシグネチャーを位置の合う枠へ注入。seedでロスター固定(偵察=本番一致)。
@@ -7559,14 +7582,20 @@ function activeRoleStore(){
   if(typeof MC!=="undefined"&&MC&&MC.mode==="career"&&typeof S!=="undefined"&&S.career)return S.career;
   return (typeof S!=="undefined")?S:{};
 }
-// プレースキッカー: 自チーム(H)で該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
-// 未指定・ベンチ・相手チームは通常の pickShooter にフォールバック。
+// CPU/相手チームの自動キッカー指名(PK=決定力/FK=技+攻/CK=力+攻の最良)。出場中の選手idを返す。
+// 自チームは編成ロール(activeRoleStore)を使うため、これは相手側(T.kickers)に格納する。
+function assignAutoKickers(T){
+  const out=((T&&T.players)||[]).filter(p=>p.role!=="GK"); if(!out.length)return null;
+  const best=fn=>out.reduce((b,p)=>fn(p.c)>fn(b.c)?p:b,out[0]).c.id;
+  return { pk:best(c=>c.off*1.2+c.tec), fk:best(c=>c.tec+c.off*0.8), ck:best(c=>c.pow+c.off*0.6) };
+}
+// プレースキッカー: 該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
+// 自チーム(H)=編成ロール(activeRoleStore)、相手=自動指名(T.kickers)。いずれも不在なら pickShooter。
 function pickKicker(A,kind){
-  const st=activeRoleStore();
-  if(A&&A.side==="H"&&st.kickers&&st.kickers[kind]){
-    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===st.kickers[kind]);
-    if(p)return p;
-  }
+  let kid=null;
+  if(A&&A.side==="H"){ const st=activeRoleStore(); kid=st.kickers&&st.kickers[kind]; }
+  else if(A&&A.kickers){ kid=A.kickers[kind]; }
+  if(kid){ const p=A.players.find(x=>x.role!=="GK"&&x.c.id===kid); if(p)return p; }
   return pickShooter(A);
 }
 
@@ -8516,6 +8545,7 @@ async function tickAsync(){
     M.away.tactic=M.away.score<M.home.score?"atk":M.away.score>M.home.score?"def":"bal";
     if(M.away.tactic==="atk")feed(`${M.name}がカードを前に動かしてきた!攻勢だ!`);
   }
+  if((MT.aiSubMins||[]).indexOf(M.min)>=0)aiAwaySub(M); // 相手AI交代(消耗した先発を控えと交代)
   // 支配率シェア = midPower比 に モメンタム(勢い)を反映(良いプレーを続けた側が実際に支配を上げる)。
   const fk=TUNING.flow.possK;
   const mh=midPower(M.home,M.away,M.min)*Math.max(0.2,1+M.mom*fk), ma=midPower(M.away,M.home,M.min)*Math.max(0.2,1-M.mom*fk);
@@ -8602,6 +8632,10 @@ function _beginMatch(away,name,form,lv,idx,home0){
   MC.subbedOut=new Set(); // 交代でOUTした選手のcard id(再投入不可=ベンチから除外)
   MC.mode=S._careerMatch?"career":(S._dailyMatch!=null)?"daily":S._leagueMatch?"league":S._friendMatch?"friend":S._worldMatch?"world":"stage"; // 終了処理の分岐に使う(MATCH_MODES)
   { const _cap=teamCaptain(home); if(_cap)_cap.isCaptain=true; } // 主将を確定(MC.mode確定後=activeRoleStoreが正しいstoreを返す。pre-match表記・スタミナ緩和・スキルトリガ)
+  { const _capA=teamCaptain(away); if(_capA)_capA.isCaptain=true; } // 相手も主将にスタミナ緩和(対称)
+  if(!away.kickers)away.kickers=assignAutoKickers(away);            // 相手のプレースキッカー(oppTeam未設定の相手=フレンド等にも付与)
+  away.subbedOut=new Set();                                          // 相手AI交代: 交代退場者(再投入不可)の管理
+  if(away.subsLeft==null)away.subsLeft=(away.bench&&away.bench.length)?TUNING.match.aiSubs:0;
   if(MC.mode!=="career"){ // 通常モードも起用中監督の統制OVRで編成をソフト制限(キャリアは既に設定済み)
     const _b=homeBaseTotal(home), _cap=mgrCtrlOVR(effectiveManager())+coachCtrlBonus();
     home.ctrl=ovrOverloadMul(_b,_cap); home.ctrlSurge=ctrlSurge(_b,_cap); // 余裕ぶんで采配の発動率アップ(隠し)
@@ -9181,6 +9215,27 @@ function renderBench(pi){
     };
     g.appendChild(e);
   });
+}
+// 相手AI交代: 最も消耗した先発(GK除く)がwear閾値を超えていれば、控えから最適ポジの選手と入替。
+function aiAwaySub(M){
+  const A=M.away;
+  if(!A||!(A.bench&&A.bench.length)||(A.subsLeft||0)<=0)return;
+  const worn=A.players.filter(p=>p.role!=="GK")
+    .map(p=>({p,w:1-fatigue(p,M.min)})).sort((x,y)=>y.w-x.w)[0];
+  if(!worn||worn.w<TUNING.match.aiSubWear)return; // まだ十分動ける
+  const out=worn.p, benchedOut=A.subbedOut||(A.subbedOut=new Set());
+  const onF=new Set(A.players.map(p=>p.c.id));
+  const cand=(A.bench||[]).filter(c=>!onF.has(c.id)&&!benchedOut.has(c.id))
+    .sort((a,b)=>posFitOf(b,out.subRole)-posFitOf(a,out.subRole)||teamTotal6(b)-teamTotal6(a))[0];
+  if(!cand)return;
+  const np={c:cand,role:out.role,subRole:out.subRole,pen:posFitOf(cand,out.subRole),x:out.x,y:out.y,enter:M.min,fside:"A",el:out.el,cur:out.cur,
+    stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0},
+    keyStat:out.keyStat||null,keyMul:out.keyMul||1};
+  const i=A.players.indexOf(out); if(i<0)return;
+  A.players[i]=np; benchedOut.add(out.c.id); A.subsLeft--;
+  if(np.el){ np.el.innerHTML=""; const rg=document.createElement("div");rg.className="ring A";np.el.appendChild(rg);np.el.appendChild(spriteCanvas(cand,26)); }
+  recalcAuras(A);
+  feed(`🔁 ${M.name}が交代! OUT:${out.c.name} → IN:<b>${cand.name}</b>(${cand.sub})`,"chance");
 }
 function closeSub(){
   document.getElementById("subModal").classList.remove("on");

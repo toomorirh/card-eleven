@@ -327,13 +327,18 @@ function oppTeam(lv,club){
   const restore=(club.seed!=null)?seedRandom(club.seed):null; // seed指定でロスター固定(生成ロジックは不変=強さ不変)
   const avg=6.6+lv*1.0; // 1選手あたり平均ステ(クラブLv1≈7.6 → Lv8≈14.6)
   const kp=KEYPOS[form]||{};
+  const mmRate=Math.max(TUNING.oppPos.min, TUNING.oppPos.mismatchBase - lv*TUNING.oppPos.perLv); // Tierが低いほどポジ不一致が増える
   const cards=FORMS[form].map((sl,i)=>{
     const a=avg+ri(-1,1);
     const rar=a>=13?"sr":a>=10?"r":"n";
-    const c=makeCard(subGroup(sl[0]),rar,null,sl[0]);
+    const grp=subGroup(sl[0]);
+    // ポジション適性: 稀に近接ポジの選手を起用し pen<1(弱いクラブほど編成が歪む)。GKは常に専任。
+    let cardSub=sl[0];
+    if(grp!=="GK"&&Math.random()<mmRate){ const mates=subClusterMates(grp,sl[0]).filter(s=>s!==sl[0]); if(mates.length)cardSub=rnd(mates); }
+    const c=makeCard(grp,rar,null,cardSub);
     if(club.flags)c.flag=rnd(club.flags); // テーマ国籍(任意・ワールドツアー用)
     scaleTo(c,a*6); // チームLvに応じて合計を微調整
-    return {c,role:subGroup(sl[0]),subRole:sl[0],pen:1,x:sl[1],y:sl[2],enter:0,
+    return {c,role:grp,subRole:sl[0],pen:posFitOf(c,sl[0]),x:sl[1],y:sl[2],enter:0,
       keyStat:kp[i]||null,keyMul:kp[i]?KEY_MUL:1};
   });
   const fwIdx=FORMS[form].map((sl,i)=>subGroup(sl[0])==="FW"?i:-1).filter(i=>i>=0);
@@ -350,8 +355,23 @@ function oppTeam(lv,club){
   }
   const t=buildTeam(cards,"A",form);
   if(lv>=8)t.mgr=aiMgr(1+Math.min(0.05,(lv-5)*0.01), lv>=10?"大陸の名将":lv>=9?"百戦の指揮官":"堅実な戦術家"); // 上位クラブ(ボス級)に監督バフ(仮)
+  t.kickers=assignAutoKickers(t);                 // 相手のプレースキッカー(PK/FK/CK)を自動指名
+  t.bench=makeOppBench(avg,club);                 // AI交代の控え(先発よりやや弱め)
+  t.subsLeft=TUNING.match.aiSubs;                 // 相手の交代枠
   if(restore)restore();
   return t;
+}
+// 相手AI交代の控え要員: DF/MF/MF/FW を数枚、先発平均よりやや低めで生成。試合中に消耗した先発と入替。
+function makeOppBench(avg,club){
+  const slots=["DF","MF","MF","FW"].slice(0, (TUNING.oppPos&&TUNING.oppPos.benchN)||4);
+  return slots.map(grp=>{
+    const a=Math.max(3, avg-1+ri(-1,1)); // 控えは先発よりやや低め
+    const rar=a>=13?"sr":a>=10?"r":"n";
+    const c=makeCard(grp,rar,null,rnd(SUBS_BY[grp]));
+    if(club&&club.flags)c.flag=rnd(club.flags);
+    scaleTo(c,a*6);
+    return c;
+  });
 }
 // ワールドツアーの相手国代表。全選手が同一国籍(=ケミ満タン)・高OVR(idxで上昇)。
 // その国のシグネチャーを位置の合う枠へ注入。seedでロスター固定(偵察=本番一致)。
@@ -608,14 +628,20 @@ function activeRoleStore(){
   if(typeof MC!=="undefined"&&MC&&MC.mode==="career"&&typeof S!=="undefined"&&S.career)return S.career;
   return (typeof S!=="undefined")?S:{};
 }
-// プレースキッカー: 自チーム(H)で該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
-// 未指定・ベンチ・相手チームは通常の pickShooter にフォールバック。
+// CPU/相手チームの自動キッカー指名(PK=決定力/FK=技+攻/CK=力+攻の最良)。出場中の選手idを返す。
+// 自チームは編成ロール(activeRoleStore)を使うため、これは相手側(T.kickers)に格納する。
+function assignAutoKickers(T){
+  const out=((T&&T.players)||[]).filter(p=>p.role!=="GK"); if(!out.length)return null;
+  const best=fn=>out.reduce((b,p)=>fn(p.c)>fn(b.c)?p:b,out[0]).c.id;
+  return { pk:best(c=>c.off*1.2+c.tec), fk:best(c=>c.tec+c.off*0.8), ck:best(c=>c.pow+c.off*0.6) };
+}
+// プレースキッカー: 該当キック(pk/fk/ck)の指定選手が出場中なら優先(スキルfx発動を狙える)。
+// 自チーム(H)=編成ロール(activeRoleStore)、相手=自動指名(T.kickers)。いずれも不在なら pickShooter。
 function pickKicker(A,kind){
-  const st=activeRoleStore();
-  if(A&&A.side==="H"&&st.kickers&&st.kickers[kind]){
-    const p=A.players.find(x=>x.role!=="GK"&&x.c.id===st.kickers[kind]);
-    if(p)return p;
-  }
+  let kid=null;
+  if(A&&A.side==="H"){ const st=activeRoleStore(); kid=st.kickers&&st.kickers[kind]; }
+  else if(A&&A.kickers){ kid=A.kickers[kind]; }
+  if(kid){ const p=A.players.find(x=>x.role!=="GK"&&x.c.id===kid); if(p)return p; }
   return pickShooter(A);
 }
 
