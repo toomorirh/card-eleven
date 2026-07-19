@@ -33,7 +33,7 @@
   - **メイン(基本戦術)**: 攻撃重視→`atk` / バランス重視→`bal` / 守備重視→`def`(キックオフで固定)。
   - **サブ(ポジ戦術=スタイルの入替・交代挙動)**: **きまぐれ**=`styleUpdMins`ごとにランダムに頻繁入替 / **初志貫徹**=一切変えない / **心配性**=固定スタイル1つだが交代が早い(`aiSubMinsWorry`+wear閾値−0.15) / **合理的**=`counterBestStyle(相手form)`で有利スタイルを定期選択。
 - 攻撃スタイルの初期値は `oppPickStyle`(初志貫徹)またはサブ性格で上書き。バランス影響は小(matchsim EVEN 得点2.3前後・相手やや手強く)。
-- **偵察(`renderScout`)は自チーム編成画面と同じ盤で表示**: `pitchSlots`/`renderChemLines`/`roleBadges`/`renderManagerAdvice` を **`ctx.form` 対応に一般化**して相手XIを描画。スロット(細分pos/OVR/適性✓⚠)・**キーポジ⭐**・**ロール徽章(CAP/PK/FK/CK)**・**ケミ線/名コンビ(ホットライン)**・**監督札(全身絵 or プレースホルダ+バフ+采配)+性格**を一望できる。相手主将=`teamCaptain(away)`、キッカー=`away.kickers`、監督采配KPは相手監督から算出(自監督は混ぜない)。
+- **偵察(`renderScout`)は自チーム編成画面と同じ盤で表示**: `pitchSlots`/`renderChemLines`/`roleBadges`/`renderManagerAdvice` を **`ctx.form` 対応に一般化**して相手XIを描画。スロット(細分pos/OVR/適性✓⚠)・**キーポジ⭐**・**ロール徽章(CAP/PK/FK/CK)**・**ケミ線/名コンビ(ホットライン)**・**監督札(全身絵 or プレースホルダ+バフ+采配)+性格**・**控え(交代要員=`away.bench`を編成画面と同じ `.bench-slot` レイアウトで表示)**を一望できる。相手主将=`teamCaptain(away)`、キッカー=`away.kickers`、監督采配KPは相手監督から算出(自監督は混ぜない)。
 
 ### 7.2 リーグ戦
 - 自チーム+8クラブ=全9チームの総当たり(円卓法・BYE枠で偶数化 → 9節・各チーム8試合・ユニーク対戦36)。

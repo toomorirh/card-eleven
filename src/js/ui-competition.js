@@ -70,6 +70,20 @@ function renderScout(title,infoHtml,away){
     onSlot:i=>{const c=byId(squad[i]);if(c){const b=`${c.flag} ${c.name}(${c.sub})`;toast(c.skill?`${b}|【${c.skill.name}】${c.skill.desc}`:b);}},
     roleBadges:id=>roleBadges(roleCtx,id) });
   wrap.appendChild(pitch);
+  // 相手の控え(交代要員) — 編成画面と同じ .bench-row/.bench-slot レイアウト(読み取り専用)
+  if(away.bench&&away.bench.length){
+    const bwrap=document.createElement("div");
+    bwrap.innerHTML='<div class="lg" style="margin:8px 0 2px">🔁 控え(交代要員) — 試合中に相手が投入</div>';
+    const brow=document.createElement("div");brow.className="bench-row";
+    away.bench.forEach(c=>{
+      const d=document.createElement("div");d.className="bench-slot filled";
+      d.innerHTML=`<div class="bs-sprite"></div><b class="nm">${c.name}</b><span class="ovr">${c.sub} ${total(c)}</span>`;
+      d.querySelector(".bs-sprite").appendChild(spriteCanvas(c,34));
+      d.onclick=()=>{const b=`${c.flag} ${c.name}(${c.sub})`;toast(c.skill?`${b}|【${c.skill.name}】${c.skill.desc}`:b);};
+      brow.appendChild(d);
+    });
+    bwrap.appendChild(brow);wrap.appendChild(bwrap);
+  }
   document.getElementById("scoutModal").classList.add("on"); // 情報専用(試合開始はKickOffから)
 }
 function openScout(idx){
