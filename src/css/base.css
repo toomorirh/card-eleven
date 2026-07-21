@@ -19,6 +19,11 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .apphead .ah-l{display:flex;align-items:baseline;gap:6px;min-width:0}
 .apphead .ah-owner{font-size:10px;color:#8fa3b8;white-space:nowrap;flex:0 0 auto}
 .apphead .ah-team{font-family:'DotGothic16';font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apphead .ah-title{font-size:9px;font-weight:900;color:var(--gold);background:rgba(232,194,90,.16);border:1px solid rgba(232,194,90,.5);border-radius:6px;padding:1px 6px;white-space:nowrap;flex:0 0 auto}
+/* 称号セレクタ(プロフィール) */
+.title-pick{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.title-chip{font-size:11px;font-weight:700;color:#cfe0f2;background:#0f1c2f;border:1px solid #2a3d56;border-radius:8px;padding:4px 9px;cursor:pointer}
+.title-chip.sel{color:var(--gold);border-color:var(--gold);background:rgba(232,194,90,.14)}
 .apphead .coins{flex:0 0 auto;position:relative}
 .apphead .ah-r{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* HELPタブ + 秘書ドロワー(右からスライドイン) */

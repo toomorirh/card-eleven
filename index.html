@@ -27,6 +27,11 @@ h1{font-family:'DotGothic16',monospace;font-size:26px;letter-spacing:2px;text-al
 .apphead .ah-l{display:flex;align-items:baseline;gap:6px;min-width:0}
 .apphead .ah-owner{font-size:10px;color:#8fa3b8;white-space:nowrap;flex:0 0 auto}
 .apphead .ah-team{font-family:'DotGothic16';font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apphead .ah-title{font-size:9px;font-weight:900;color:var(--gold);background:rgba(232,194,90,.16);border:1px solid rgba(232,194,90,.5);border-radius:6px;padding:1px 6px;white-space:nowrap;flex:0 0 auto}
+/* 称号セレクタ(プロフィール) */
+.title-pick{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.title-chip{font-size:11px;font-weight:700;color:#cfe0f2;background:#0f1c2f;border:1px solid #2a3d56;border-radius:8px;padding:4px 9px;cursor:pointer}
+.title-chip.sel{color:var(--gold);border-color:var(--gold);background:rgba(232,194,90,.14)}
 .apphead .coins{flex:0 0 auto;position:relative}
 .apphead .ah-r{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* HELPタブ + 秘書ドロワー(右からスライドイン) */
@@ -1140,7 +1145,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
 </script>
 <div class="wrap">
   <div class="apphead" id="apphead">
-    <div class="ah-l"><span class="ah-owner" id="ahOwner">👤 監督</span><b class="ah-team" id="ahTeam">マイチーム</b></div>
+    <div class="ah-l"><span class="ah-owner" id="ahOwner">👤 監督</span><b class="ah-team" id="ahTeam">マイチーム</b><span class="ah-title" id="ahTitle" style="display:none"></span></div>
     <div class="ah-r"><div class="coins prestige" title="名声">🏛 <span id="prestigeN">0</span></div><div class="coins">🪙 <span id="coinN">0</span></div></div>
   </div>
   <h1>p football</h1>
@@ -1303,6 +1308,7 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     <div class="ct-terms" id="pfTerms"></div>
     <div class="ct-field ct-sign"><label>署名（監督名）</label><input id="pfCoach" class="ct-input ct-sign-input" maxlength="16" placeholder="ここに署名"></div>
     <div id="pfFavWrap" style="display:none"><div id="pfFavGrid"></div></div>
+    <div class="ct-field" id="pfTitleWrap" style="display:none"><label>称号（ヘッダに表示・獲得したものから選択）</label><div class="title-pick" id="pfTitlePick"></div></div>
     <div class="row" style="margin-top:12px"><button class="btn" id="pfSave">契約する</button></div>
   </div>
 </div>
@@ -2669,6 +2675,12 @@ const ACHIEVEMENTS=[
    test:()=>maxFacLv()>=5, prog:()=>`最高 Lv${maxFacLv()}/5`,
    reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
 ];
+// 名将クラブ撃破の実績(各名将クラブに勝利で解除)。報酬=シグネチャーパック+称号(クラブ名)。撃破は S.legendBeaten[id] で記録。
+legendClubIds().forEach(id=>{ const nm=(OPP_CLUBS[id]||{}).name||id;
+  ACHIEVEMENTS.push({ id:"beat_"+id, icon:"💫", title:nm+" 撃破", desc:`名将クラブ「${nm}」に勝利する`,
+    test:()=>!!(typeof S!=="undefined"&&S.legendBeaten&&S.legendBeaten[id]),
+    prog:()=>((typeof S!=="undefined"&&S.legendBeaten&&S.legendBeaten[id])?"撃破!":"未撃破"),
+    reward:{sigPacks:1, title:nm}, rewardLabel:`シグネチャーパック+称号「${nm}」`, legend:true }); });
 
 // [inlined] qrcode-generator 2.0.4 by Kazuhiko Arase (MIT). UMDラッパは除去しグローバル qrcode を定義。
 //---------------------------------------------------------------------
@@ -5086,6 +5098,9 @@ async function loadGame(){                                       // つづきか
   if(typeof advanceGuide==="function")advanceGuide();
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
+  if(!Array.isArray(S.titles))S.titles=[];                     // 称号(獲得一覧)/装備称号/名将撃破の後方互換
+  if(S.title==null)S.title="";
+  if(!S.legendBeaten||typeof S.legendBeaten!=="object")S.legendBeaten={};
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換
   if(S.captain===undefined)S.captain=null;                     // キャプテン/プレースキッカーの後方互換
   if(!S.kickers||typeof S.kickers!=="object")S.kickers={pk:null,fk:null,ck:null};
@@ -5107,6 +5122,7 @@ function grantReward(r){
   if(r.legendPacks)S.legendPacks=(S.legendPacks||0)+r.legendPacks;
   if(r.prestige)S.prestige=(S.prestige||0)+r.prestige;
   if(r.coins){S.coins=(S.coins||0)+r.coins; if(typeof coinUI==="function")coinUI();}
+  if(r.title){S.titles=S.titles||[]; if(S.titles.indexOf(r.title)<0)S.titles.push(r.title);} // 称号を獲得(所持一覧へ・ヘッダでセット可)
 }
 // 実績判定: 未達成かつ条件成立の実績に報酬を付与(達成済みは S.ms で記録=冪等)。何か付与したら true。
 function checkAchievements(){
@@ -5129,6 +5145,8 @@ function renderHeader(){
   const o=document.getElementById("ahOwner"), t=document.getElementById("ahTeam");
   if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"監督"));
   if(t)t.textContent=myName();
+  const tt=document.getElementById("ahTitle"); // 装備中の称号バッジ(名将撃破などで獲得・プロフィールでセット)
+  if(tt){ const ti=(S&&S.title)||""; tt.textContent=ti?("💫 "+ti):""; tt.style.display=ti?"":"none"; }
 }
 // ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====
 // helpIcon(key) を見出し等に埋め込み、タップで HELP[key] をポップアップ。data-help属性を委譲処理。
@@ -5708,6 +5726,7 @@ const CONTRACT_TERMS=`第一条  本契約をもって、上記クラブは下�
 第三条  選手は「スカウト」により獲得し、育成と采配をもってクラブを勝利へ導くこと。
 第四条  「名声」を高めてクラブ施設を拡張し、常勝軍団を築くべし。
 以上の条項に同意の上、末尾に署名するものとする。`;
+let _pfTitle=""; // プロフィール編集中に選択中の称号(保存でS.titleへ)
 function openProfile(isNew){
   const m=document.getElementById("profileModal");
   document.getElementById("profileTitle").textContent=isNew?"監督契約書":"契約内容の変更";
@@ -5716,6 +5735,18 @@ function openProfile(isNew){
   document.getElementById("pfTeam").value=S.teamName||"";
   const terms=document.getElementById("pfTerms"); if(terms){terms.textContent=isNew?CONTRACT_TERMS:"";terms.style.display=isNew?"":"none";}
   const favWrap=document.getElementById("pfFavWrap"); if(favWrap)favWrap.style.display="none"; // お気に入り設定は廃止
+  // 称号セレクタ(獲得済みから1つ選ぶ・ヘッダに表示)。新規契約時や未獲得時は隠す。
+  const titWrap=document.getElementById("pfTitleWrap"), titPick=document.getElementById("pfTitlePick");
+  const titles=(S.titles||[]);
+  if(titWrap&&titPick){
+    if(isNew||!titles.length){ titWrap.style.display="none"; _pfTitle=S.title||""; }
+    else{
+      titWrap.style.display=""; titPick.innerHTML=""; _pfTitle=S.title||"";
+      const mk=name=>{ const c=document.createElement("div"); c.className="title-chip"+(_pfTitle===name?" sel":""); c.textContent=name||"称号なし";
+        c.onclick=()=>{ _pfTitle=name; titPick.querySelectorAll(".title-chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); }; return c; };
+      titPick.appendChild(mk("")); titles.forEach(t=>titPick.appendChild(mk(t))); // 先頭=称号なし
+    }
+  }
   const sv=document.getElementById("pfSave");sv.textContent=isNew?"✍ 契約する":"保存";
   sv.onclick=()=>saveProfile(isNew);
   m.classList.add("on");
@@ -5730,7 +5761,8 @@ async function saveProfile(isNew){
     coinUI();gotoOffice("ach"); // 契約後は監督室の実績ページへ(秘書が導線を案内)
     if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由なら監督室の対戦へ上書き
   }else{
-    S.coach=coach;S.teamName=team;await save();
+    S.coach=coach;S.teamName=team;S.title=_pfTitle||"";await save();
+    if(typeof renderHeader==="function")renderHeader(); // 称号バッジをヘッダに即反映
     toast("プロフィールを保存しました");
     if(document.getElementById("scr-home").classList.contains("on"))renderHome();
   }
@@ -8936,6 +8968,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
   const oppMgr=opp&&opp.mgr; // 名将クラブは指定名将を起用(oppTeamがclub.mgrで上書き)
+  cr._oppLegend=(opp&&opp.legend)?opp.id:null; // この試合の相手が名将クラブなら撃破判定用にidを記録
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
   cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
@@ -9282,7 +9315,12 @@ const MATCH_MODES={
     }
     if(cr&&pp){S.prestige=Math.max(0,(S.prestige||0)+pp); html+=`<div class="banner" style="font-size:13px;color:${pp<0?"#ff8e8e":"#ffd24a"}">🏛 名声 ${pp>0?"+":""}${pp}(計 ${S.prestige})</div>`;}
     if(cr)cr.events=(cr.events||[]).filter(ev=>ev.left>0); // 消化済みイベントを除去
-    checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
+    if(cr&&cr._oppLegend&&headRes==="W"){ // 名将クラブ撃破: 勝利で記録→実績(シグネチャーパック+称号)を付与
+      S.legendBeaten=S.legendBeaten||{};
+      if(!S.legendBeaten[cr._oppLegend]){ S.legendBeaten[cr._oppLegend]=1; html+=`<div class="banner" style="color:#ffd24a">💫 名将クラブ「${(OPP_CLUBS[cr._oppLegend]||{}).name||""}」を撃破! 称号を獲得!</div>`; }
+      cr._oppLegend=null;
+    }
+    checkAchievements(); // 名将クラブ撃破/インターナショナルクラブカップ初優勝などの実績を判定(報酬=パック+称号)
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";

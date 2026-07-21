@@ -503,6 +503,7 @@ const CONTRACT_TERMS=`第一条  本契約をもって、上記クラブは下�
 第三条  選手は「スカウト」により獲得し、育成と采配をもってクラブを勝利へ導くこと。
 第四条  「名声」を高めてクラブ施設を拡張し、常勝軍団を築くべし。
 以上の条項に同意の上、末尾に署名するものとする。`;
+let _pfTitle=""; // プロフィール編集中に選択中の称号(保存でS.titleへ)
 function openProfile(isNew){
   const m=document.getElementById("profileModal");
   document.getElementById("profileTitle").textContent=isNew?"監督契約書":"契約内容の変更";
@@ -511,6 +512,18 @@ function openProfile(isNew){
   document.getElementById("pfTeam").value=S.teamName||"";
   const terms=document.getElementById("pfTerms"); if(terms){terms.textContent=isNew?CONTRACT_TERMS:"";terms.style.display=isNew?"":"none";}
   const favWrap=document.getElementById("pfFavWrap"); if(favWrap)favWrap.style.display="none"; // お気に入り設定は廃止
+  // 称号セレクタ(獲得済みから1つ選ぶ・ヘッダに表示)。新規契約時や未獲得時は隠す。
+  const titWrap=document.getElementById("pfTitleWrap"), titPick=document.getElementById("pfTitlePick");
+  const titles=(S.titles||[]);
+  if(titWrap&&titPick){
+    if(isNew||!titles.length){ titWrap.style.display="none"; _pfTitle=S.title||""; }
+    else{
+      titWrap.style.display=""; titPick.innerHTML=""; _pfTitle=S.title||"";
+      const mk=name=>{ const c=document.createElement("div"); c.className="title-chip"+(_pfTitle===name?" sel":""); c.textContent=name||"称号なし";
+        c.onclick=()=>{ _pfTitle=name; titPick.querySelectorAll(".title-chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); }; return c; };
+      titPick.appendChild(mk("")); titles.forEach(t=>titPick.appendChild(mk(t))); // 先頭=称号なし
+    }
+  }
   const sv=document.getElementById("pfSave");sv.textContent=isNew?"✍ 契約する":"保存";
   sv.onclick=()=>saveProfile(isNew);
   m.classList.add("on");
@@ -525,7 +538,8 @@ async function saveProfile(isNew){
     coinUI();gotoOffice("ach"); // 契約後は監督室の実績ページへ(秘書が導線を案内)
     if(typeof _gotoChallenge==="function")_gotoChallenge(); // チャレンジURL経由なら監督室の対戦へ上書き
   }else{
-    S.coach=coach;S.teamName=team;await save();
+    S.coach=coach;S.teamName=team;S.title=_pfTitle||"";await save();
+    if(typeof renderHeader==="function")renderHeader(); // 称号バッジをヘッダに即反映
     toast("プロフィールを保存しました");
     if(document.getElementById("scr-home").classList.contains("on"))renderHome();
   }

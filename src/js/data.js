@@ -1300,4 +1300,10 @@ const ACHIEVEMENTS=[
    test:()=>maxFacLv()>=5, prog:()=>`最高 Lv${maxFacLv()}/5`,
    reward:{sigPacks:1},                 rewardLabel:"シグネチャーパック"},
 ];
+// 名将クラブ撃破の実績(各名将クラブに勝利で解除)。報酬=シグネチャーパック+称号(クラブ名)。撃破は S.legendBeaten[id] で記録。
+legendClubIds().forEach(id=>{ const nm=(OPP_CLUBS[id]||{}).name||id;
+  ACHIEVEMENTS.push({ id:"beat_"+id, icon:"💫", title:nm+" 撃破", desc:`名将クラブ「${nm}」に勝利する`,
+    test:()=>!!(typeof S!=="undefined"&&S.legendBeaten&&S.legendBeaten[id]),
+    prog:()=>((typeof S!=="undefined"&&S.legendBeaten&&S.legendBeaten[id])?"撃破!":"未撃破"),
+    reward:{sigPacks:1, title:nm}, rewardLabel:`シグネチャーパック+称号「${nm}」`, legend:true }); });
 

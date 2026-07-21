@@ -12,6 +12,7 @@
   leagueWins, tour:{i,res:[]}, tourPerfect, daily,       // モード進捗
   league, career,                                        // リーグ戦/監督キャリアの進行状態
   coach, teamName, favId, friendRec:{}, ms:{},           // プロフィール/実績
+  titles:[], title, legendBeaten:{},                     // 称号(獲得一覧/装備/名将クラブ撃破記録・§7.10.1)
   mgrOwned:[], mgrActive, introLetters, customMgrs:[],   // 監督(名将/カスタム)
   prestige, fac:{stadium,academy,medical,coaching,scouting}, // 名声/施設(アカウント恒久・§7.10.2)
   rookieViz, secViz, guideStep, hasScouted, leagueDone } // 見た目/秘書ガイド
@@ -41,6 +42,13 @@
 - **`exportSave()`**(`state.js`): 保留中の保存を `flushSave` してから現在の `S` を JSON 文字列で返す。
 - **`importSave(text)`**: JSON をパース+検証(オブジェクトで `coll` 配列 / `coins` 数値を持つ=カードイレブンのセーブ)し、`_writeRaw` でストレージへ直接書き込む(反映は呼び出し側で `location.reload()`=次回起動の `loadGame` が移行/欠落補完)。壊れた/別形式の入力は例外で拒否。
 - **UI**: 監督室(office)ヘッダの **「💾 データ」**(`openDataModal`→`#dataModal`)。📤書き出し(テキスト化+`.json`ダウンロード)/ 📥読み込み(貼り付け or ファイル選択→確認→上書き→リロード)。移行手順=旧URLで書き出し→保存→新URLで読み込み。
+
+### 2.5 称号システム(タイトル)
+獲得した称号を**チーム名の横(ヘッダ)に表示**する。将来は称号に効果を付与しうる設計(現在は表示のみ)。
+- **状態**: `S.titles`(獲得した称号名の配列)/ `S.title`(装備中の称号・既定"")。
+- **獲得**: 実績報酬 `reward.title`(`grantReward` が `S.titles` へ追加)。現在の主な入手源は **名将クラブ撃破**(§7.10.1・`beat_<id>` 実績→称号=クラブ名。例「ソル・ブラウ」「ギャラクティコス」)。
+- **装備**: プロフィール(監督契約)モーダルの**称号セレクタ**(`#pfTitlePick`・獲得済みから1つ選択+「称号なし」)。`saveProfile` が `S.title` を更新。
+- **表示**: ヘッダ `#ahTitle`(`renderHeader` が `💫 <title>` バッジを描画・装備時のみ)。
 
 ---
 

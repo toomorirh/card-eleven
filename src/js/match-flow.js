@@ -704,6 +704,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
   const oppMgr=opp&&opp.mgr; // 名将クラブは指定名将を起用(oppTeamがclub.mgrで上書き)
+  cr._oppLegend=(opp&&opp.legend)?opp.id:null; // この試合の相手が名将クラブなら撃破判定用にidを記録
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
   cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
@@ -1050,7 +1051,12 @@ const MATCH_MODES={
     }
     if(cr&&pp){S.prestige=Math.max(0,(S.prestige||0)+pp); html+=`<div class="banner" style="font-size:13px;color:${pp<0?"#ff8e8e":"#ffd24a"}">🏛 名声 ${pp>0?"+":""}${pp}(計 ${S.prestige})</div>`;}
     if(cr)cr.events=(cr.events||[]).filter(ev=>ev.left>0); // 消化済みイベントを除去
-    checkAchievements(); // インターナショナルクラブカップ初優勝などの実績を判定(S.career.cupsWon 参照)
+    if(cr&&cr._oppLegend&&headRes==="W"){ // 名将クラブ撃破: 勝利で記録→実績(シグネチャーパック+称号)を付与
+      S.legendBeaten=S.legendBeaten||{};
+      if(!S.legendBeaten[cr._oppLegend]){ S.legendBeaten[cr._oppLegend]=1; html+=`<div class="banner" style="color:#ffd24a">💫 名将クラブ「${(OPP_CLUBS[cr._oppLegend]||{}).name||""}」を撃破! 称号を獲得!</div>`; }
+      cr._oppLegend=null;
+    }
+    checkAchievements(); // 名将クラブ撃破/インターナショナルクラブカップ初優勝などの実績を判定(報酬=パック+称号)
     e.innerHTML=`<div class="banner">${resWordEmoji(headRes)} ${sh}-${sa}${pkNote}</div>`+html; // ヘッダー(PK決着も反映)+詳細
     showStatOverlay(M.home,M.away);
     const b=document.createElement("button");b.className="btn";b.textContent="キャリアへ戻る";

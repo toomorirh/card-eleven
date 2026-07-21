@@ -125,6 +125,9 @@ async function loadGame(){                                       // つづきか
   if(typeof advanceGuide==="function")advanceGuide();
   let _aged=false; (S.coll||[]).forEach(c=>{if(c.age==null){c.age=defaultAge(c);_aged=true;}}); // 年齢の後方互換補完(版に依らず)
   if(_aged)await save();
+  if(!Array.isArray(S.titles))S.titles=[];                     // 称号(獲得一覧)/装備称号/名将撃破の後方互換
+  if(S.title==null)S.title="";
+  if(!S.legendBeaten||typeof S.legendBeaten!=="object")S.legendBeaten={};
   if(!Array.isArray(S.bench))S.bench=[];                       // ベンチ(交代枠)の後方互換
   if(S.captain===undefined)S.captain=null;                     // キャプテン/プレースキッカーの後方互換
   if(!S.kickers||typeof S.kickers!=="object")S.kickers={pk:null,fk:null,ck:null};
@@ -146,6 +149,7 @@ function grantReward(r){
   if(r.legendPacks)S.legendPacks=(S.legendPacks||0)+r.legendPacks;
   if(r.prestige)S.prestige=(S.prestige||0)+r.prestige;
   if(r.coins){S.coins=(S.coins||0)+r.coins; if(typeof coinUI==="function")coinUI();}
+  if(r.title){S.titles=S.titles||[]; if(S.titles.indexOf(r.title)<0)S.titles.push(r.title);} // 称号を獲得(所持一覧へ・ヘッダでセット可)
 }
 // 実績判定: 未達成かつ条件成立の実績に報酬を付与(達成済みは S.ms で記録=冪等)。何か付与したら true。
 function checkAchievements(){
@@ -168,6 +172,8 @@ function renderHeader(){
   const o=document.getElementById("ahOwner"), t=document.getElementById("ahTeam");
   if(o)o.textContent="👤 "+(((typeof S.coach==="string"&&S.coach.trim())||"監督"));
   if(t)t.textContent=myName();
+  const tt=document.getElementById("ahTitle"); // 装備中の称号バッジ(名将撃破などで獲得・プロフィールでセット)
+  if(tt){ const ti=(S&&S.title)||""; tt.textContent=ti?("💫 "+ti):""; tt.style.display=ti?"":"none"; }
 }
 // ===== ヘルプ(?)機構: 説明文を「?」に収納し、タップでポップアップ表示してUIをクリーンに =====
 // helpIcon(key) を見出し等に埋め込み、タップで HELP[key] をポップアップ。data-help属性を委譲処理。
