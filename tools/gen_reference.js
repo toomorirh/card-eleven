@@ -132,7 +132,7 @@ const ACT_EFFECT = {
   save: "相手のシュートをGKがスーパーセーブ(無効化・守備采配)",
 };
 const tacCond = t => (t.cond || []).map(([sub, st, th]) => `${sub}の${STAT_JP[st] || st}≥${th}`).join("・") || "—";
-const tacFrom = t => { const tf = TAC_FROM[t.from] || {}; return `${(tf.subs || [t.from]).join("/")}(${tf.act || "?"})`; };
+const tacFrom = t => { if (t.kind === "team") return `全体(from不問)${t.flag ? " " + t.flag : ""}`; const tf = TAC_FROM[t.from] || {}; return `${(tf.subs || [t.from]).join("/")}(${tf.act || "?"})`; };
 const tacEffect = t => {
   if (t.kind === "team") { const s = t.surge || {}; return `🌐サージ: チーム全体を ×${s.mul || 1.2} で ${s.ticks || 3}ティック底上げ`; }
   let e = ACT_EFFECT[(TAC_FROM[t.from] || {}).act] || "—";
