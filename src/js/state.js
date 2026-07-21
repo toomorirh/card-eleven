@@ -39,6 +39,21 @@ function deleteSave(){
   if(typeof window!=="undefined"&&window.storage){try{window.storage.set(SAVE_KEY,"");}catch(e){}}
   try{localStorage.removeItem(SAVE_KEY);}catch(e){}
 }
+// ストレージへ生JSON文字列を直接書き込む(インポート用)。window.storage優先・無ければlocalStorage。
+async function _writeRaw(v){
+  if(typeof window!=="undefined"&&window.storage){try{await withTimeout(window.storage.set(SAVE_KEY,v),2500);}catch(e){}}
+  else{try{localStorage.setItem(SAVE_KEY,v);}catch(e){}}
+}
+// セーブのエクスポート: 保留中の保存をフラッシュし、現在のセーブ状態SをJSON文字列で返す(端末/URL移行・バックアップ用)。
+async function exportSave(){ if(typeof flushSave==="function")await flushSave(); S.nextId=uid; return JSON.stringify(S); }
+// セーブのインポート: JSON文字列を検証してストレージへ書き込む(反映は呼び出し側でreload)。壊れた入力は例外。
+async function importSave(text){
+  let obj; try{ obj=JSON.parse(String(text||"").trim()); }catch(e){ throw new Error("JSONとして読み取れません(コピー漏れの可能性)"); }
+  if(!obj||typeof obj!=="object"||Array.isArray(obj)) throw new Error("セーブデータの形式ではありません");
+  if(!Array.isArray(obj.coll)||typeof obj.coins!=="number") throw new Error("カードイレブンのセーブではないようです(coll/coinsが無い)");
+  await _writeRaw(JSON.stringify(obj)); // 検証済みをそのまま保存(loadGameが次回起動で移行/補完)
+  return true;
+}
 function migrate(){ // 旧カード → 6パラメータ+スキル+ドット絵パーツ
   S.coll=S.coll.map(o=>{
     let c=o;

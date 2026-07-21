@@ -36,6 +36,12 @@
   各能力の高低バランスは保持。coins/cleared/legendPacks 等は維持。
 - **v9変換**: `sub` 未設定のカードに、`c.pos` の大分類に属する細分posを `SUBS_BY` からランダム付与(§3.4)。既存進捗は維持。
 
+### 2.4 セーブの書き出し / 読み込み(端末・URL移行 / バックアップ)
+セーブは `SAVE_KEY="ci-save"` に `JSON.stringify(S)` で1ブロブ保存される(`window.storage` 優先・無ければ `localStorage`)。**localStorage はオリジン(URL)ごとに独立**のため、ホスティングURLが変わると旧セーブは新URLから読めない。移行・バックアップ用に手動の書き出し/読み込みを用意。
+- **`exportSave()`**(`state.js`): 保留中の保存を `flushSave` してから現在の `S` を JSON 文字列で返す。
+- **`importSave(text)`**: JSON をパース+検証(オブジェクトで `coll` 配列 / `coins` 数値を持つ=カードイレブンのセーブ)し、`_writeRaw` でストレージへ直接書き込む(反映は呼び出し側で `location.reload()`=次回起動の `loadGame` が移行/欠落補完)。壊れた/別形式の入力は例外で拒否。
+- **UI**: 監督室(office)ヘッダの **「💾 データ」**(`openDataModal`→`#dataModal`)。📤書き出し(テキスト化+`.json`ダウンロード)/ 📥読み込み(貼り付け or ファイル選択→確認→上書き→リロード)。移行手順=旧URLで書き出し→保存→新URLで読み込み。
+
 ---
 
 ---

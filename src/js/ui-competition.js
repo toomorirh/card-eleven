@@ -101,6 +101,23 @@ function openWorldScout(k){
 }
 document.getElementById("scoutClose").onclick=()=>document.getElementById("scoutModal").classList.remove("on");
 
+// ===== セーブデータ 書き出し/読み込み(端末/URL移行・バックアップ) =====
+function openDataModal(){
+  const m=document.getElementById("dataModal"); if(!m)return;
+  const msg=document.getElementById("dataMsg"); if(msg)msg.textContent="";
+  const ta=document.getElementById("dataText"); if(ta)ta.value="";
+  m.classList.add("on");
+}
+function _saveFilename(){ const d=new Date(),p=n=>(""+n).padStart(2,"0"); return `card-eleven-save-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`; }
+(function initDataModal(){
+  const g=id=>document.getElementById(id);
+  const close=g("dataClose"); if(close)close.onclick=()=>g("dataModal").classList.remove("on");
+  const exp=g("dataExportBtn"); if(exp)exp.onclick=async()=>{ const s=await exportSave(); g("dataText").value=s; g("dataMsg").innerHTML=`✅ 書き出しました(${s.length}文字)。テキストをコピー、または「ファイル保存」してください。`; try{g("dataText").focus();g("dataText").select();}catch(e){} };
+  const dl=g("dataDownloadBtn"); if(dl)dl.onclick=async()=>{ let s=(g("dataText").value||"").trim(); if(!s){s=await exportSave();g("dataText").value=s;} try{ const b=new Blob([s],{type:"application/json"}),a=document.createElement("a"); a.href=URL.createObjectURL(b);a.download=_saveFilename();document.body.appendChild(a);a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},600); g("dataMsg").textContent="💾 ファイルに保存しました。"; }catch(e){ g("dataMsg").textContent="ファイル保存に失敗: "+e.message; } };
+  const imp=g("dataImportBtn"); if(imp)imp.onclick=async()=>{ const t=g("dataText").value; if(!t||!t.trim()){g("dataMsg").textContent="読み込むテキストがありません。";return;} if(!confirm("現在の進行を上書きして読み込みます。よろしいですか?"))return; try{ await importSave(t); g("dataMsg").textContent="✅ 読み込み完了。再読み込みします…"; setTimeout(()=>location.reload(),700); }catch(e){ g("dataMsg").textContent="❌ "+e.message; } };
+  const fi=g("dataFile"); if(fi)fi.onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ g("dataText").value=String(r.result||""); g("dataMsg").textContent="📁 ファイルを読み込みました。「読み込み」で反映します。"; }; r.readAsText(f); try{fi.value="";}catch(_){} };
+})();
+
 // ================= リーグ戦モード =================
 const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c.name)]; // 自分+8クラブ=9チーム(内部キー)
 const lgName=i=>i===0?myName():LG_CLUBS[i]; // 表示名(自分はプロフィールのチーム名)
@@ -491,7 +508,9 @@ function renderOffice(){
   card.innerHTML=`<div class="wt-info"><div class="wt-name">${myName()}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div></div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
-  card.appendChild(ed);head.appendChild(card);
+  card.appendChild(ed);
+  const dt=mk("button","btn ghost");dt.textContent="💾 データ";dt.style.cssText="width:auto;flex:0 0 auto;margin-left:6px";dt.onclick=()=>openDataModal();
+  card.appendChild(dt);head.appendChild(card);
   document.querySelectorAll('#ofTabs [data-o]').forEach(b=>b.onclick=()=>_selectOfTab(b.dataset.o));
   _selectOfTab(_ofTab);
 }

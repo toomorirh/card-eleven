@@ -1306,6 +1306,24 @@ h1{text-shadow:2px 2px 0 #06301c,0 0 14px rgba(232,194,90,.35)}
     <div class="row" style="margin-top:12px"><button class="btn" id="pfSave">契約する</button></div>
   </div>
 </div>
+<div class="modal" id="dataModal">
+  <div class="sheet">
+    <button class="close-btn" id="dataClose">☒</button>
+    <h3 style="margin:0 0 6px">💾 セーブデータの書き出し / 読み込み</h3>
+    <div class="lg" style="margin-bottom:8px">別URL・別端末への移行やバックアップに使えます。<b>「書き出し」</b>でテキスト化→保存、移行先で貼り付けて<b>「読み込み」</b>。<br>⚠ 読み込むと<b>現在の進行は上書き</b>されます。</div>
+    <div class="row" style="gap:6px;margin-bottom:6px">
+      <button class="btn" id="dataExportBtn" style="flex:1;white-space:nowrap">📤 書き出し</button>
+      <button class="btn ghost" id="dataDownloadBtn" style="flex:0 0 auto;white-space:nowrap">💾 ファイル保存</button>
+    </div>
+    <textarea id="dataText" spellcheck="false" placeholder="ここにセーブデータのテキストが表示されます。移行先ではここに貼り付けてください。" style="width:100%;height:120px;box-sizing:border-box;font-size:11px;font-family:monospace;background:#0c1626;color:#cfe0f2;border:1px solid #2a3d56;border-radius:8px;padding:8px;resize:vertical"></textarea>
+    <div class="row" style="gap:6px;margin-top:6px">
+      <button class="btn" id="dataImportBtn" style="flex:1;white-space:nowrap">📥 読み込み</button>
+      <label class="btn ghost" for="dataFile" style="flex:0 0 auto;white-space:nowrap;cursor:pointer">📁 ファイル選択</label>
+      <input type="file" id="dataFile" accept=".json,.txt,application/json" style="display:none">
+    </div>
+    <div class="lg" id="dataMsg" style="margin-top:6px;min-height:16px"></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <div class="packov" id="packOverlay"><div class="packstage" id="packStage"></div></div>
 
@@ -4927,6 +4945,21 @@ function deleteSave(){
   if(typeof window!=="undefined"&&window.storage){try{window.storage.set(SAVE_KEY,"");}catch(e){}}
   try{localStorage.removeItem(SAVE_KEY);}catch(e){}
 }
+// ストレージへ生JSON文字列を直接書き込む(インポート用)。window.storage優先・無ければlocalStorage。
+async function _writeRaw(v){
+  if(typeof window!=="undefined"&&window.storage){try{await withTimeout(window.storage.set(SAVE_KEY,v),2500);}catch(e){}}
+  else{try{localStorage.setItem(SAVE_KEY,v);}catch(e){}}
+}
+// セーブのエクスポート: 保留中の保存をフラッシュし、現在のセーブ状態SをJSON文字列で返す(端末/URL移行・バックアップ用)。
+async function exportSave(){ if(typeof flushSave==="function")await flushSave(); S.nextId=uid; return JSON.stringify(S); }
+// セーブのインポート: JSON文字列を検証してストレージへ書き込む(反映は呼び出し側でreload)。壊れた入力は例外。
+async function importSave(text){
+  let obj; try{ obj=JSON.parse(String(text||"").trim()); }catch(e){ throw new Error("JSONとして読み取れません(コピー漏れの可能性)"); }
+  if(!obj||typeof obj!=="object"||Array.isArray(obj)) throw new Error("セーブデータの形式ではありません");
+  if(!Array.isArray(obj.coll)||typeof obj.coins!=="number") throw new Error("カードイレブンのセーブではないようです(coll/coinsが無い)");
+  await _writeRaw(JSON.stringify(obj)); // 検証済みをそのまま保存(loadGameが次回起動で移行/補完)
+  return true;
+}
 function migrate(){ // 旧カード → 6パラメータ+スキル+ドット絵パーツ
   S.coll=S.coll.map(o=>{
     let c=o;
@@ -5968,6 +6001,23 @@ function openWorldScout(k){
 }
 document.getElementById("scoutClose").onclick=()=>document.getElementById("scoutModal").classList.remove("on");
 
+// ===== セーブデータ 書き出し/読み込み(端末/URL移行・バックアップ) =====
+function openDataModal(){
+  const m=document.getElementById("dataModal"); if(!m)return;
+  const msg=document.getElementById("dataMsg"); if(msg)msg.textContent="";
+  const ta=document.getElementById("dataText"); if(ta)ta.value="";
+  m.classList.add("on");
+}
+function _saveFilename(){ const d=new Date(),p=n=>(""+n).padStart(2,"0"); return `card-eleven-save-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`; }
+(function initDataModal(){
+  const g=id=>document.getElementById(id);
+  const close=g("dataClose"); if(close)close.onclick=()=>g("dataModal").classList.remove("on");
+  const exp=g("dataExportBtn"); if(exp)exp.onclick=async()=>{ const s=await exportSave(); g("dataText").value=s; g("dataMsg").innerHTML=`✅ 書き出しました(${s.length}文字)。テキストをコピー、または「ファイル保存」してください。`; try{g("dataText").focus();g("dataText").select();}catch(e){} };
+  const dl=g("dataDownloadBtn"); if(dl)dl.onclick=async()=>{ let s=(g("dataText").value||"").trim(); if(!s){s=await exportSave();g("dataText").value=s;} try{ const b=new Blob([s],{type:"application/json"}),a=document.createElement("a"); a.href=URL.createObjectURL(b);a.download=_saveFilename();document.body.appendChild(a);a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},600); g("dataMsg").textContent="💾 ファイルに保存しました。"; }catch(e){ g("dataMsg").textContent="ファイル保存に失敗: "+e.message; } };
+  const imp=g("dataImportBtn"); if(imp)imp.onclick=async()=>{ const t=g("dataText").value; if(!t||!t.trim()){g("dataMsg").textContent="読み込むテキストがありません。";return;} if(!confirm("現在の進行を上書きして読み込みます。よろしいですか?"))return; try{ await importSave(t); g("dataMsg").textContent="✅ 読み込み完了。再読み込みします…"; setTimeout(()=>location.reload(),700); }catch(e){ g("dataMsg").textContent="❌ "+e.message; } };
+  const fi=g("dataFile"); if(fi)fi.onchange=e=>{ const f=e.target.files&&e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ g("dataText").value=String(r.result||""); g("dataMsg").textContent="📁 ファイルを読み込みました。「読み込み」で反映します。"; }; r.readAsText(f); try{fi.value="";}catch(_){} };
+})();
+
 // ================= リーグ戦モード =================
 const LG_CLUBS=["マイチーム",...CLUBS.map(c=>c.name)]; // 自分+8クラブ=9チーム(内部キー)
 const lgName=i=>i===0?myName():LG_CLUBS[i]; // 表示名(自分はプロフィールのチーム名)
@@ -6358,7 +6408,9 @@ function renderOffice(){
   card.innerHTML=`<div class="wt-info"><div class="wt-name">${myName()}</div>`
     +`<div class="lv">🤝 フレンド勝率 ${tot?`<b>${wr}%</b> (${w}W ${d}D ${l}L)`:"—"} ・ 🏅 実績 <b>${done}</b>/${ACHIEVEMENTS.length}</div></div>`;
   const ed=mk("button","btn ghost");ed.textContent="👤 編集";ed.style.cssText="width:auto;flex:0 0 auto;margin-left:8px";ed.onclick=()=>openProfile(false);
-  card.appendChild(ed);head.appendChild(card);
+  card.appendChild(ed);
+  const dt=mk("button","btn ghost");dt.textContent="💾 データ";dt.style.cssText="width:auto;flex:0 0 auto;margin-left:6px";dt.onclick=()=>openDataModal();
+  card.appendChild(dt);head.appendChild(card);
   document.querySelectorAll('#ofTabs [data-o]').forEach(b=>b.onclick=()=>_selectOfTab(b.dataset.o));
   _selectOfTab(_ofTab);
 }
