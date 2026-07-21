@@ -550,7 +550,12 @@ function cupClubPool(cup){const[mn,mx]=cup.poolLv||[3,10];
 function drawCupBracket(cup){
   const pool=cupClubPool(cup).slice();
   for(let i=pool.length-1;i>0;i--){const j=ri(0,i);[pool[i],pool[j]]=[pool[j],pool[i]];}
-  const teams=["__me",...pool.slice(0,cup.size-1)];
+  let others=pool.slice(0,cup.size-1);
+  if(cup.id==="international"){ // 国際クラブカップは名将クラブ(壁)を1-2チーム混入し優勝を阻む
+    const legs=legendClubIds(); for(let i=legs.length-1;i>0;i--){const j=ri(0,i);[legs[i],legs[j]]=[legs[j],legs[i]];}
+    others=legs.slice(0,1+ri(0,1)).concat(others).slice(0,cup.size-1); // 先頭に1-2名将クラブ→size-1に切り詰め
+  }
+  const teams=["__me",...others];
   while(teams.length<cup.size)teams.push(pool[teams.length%(pool.length||1)]||"aizen"); // プール不足時の保険
   for(let i=teams.length-1;i>0;i--){const j=ri(0,i);[teams[i],teams[j]]=[teams[j],teams[i]];} // シード=ランダム
   return [teams];
@@ -588,7 +593,27 @@ const OPP_CLUBS={
   oc_ch:{name:"サザンクロス",         lv:10, form:"5-4-1",   seed:3025, boss:true},
   // 宿敵(ネメシス): 各DIVの日程に注入され昇格しても付いてくる恒常ライバル。lvは div に応じて動的(careerOpponent)。
   nemesis:{name:"レガリアFC",         lv:5,  form:"4-3-3",   seed:3099, boss:true, rival:true},
+  // ===== 名将クラブ(壁): 各名将が率いる平均OVR≈105(lv11)の超強豪。大陸リーグ/国際カップに1-2チーム乱入し優勝を阻む。 =====
+  // mgr=率いる名将id / legend=名将クラブ印(将来の攻略イベント用)。lv11(=poolLv5-10外)なので通常プールには出ず、明示注入のみ。seed固定で偵察可。
+  lg_poss:{name:"ソル・ブラウ",       lv:11, form:"4-3-3",   seed:3200, mgr:"poss",      legend:true, boss:true},
+  lg_press:{name:"ロートブリッツ",    lv:11, form:"4-3-3",   seed:3201, mgr:"press",     legend:true, boss:true},
+  lg_maestro:{name:"ステラ・ビアンカ", lv:11, form:"4-3-1-2", seed:3202, mgr:"maestro",   legend:true, boss:true},
+  lg_special:{name:"ネロ・ムーロ",    lv:11, form:"4-2-3-1", seed:3203, mgr:"specialist",legend:true, boss:true},
+  lg_boss:{name:"レッド・レックス",   lv:11, form:"4-4-2",   seed:3204, mgr:"boss",       legend:true, boss:true},
+  lg_gala:{name:"ギャラクティコス",   lv:11, form:"4-3-3",   seed:3205, mgr:"galactico",  legend:true, boss:true},
+  lg_prof:{name:"インヴィンシブルズ", lv:11, form:"4-2-3-1", seed:3206, mgr:"professor",  legend:true, boss:true},
+  lg_cholo:{name:"コルチョネロス",    lv:11, form:"4-4-2",   seed:3207, mgr:"cholo",      legend:true, boss:true},
+  lg_cruyff:{name:"トタール・オラニエ",lv:11, form:"3-4-3",   seed:3208, mgr:"cruyff",     legend:true, boss:true},
+  lg_sacchi:{name:"イル・グランデ",   lv:11, form:"4-4-2",   seed:3209, mgr:"sacchi",     legend:true, boss:true},
+  lg_bielsa:{name:"ラ・マキナ",       lv:11, form:"3-4-3",   seed:3210, mgr:"bielsa",     legend:true, boss:true},
+  lg_conte:{name:"ビアンコネロ",      lv:11, form:"3-5-2",   seed:3211, mgr:"conte",      legend:true, boss:true},
+  lg_zico:{name:"セレソン・ドラード", lv:11, form:"4-2-2-2", seed:3212, mgr:"zico",       legend:true, boss:true},
+  lg_litti:{name:"シュヴァルツアドラー",lv:11,form:"3-5-2",   seed:3213, mgr:"litti",      legend:true, boss:true},
+  lg_bosque:{name:"フリア・ロハ",     lv:11, form:"4-3-3",   seed:3214, mgr:"bosque",     legend:true, boss:true},
+  lg_capello:{name:"ロンドン・クラウン",lv:11,form:"5-3-2",   seed:3215, mgr:"capello",    legend:true, boss:true},
 };
+// 名将クラブのid一覧(壁の抽選に使う)。
+function legendClubIds(){return Object.keys(OPP_CLUBS).filter(k=>OPP_CLUBS[k].legend);}
 // 大陸リーグ(DIV1制覇後に解禁・6節シーズン制)。制覇でその大陸の系統ステに特化したboostを獲得(高倍率)。
 // clubs=6節の相手(共通強豪5+大陸王者)。stat=伸びる系統 / base=boost基準(×perf 0.4〜1.0)。
 const CONTINENTS=[
@@ -625,7 +650,8 @@ function careerOpponent(cr){
   if(!cr)return null;
   let id;
   if(cr.cup){ const cur=(cr.cup.bracket||[])[cr.cup.round]||[]; const mi=cur.indexOf("__me"); id=mi<0?null:cur[mi^1]; } // __meの対戦ペア
-  else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)]; }
+  else if(cr.contId){ const c=continentById(cr.contId); const pool=c?c.clubs:[]; id=pool[(cr.node||0)%(pool.length||1)];
+    const b=(cr.contBosses||[]).find(x=>x.node===(cr.node||0)); if(b)id=b.id; } // 名将クラブ(壁)が割り当てられた節はそれに差し替え
   else { const pool=careerLeaguePool(cr); id=pool[(cr.node||0)%pool.length]; }
   return careerClubById(cr,id);
 }

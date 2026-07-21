@@ -302,7 +302,7 @@ function careerRecordResult(cr,sh,sa){
       cr.boosts.push(boost); cr.contWon=cr.contWon||[]; cr.contWon.push(cont.id);
       out.seasonEnd=true; out.boost=boost; out.contName=cont.name; out.contStat=cont.stat; out.seasonPts=cr.pts;
       cr.history[hi].season=true; cr.history[hi].pct=Math.round((mul-1)*1000)/10;
-      cr.contId=null;                                     // 次の大陸を選べる
+      cr.contId=null; cr.contBosses=null;                 // 次の大陸を選べる(名将クラブ注入もリセット)
     }else{ // DIVシーズン終了 → 全能力boost + 順位で昇格/残留/降格(WCCF風)
       const mul=Math.round((1+(CAREER.boostBase[cr.div]||0.01)*perf)*1000)/1000;
       const boost={pos:"all",stat:"all",mul};
@@ -390,6 +390,7 @@ function oppTeam(lv,club){
   t.subsLeft=TUNING.match.aiSubs;                 // 相手の交代枠
   t.tier=teamTier(t);                             // 統一Tier(OVR算出・CPU相手のみ。監督バフ等の物差し)
   t.mgr=assignOppManager(t);                      // Tier別の相手監督(バフ+采配+性格)
+  if(club.mgr&&typeof managerById==="function"){ const nm=managerById(club.mgr); if(nm){t.mgr=nm;t.personality=t.personality||{main:"bal",sub:"rational"};t.legend=true;} } // 名将クラブ: 指定名将を起用
   if(restore)restore();
   return t;
 }

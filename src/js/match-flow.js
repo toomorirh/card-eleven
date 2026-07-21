@@ -703,6 +703,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
   const opp=careerOpponent(cr); // 名前付き相手(Tier/seed固定)
   const lv=opp?opp.lv:(cr.cup?cr.cup.lv:CAREER.divLv[cr.div]||5);
   const form=opp?opp.form:"4-4-2", seed=opp?opp.seed:undefined;
+  const oppMgr=opp&&opp.mgr; // 名将クラブは指定名将を起用(oppTeamがclub.mgrで上書き)
   cr.oppName=opp?opp.name:(cr.cup?cr.cup.name:`DIV${cr.div}`);
   cr.derby=!!(opp&&opp.derby); // 宿敵戦=ダービー(この試合の結果でonEndが士気報酬/雪辱を処理)
   const cont=cr.contId?continentById(cr.contId):null;
@@ -710,7 +711,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
     :cont?`${cont.emoji} ${cont.name}リーグ 第${cr.node+1}節: ${cr.oppName}`
     :cr.derby?`⚔ ダービー! DIV${cr.div} 第${cr.node+1}節: 宿敵 ${cr.oppName}`
     :`DIV${cr.div} 第${cr.node+1}節: ${cr.oppName}`;
-  _beginMatch(oppTeam(lv,{form,seed}), label, form, lv, -1, team);
+  _beginMatch(oppTeam(lv,{form,seed,mgr:oppMgr}), label, form, lv, -1, team);
   if(team.ctrl<1)feed(`⚠ 統制超過! 編成OVRが統制可能OVRを上回り 全能力 -${Math.round((1-team.ctrl)*100)}%(監督の指揮が追いつかない)`,"chance");
   const hot=team.players.filter(p=>cr.cond[p.c.id]==="peak").map(p=>p.c.name); // 調子ハイライト
   const cold=team.players.filter(p=>cr.cond[p.c.id]==="poor").map(p=>p.c.name);
@@ -757,8 +758,14 @@ function startCont(id){ // 大陸リーグ開幕(DIV1制覇後)。以後 startCa
   const cr=S.career; if(!cr||cr.finished||cr.cup||cr.contId)return;
   if(cr.stage!=="cont"){toast("大陸リーグはDIV1制覇後に解禁されます");return;}
   const c=continentById(id); if(!c)return;
-  cr.contId=id; cr.node=0; cr.pts=0; cr.gf=0; cr.ga=0; save(); renderCareer();
-  toast(`${c.emoji} ${c.name}リーグ開幕! 6節制覇で${MGR_STAT_JP[c.stat]||c.stat}特化バフを獲得`);
+  cr.contId=id; cr.node=0; cr.pts=0; cr.gf=0; cr.ga=0;
+  // 名将クラブ(壁)を1-2チーム、6節のうちランダムな節に注入(優勝を阻む壁)
+  const legs=legendClubIds().slice(); for(let i=legs.length-1;i>0;i--){const j=ri(0,i);[legs[i],legs[j]]=[legs[j],legs[i]];}
+  const nodes=[0,1,2,3,4,5]; for(let i=nodes.length-1;i>0;i--){const j=ri(0,i);[nodes[i],nodes[j]]=[nodes[j],nodes[i]];}
+  cr.contBosses=nodes.slice(0,1+ri(0,1)).map((nd,i)=>({node:nd,id:legs[i]}));
+  save(); renderCareer();
+  const bn=cr.contBosses.map(b=>(OPP_CLUBS[b.id]||{}).name).filter(Boolean).join("、");
+  toast(`${c.emoji} ${c.name}リーグ開幕! 6節制覇で${MGR_STAT_JP[c.stat]||c.stat}特化バフ${bn?` ／ 💫名将クラブ「${bn}」が立ちはだかる!`:""}`);
 }
 function careerFinalize(){ // カスタム監督を確定して登録
   const cr=S.career; if(!cr)return;

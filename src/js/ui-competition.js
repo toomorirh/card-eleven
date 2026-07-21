@@ -651,7 +651,7 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
       const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
       if(cr.cup){ // カップ進行中: 敗退/優勝までカップ戦のみ選択可
         const rl=roundLabel((cr.cup.bracket[cr.cup.round]||[]).length);
-        const oppTxt=opp?`相手: ${opp.name}${opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
+        const oppTxt=opp?`相手: ${opp.name}${oppBadge(opp)}(OVR約${oppOvr}・${opp.form})`:"";
         wrap.appendChild(row("cur",cr.cup.emoji,`${wk} ・ ${cr.cup.name}`,`${rl} ・ ${oppTxt}`,`<span class="wt-res cur">${rl}</span>`));
         if(!noActions){
           const panel=document.createElement("div");panel.className="cur-actions";
@@ -665,7 +665,7 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
         const cupsHere=CUPS.filter(c=>cupEntryWeek(c,i));
         const cupOpp=cupsHere.length?` ・ ${cupsHere.map(c=>c.emoji).join("")}カップ参加機会`:"";
         const league=cont?`${cont.emoji}${cont.name}リーグ 第${cr.node+1}/${CAREER.nodes}節`:needCont?"大陸リーグ(選択待ち)":`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節`;
-        const oppTxt=(opp&&!needCont)?` ・ 次戦: ${opp.name}${opp.derby?" ⚔宿敵":opp.boss?" 👑":""}(OVR約${oppOvr}・${opp.form})`:"";
+        const oppTxt=(opp&&!needCont)?` ・ 次戦: ${opp.name}${oppBadge(opp)}(OVR約${oppOvr}・${opp.form})`:"";
         wrap.appendChild(row("cur","▶",`${wk} ・ 次の活動`,`${league}${oppTxt}${cupOpp}`,""));
         if(!noActions){
           const panel=document.createElement("div");panel.className="cur-actions";
@@ -687,6 +687,8 @@ function careerScheduleList(cr,noActions){ // noActions=現在週の操作ボタ
   }
   return wrap;
 }
+// 相手クラブのバッジ(優先: 宿敵⚔ > 名将クラブ💫 > 看板ボス👑)。
+function oppBadge(o){ if(!o)return ""; if(o.derby)return " ⚔宿敵"; if(o.legend)return " 💫名将"; if(o.boss)return " 👑"; return ""; }
 // リーグ順位表(WCCF風): 自チーム(🎓)+同DIV6クラブ(⚔=宿敵)。緑=昇格圏/赤=降格圏。
 function careerStandingsTable(cr){
   const rows=(typeof careerStandings==="function")?careerStandings(cr):[]; if(!rows.length)return null;
@@ -834,7 +836,7 @@ function careerCurrentActivity(cr){
   const opp=careerOpponent(cr), oppOvr=opp?Math.round((6.6+opp.lv)*6):0;
   if(cr.cup){
     const rl=roundLabel((cr.cup.bracket[cr.cup.round]||[]).length);
-    const oppTxt=opp?`相手: <span class="scout-name">${opp.name}${opp.boss?" 👑":""} <span class="scout-hint">🔍</span></span>(OVR約${oppOvr}・${opp.form})`:"";
+    const oppTxt=opp?`相手: <span class="scout-name">${opp.name}${oppBadge(opp)} <span class="scout-hint">🔍</span></span>(OVR約${oppOvr}・${opp.form})`:"";
     wrap.innerHTML=`<div class="cn-head">${cr.cup.emoji} ${cr.cup.name} ・ ${rl}</div><div class="lg">${oppTxt}</div>`;
     const p=document.createElement("div");p.className="cur-actions";
     p.appendChild(actBtn(`▶ ${rl}`,startCareerMatch));
@@ -843,7 +845,7 @@ function careerCurrentActivity(cr){
   }else{
     const cont=cr.contId?continentById(cr.contId):null, needCont=cr.stage==="cont"&&!cr.contId;
     const league=cont?`${cont.emoji}${cont.name}リーグ 第${cr.node+1}/${CAREER.nodes}節`:needCont?"大陸リーグ(選択待ち)":`DIV${cr.div} 第${cr.node+1}/${CAREER.nodes}節`;
-    const oppTxt=(opp&&!needCont)?`次戦: <span class="scout-name">${opp.name}${opp.derby?" ⚔宿敵":opp.boss?" 👑":""} <span class="scout-hint">🔍</span></span>(OVR約${oppOvr}・${opp.form})`:"";
+    const oppTxt=(opp&&!needCont)?`次戦: <span class="scout-name">${opp.name}${oppBadge(opp)} <span class="scout-hint">🔍</span></span>(OVR約${oppOvr}・${opp.form})`:"";
     wrap.innerHTML=`<div class="cn-head">▶ 第${cr.step+1}週 ・ ${league}</div><div class="lg">${oppTxt}</div>`;
     const p=document.createElement("div");p.className="cur-actions";
     if(needCont)p.appendChild(actBtn("① 大陸リーグ選択",careerContPicker));
@@ -872,7 +874,7 @@ function nextCupEntryWeek(cup,step){for(let w=step;w<CAREER.steps*3+CAREER.exten
 // まだ確定していない先のラウンドは「?」枠で全体像(size強)を見せる。チーム名タップで偵察。
 function cupBracketView(cup,cr){
   const wrap=document.createElement("div");wrap.className="cup-bracket";
-  const nm=id=>id==="__me"?myName():((OPP_CLUBS[id]||{}).name||id);
+  const nm=id=>id==="__me"?myName():((OPP_CLUBS[id]||{}).name||id)+((OPP_CLUBS[id]||{}).legend?"💫":"");
   const totalRounds=cup.rounds||cup.bracket.length;
   for(let r=0;r<totalRounds;r++){
     const teams=cup.bracket[r], next=cup.bracket[r+1];
@@ -1052,7 +1054,7 @@ function scoutClub(opp){
   if(!opp)return;
   const t=oppTeam(opp.lv,{form:opp.form,seed:opp.seed});
   const ovr=Math.round(t.players.reduce((s,p)=>s+p.c.off+p.c.def+p.c.pow+p.c.tec+p.c.spd+p.c.sta,0)/t.players.length);
-  renderScout(`偵察: ${opp.name}${opp.boss?" 👑":""}`,
+  renderScout(`偵察: ${opp.name}${oppBadge(opp)}`,
     `平均OVR <b style="color:var(--gold)">${ovr}</b> ／ 陣形 <b>${opp.form}</b>${FORM_DESC[opp.form]?`<br><span class="lc-desc">${FORM_DESC[opp.form]}</span>`:""}`, t);
 }
 function careerScout(cr){ scoutClub(careerOpponent(cr)); }
