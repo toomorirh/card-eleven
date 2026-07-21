@@ -711,7 +711,7 @@ function startCareerMatch(){ // ①リーグ / 大陸 / カップ戦の1試合�
 function startCup(id){ // ②カップ: エントリー週かつ条件を満たせばカップを開始(以後 startCareerMatch がカップ戦になる)
   const cr=S.career; if(!cr||cr.finished||cr.cup)return;
   const cup=cupById(id); if(!cup){return;}
-  if(cr.step>=CAREER.steps){toast("任期は終了しています");return;}
+  if(cr.step>=(cr.stepsMax||CAREER.steps)){toast("任期は終了しています");return;} // 延長後の任期(stepsMax)を尊重
   if(!cup.cond(cr)){toast(`出場条件を満たしていません(${cup.condText})`);return;}
   if(!cupEntryWeek(cup,cr.step)){toast(`${cup.name}は${cup.period}の倍数の週のみエントリー可能です`);return;}
   cr.cup={id:cup.id,name:cup.name,emoji:cup.emoji,pool:cup.pool,size:cup.size,rounds:cup.rounds,round:0,bracket:drawCupBracket(cup)};
