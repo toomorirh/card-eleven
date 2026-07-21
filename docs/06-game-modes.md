@@ -142,6 +142,7 @@
 将来の「監督キャリアモード」で育成する**自作監督**の基盤。名将(MANAGERS)が `boost`1個＋`tac`0〜1なのに対し、カスタム監督は **`boosts[]`＋`tacs[]` を複数積める**(=名将を超えうる)。
 - **正規化**: `mgrBoosts(m)`/`mgrTacs(m)` が単数(名将)/複数(カスタム)を配列に統一。エンジンは常に配列で処理=名将は完全に従来通り。
 - **適用**: `mgrMul` は該当する全 boost を**乗算**。采配は `mgrCarryTac`(攻撃tac群を順に判定)と `mgrCbTac`(守備cb tacを取得)で**複数tac**に対応。
+- **各采配は1試合1回まで**(`team._firedTacs` に発動済み采配名を記録・`mgrCarryTac`/`mgrCbTac` がスキップ)。カスタム監督は複数采配を積めるが**各1回**なので、単一采配の名将との発動回数の格差を抑制(複数積むほど「毎回どれか発動」にならない)。`_firedTacs` はチーム単位=試合ごとにリセット。
 - **生成/保持/起用**: `createCustomManager({name,boosts,tacs})` が `S.customMgrs` に登録。`managerById`/`activeManager` が名将とカスタムの両方を解決。`renderManagers` の「🎓 あなたのカスタム監督」セクションから**コイン不要で起用**(`rentManager` が `m.custom` を分岐)。肖像はシート未登録のため `mgrPortrait` がプレースホルダ(🎓バッジ)を描画。
 - **キャリアループ(フェーズ2・実装済み)**: `CAREER`設定。任期 `steps`=48・1ステップ=1試合。`S.career{name,step,div,node,pts,gf,ga,ovrCap,boosts[],tacs[]}`。
   - **編成**: 手持ち(`S.coll`)から **OVR合計が `ovrCap` 以内の最強XI** を自動構築(`careerTeam`=貪欲+トリム)。練習で `ovrCap` を `practiceCap` ずつ緩和(`capMax` 上限)。

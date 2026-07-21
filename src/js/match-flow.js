@@ -136,11 +136,13 @@ function mgrCarryTac(A,carrier){
   if(!MC||(MC.volt||0)<TUNING.volt.tacGate)return null;       // ボルテージが一定以上
   if(!A||!A.mgr)return null;                                   // 自チーム/相手監督どちらの攻撃采配も発火
   const surge=1+(A.ctrlSurge||0); // 統率に余裕があるほど采配が出やすい(隠し・最大×1.20)
+  const fired=A._firedTacs||(A._firedTacs=new Set()); // 各采配は1試合1回まで(カスタム監督の複数スキル格差を抑制)
   for(const tac of mgrTacs(A.mgr)){                            // カスタム監督は複数tacを順に判定(名将は単数)
     if(tacIsDef(tac.from))continue;                           // 守備采配(cb=ブロック/gk=セーブ)は tryShot 側で発火
-    if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance*surge)return tac; continue; } // 国際チームスキルはfrom不問
+    if(fired.has(tac.name))continue;                          // この采配は既に今試合発動済み
+    if(tac.kind==="team"){ if(tacCondMet(tac,A)&&Math.random()<tac.chance*surge){fired.add(tac.name);return tac;} continue; } // 国際チームスキルはfrom不問
     if(!tacFromMatch(tac,carrier)||!tacCondMet(tac,A))continue; // 起点が采配のキープレイヤーか
-    if(Math.random()<tac.chance*surge)return tac;
+    if(Math.random()<tac.chance*surge){fired.add(tac.name);return tac;}
   }
   return null;
 }
@@ -452,6 +454,7 @@ async function tryShot(atk,A,D,min,header,fx0,fy0,assist,kind){
   if(MC&&D&&D.mgr&&(MC.volt||0)>=TUNING.volt.tacGate){
     const dtac=mgrCbTac(D); // 守る側(D)の守備采配(cb/gk)を1つ取得
     if(dtac&&Math.random()<dtac.chance*(1+(D.ctrlSurge||0))){ // 統率の余裕で発動率アップ(隠し)
+      (D._firedTacs||(D._firedTacs=new Set())).add(dtac.name); // 各采配は1試合1回まで
       const dlabel=D.side==="H"?"🎓 監督":"⚠ 相手監督";
       if(tacAct(dtac.from)==="save"){ // 守護神のセーブ: GKがスーパーセーブ
         const gk=pickGK(D);gk.stat.saves++;gk.stat.inv++;

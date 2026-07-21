@@ -481,7 +481,8 @@ function eff(p,k,min,T,opT){
 // 自チーム(H)が持つ tac 群から条件を満たす守備采配(cb=ブロック / gk=セーブ)を1つ返す(発動抽選は呼び出し側)。
 function mgrCbTac(team){
   if(!team||!team.mgr)return null; // 守備采配は自チーム/相手監督どちらも可(呼び出し側が守る側チームを渡す)
-  for(const t of mgrTacs(team.mgr)){ if(tacIsDef(t.from)&&tacCondMet(t,team))return t; }
+  const fired=team._firedTacs; // 各采配は1試合1回まで(発動済みは返さない)
+  for(const t of mgrTacs(team.mgr)){ if(tacIsDef(t.from)&&tacCondMet(t,team)&&!(fired&&fired.has(t.name)))return t; }
   return null;
 }
 function tacCondMet(tac,team){return tac.cond.every(([sub,st,th])=>team.players.some(p=>p.subRole===sub&&p.c[st]>=th));}
