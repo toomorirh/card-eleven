@@ -40,6 +40,9 @@ const EMOTIONALS = extractLiteral("EMOTIONALS", "[", "]");
 const TYPES = extractLiteral("TYPES", "{", "}");
 const SKILLS = extractLiteral("SKILLS", "{", "}");   // 通常スキル(ポジ×レア r/sr の [name,desc,fx])
 const LSKILLS = extractLiteral("LSKILLS", "{", "}"); // レジェンド専用スキル(ポジ別 [name,desc,fx])
+const MANAGERS = extractLiteral("MANAGERS", "[", "]");     // 名将(boost + tac 采配)
+const CAREER_TACS = extractLiteral("CAREER_TACS", "{", "}"); // 采配プール basic/strong/team
+const TAC_FROM = extractLiteral("TAC_FROM", "{", "}");       // 采配の起点 from → {subs, act}
 
 const ovr = s => s.off + s.def + s.pow + s.tec + s.spd + s.sta;
 // 20到達(最大値)のステは太字で長所を強調
@@ -118,12 +121,59 @@ for (const pos of Object.keys(SKILLS)) {
   skMd += rows.join("\n") + "\n";
 }
 
+// ---- tactics.md (采配スキル) --------------------------------------------
+// MANAGERS[].tac と CAREER_TACS(basic/strong/team)。発動条件(cond/起点/chance)と効果(起点actまたはsurge)を表に。
+const STAT_JP = { off: "攻", def: "守", pow: "力", tec: "技", spd: "速", sta: "持" };
+const ACT_EFFECT = {
+  cross: "クロス→空中戦ボーナス(決定機を創出)",
+  through: "決定的スルーパス→GKと1対1",
+  shot: "起点FW(ST/CF)が強引にボックスへ持ち込みフィニッシュ",
+  block: "相手のシュートをCBが身体を投げ出してブロック(無効化・守備采配)",
+  save: "相手のシュートをGKがスーパーセーブ(無効化・守備采配)",
+};
+const tacCond = t => (t.cond || []).map(([sub, st, th]) => `${sub}の${STAT_JP[st] || st}≥${th}`).join("・") || "—";
+const tacFrom = t => { const tf = TAC_FROM[t.from] || {}; return `${(tf.subs || [t.from]).join("/")}(${tf.act || "?"})`; };
+const tacEffect = t => {
+  if (t.kind === "team") { const s = t.surge || {}; return `🌐サージ: チーム全体を ×${s.mul || 1.2} で ${s.ticks || 3}ティック底上げ`; }
+  let e = ACT_EFFECT[(TAC_FROM[t.from] || {}).act] || "—";
+  if (t.pow) e += ` / 効果強化(pow×${t.pow})`;
+  return e;
+};
+const tacRow = t => `| ${esc(t.name)} | ${esc(tacFrom(t))} | ${esc(tacCond(t))} | ${Math.round((t.chance || 0) * 100)}% | ${esc(tacEffect(t))} |`;
+const tacHead = "| 采配 | 起点(act) | 発動条件 | 発動率 | 効果 |\n|---|---|---|---:|---|\n";
+let tacCount = 0;
+let tacMd = HEAD + "# 采配スキル一覧(参照用・自動生成)\n\n"
+  + "> 正本は [`src/js/data.js`](../../src/js/data.js) の `MANAGERS`(名将の `tac`)/ `CAREER_TACS`(キャリアで習得)。追加・調整後は `node tools/gen_reference.js` で再生成。\n"
+  + "> **発動条件(共通)**: ①ボルテージ `MC.volt ≥ 0.5`(`TUNING.volt.tacGate`=熱気が高い局面) ②発動条件(`cond`)を満たす選手が居る ③**起点(from)の選手が実際にボールの起点になった瞬間** ④`発動率`(chance)判定。**相手(CPU)監督の采配も同じ仕組みで発動**(キャリアで名将とマッチアップした際に炸裂・[ゲームモード §7.10](../06-game-modes.md))。CPU采配は cond を緩和(起点+chanceのみ)。\n"
+  + "> **効果は起点(act)で決まる**: cross=空中戦 / through=1対1 / shot=強引フィニッシュ / block・save=相手シュート無効(守備) / team=サージ(全体一時強化)。守備采配(cb/gk)は相手にシュートされた瞬間に発火。\n";
+// 名将の采配
+const mgrTacs = MANAGERS.filter(m => m.tac);
+tacMd += `\n## 名将の采配(${mgrTacs.length}/${MANAGERS.length}名)\n\n`
+  + "| 名将 | 采配 | 起点(act) | 発動条件 | 発動率 | 効果 |\n|---|---|---|---|---:|---|\n"
+  + mgrTacs.map(m => `| ${esc(m.name)} | ${esc(m.tac.name)} | ${esc(tacFrom(m.tac))} | ${esc(tacCond(m.tac))} | ${Math.round((m.tac.chance || 0) * 100)}% | ${esc(tacEffect(m.tac))} |`).join("\n") + "\n";
+tacCount += mgrTacs.length;
+// キャリアで習得できる采配プール
+const POOL_JP = { basic: "基本(basic)", strong: "強化(strong)", team: "国際チームスキル(team)" };
+for (const pool of Object.keys(CAREER_TACS)) {
+  const list = CAREER_TACS[pool] || [];
+  if (pool === "team") { // 国際チームスキルは起点不問(from-agnostic)=国籍サージ。起点列の代わりに国を表示。
+    tacMd += `\n## キャリア習得: ${POOL_JP[pool]}(${list.length})\n\n`
+      + "| 采配 | 国 | 発動条件 | 発動率 | サージ効果 |\n|---|---|---|---:|---|\n"
+      + list.map(t => `| ${esc(t.name)} | ${t.flag || "—"} | ${esc(tacCond(t))} | ${Math.round((t.chance || 0) * 100)}% | ${esc(tacEffect(t))} |`).join("\n") + "\n";
+  } else {
+    tacMd += `\n## キャリア習得: ${POOL_JP[pool] || pool}(${list.length})\n\n` + tacHead + list.map(tacRow).join("\n") + "\n";
+  }
+  tacCount += list.length;
+}
+
 // ---- write --------------------------------------------------------------
 const outDir = path.join(ROOT, "docs/reference");
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(path.join(outDir, "signatures.md"), sigMd);
 fs.writeFileSync(path.join(outDir, "playstyles.md"), psMd);
 fs.writeFileSync(path.join(outDir, "skills.md"), skMd);
+fs.writeFileSync(path.join(outDir, "tactics.md"), tacMd);
 console.log(`generated docs/reference/signatures.md (${SIGNATURES.length} sig + ${EMOTIONALS.length} emo)`);
 console.log(`generated docs/reference/playstyles.md (${Object.keys(TYPES).reduce((n, p) => n + Object.keys(TYPES[p]).length, 0)} types)`);
 console.log(`generated docs/reference/skills.md (${skillCount} skills)`);
+console.log(`generated docs/reference/tactics.md (${tacCount} tactics)`);
