@@ -83,7 +83,7 @@
 ### 6.6 ファウルとセットプレー(規律)
 - **ファウル判定 `rollFoul(df,type,carrier)`**: 守備側がボール奪取に失敗した局面(`egoRun`/`through`)で低確率にファウル。**発生率に `ageFoul(df)` を乗算**=`AGE_PHASES` の `foul` レバー(若手1.12 → 成長期1.05 → 全盛期1.00 → ベテラン0.90 → 老雄0.84)で、**ベテランほど僅かにファウルしにくい**(`effAge` から `agePhase` を引く)。
 - **カード/退場**: `bookFoul`→警告/退場を抽選(`TUNING.cards`)、`sendOff` で数的不利。詳細は [ゲームモード §7.13 規律](06-game-modes.md)。
-- **負傷**: 各デュエル(`recMatch` 地点)で**勝敗によらず**攻守双方に `TUNING.injury.perDuel` で負傷判定(`rollDuelInjury`→`injurePlayer`)。負傷者は `eff` で**全能力×0.5**。通常戦はその試合限り、キャリアは3試合持続イベント化(治療で早期回復)。詳細は [ゲームモード §7.14 injury](06-game-modes.md)。
+- **負傷**: 各デュエル(`recMatch` 地点)で**勝敗によらず**攻守双方に `TUNING.injury.perDuel` で負傷判定(`rollDuelInjury`→`injurePlayer`)。**GKはデュエルに出ないため毎ティック別途** `TUNING.injury.gkPerTick`(`rollGKInjury`・実測≒両GK計45試合に1回=稀)。負傷者は `eff` で**全能力×0.5**・退場せず出場継続(GKも半減で立つ)。通常戦はその試合限り、キャリアは3試合持続イベント化(治療で早期回復)。控えGK(自ベンチ/相手ベンチ5枚目)で交代可。詳細は [ゲームモード §7.14 injury](06-game-modes.md)。
 - **セットプレー**: `SETPIECES{fk,pk,ck}` レジストリへ `setPiece`/`setCorner` がディスパッチ(再帰防止 `_spActive`)。キッカーは編成ロール(§7.12)の設定選手を優先(`pickKicker`)。
 
 #### 6.5.4 プレースタイルのUI表示

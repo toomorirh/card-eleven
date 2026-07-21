@@ -393,9 +393,9 @@ function oppTeam(lv,club){
   if(restore)restore();
   return t;
 }
-// 相手AI交代の控え要員: DF/MF/MF/FW を数枚、先発平均よりやや低めで生成。試合中に消耗した先発と入替。
+// 相手AI交代の控え要員: 外野4(DF/MF/MF/FW)+控えGK1 を先発平均よりやや低めで生成。試合中に消耗/負傷した先発と入替。
 function makeOppBench(avg,club){
-  const slots=["DF","MF","MF","FW"].slice(0, (TUNING.oppPos&&TUNING.oppPos.benchN)||4);
+  const slots=["DF","MF","MF","FW","GK"].slice(0, (TUNING.oppPos&&TUNING.oppPos.benchN)||5); // 5枚目=控えGK(GK負傷対策)
   return slots.map(grp=>{
     const a=Math.max(3, avg-1+ri(-1,1)); // 控えは先発よりやや低め
     const rar=a>=13?"sr":a>=10?"r":"n";

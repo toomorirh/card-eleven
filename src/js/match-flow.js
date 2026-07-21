@@ -18,16 +18,23 @@ function linkAvailable(type,ctx){
 }
 // 負傷: 1人を負傷させる。負傷者は eff で全能力ダウン(通常戦=その試合限り / キャリア=onEndでイベント化)。
 function injurePlayer(p,T,min){
-  if(!p||p.injured||p.role==="GK")return; // 既に負傷/GKは対象外(数的・演出の破綻回避)
+  if(!p||p.injured)return; // 既に負傷なら何もしない。負傷者は退場せず全能力×debuffで出場継続(GKも可)。
   p.injured=true;
-  feed(`🤕 ${whoPrefix(T)}<b>${p.c.name}</b> が負傷! 全能力がダウン…`,"chance");
+  feed(`🤕 ${whoPrefix(T)}<b>${p.c.name}</b>${p.role==="GK"?"(GK)":""} が負傷! 全能力がダウン…`,"chance");
   if(T&&T.side==="H"&&typeof MC!=="undefined"&&MC){ MC.injuredHome=MC.injuredHome||[]; if(!MC.injuredHome.some(x=>x.id===p.c.id))MC.injuredHome.push({id:p.c.id,name:p.c.name}); }
 }
-// デュエルのたびに勝敗によらず、攻撃側・守備側の各選手へごく低確率で負傷判定(TUNING.injury.perDuel)。
+// デュエルのたびに勝敗によらず、攻撃側・守備側の各選手へごく低確率で負傷判定(TUNING.injury.perDuel)。GKはデュエルに出ない。
 function rollDuelInjury(atk,df,A,D,min){
   const I=TUNING.injury; if(!I||!I.perDuel)return;
   if(atk&&!atk.injured&&Math.random()<I.perDuel)injurePlayer(atk,A,min);
   if(df&&!df.injured&&Math.random()<I.perDuel)injurePlayer(df,D,min);
+}
+// GKはデュエル(マッチアップ)に出ないため、毎ティック両GKへ別途ごく低確率で負傷判定(TUNING.injury.gkPerTick)。
+// 負傷GKは退場せず能力半減で出場継続(数的破綻なし)→ 控えGKがいれば交代推奨。
+function rollGKInjury(M){
+  const I=TUNING.injury; if(!I||!I.gkPerTick||!M)return;
+  [M.home,M.away].forEach(T=>{ if(!T)return; const gk=T.players.find(p=>p.role==="GK");
+    if(gk&&!gk.injured&&Math.random()<I.gkPerTick)injurePlayer(gk,T,M.min); });
 }
 // 自分で持ち込む系(dribble/cut-in)の共通実行。carrierがマッチアップ守備者を抜いて自らシュート(エゴ)。
 async function egoRun(ctx,type){
@@ -515,6 +522,7 @@ async function tickAsync(){
   M.home._ctrl=flowControl(M.home); M.away._ctrl=flowControl(M.away); // 支配力(mid支配率スキル/支配型)を毎ティック算出
   M.home.tactic=S.tactic;M.home.style=S.style;
   if((MT.styleUpdMins||[]).indexOf(M.min)>=0)oppStyleUpdate(M); // 相手監督の性格(サブ)によるポジ戦術の入替
+  rollGKInjury(M); // GKの稀な負傷(毎ティック・両GK)
   { const worry=M.away.personality&&M.away.personality.sub==="worry"; // 心配性は交代が早い
     if(((worry?MT.aiSubMinsWorry:MT.aiSubMins)||[]).indexOf(M.min)>=0)aiAwaySub(M); }
   // 支配率シェア = midPower比 に モメンタム(勢い)を反映(良いプレーを続けた側が実際に支配を上げる)。
@@ -1205,27 +1213,37 @@ function oppStyleUpdate(M){
     if(b&&b!==A.style){A.style=b;feed(`🎯 ${M.name}が弱点を突く布陣に変えた!【${STYLE_LABEL[A.style]}】`,"chance");}
   } // steadfast / worry: スタイルは変えない
 }
-// 相手AI交代: 最も消耗した先発(GK除く)がwear閾値を超えていれば、控えから最適ポジの選手と入替。心配性は閾値を下げ早めに交代。
-function aiAwaySub(M){
-  const A=M.away;
-  if(!A||!(A.bench&&A.bench.length)||(A.subsLeft||0)<=0)return;
-  const worn=A.players.filter(p=>p.role!=="GK")
-    .map(p=>({p,w:1-fatigue(p,M.min)})).sort((x,y)=>y.w-x.w)[0];
-  const wearTh=(A.personality&&A.personality.sub==="worry")?Math.max(0.3,TUNING.match.aiSubWear-0.15):TUNING.match.aiSubWear;
-  if(!worn||worn.w<wearTh)return; // まだ十分動ける
-  const out=worn.p, benchedOut=A.subbedOut||(A.subbedOut=new Set());
-  const onF=new Set(A.players.map(p=>p.c.id));
-  const cand=(A.bench||[]).filter(c=>!onF.has(c.id)&&!benchedOut.has(c.id))
-    .sort((a,b)=>posFitOf(b,out.subRole)-posFitOf(a,out.subRole)||teamTotal6(b)-teamTotal6(a))[0];
-  if(!cand)return;
+// 相手の交代を実行(out選手→cand控えカード)。np生成/差し替え/スプライト更新/実況までを共通化。
+function _doAwaySub(M,out,cand){
+  const A=M.away, benchedOut=A.subbedOut||(A.subbedOut=new Set());
   const np={c:cand,role:out.role,subRole:out.subRole,pen:posFitOf(cand,out.subRole),x:out.x,y:out.y,enter:M.min,fside:"A",el:out.el,cur:out.cur,
     stat:{shots:0,goals:0,assists:0,duelW:0,duelL:0,tkl:0,saves:0,inv:0,dload:0},
     keyStat:out.keyStat||null,keyMul:out.keyMul||1};
-  const i=A.players.indexOf(out); if(i<0)return;
+  const i=A.players.indexOf(out); if(i<0)return false;
   A.players[i]=np; benchedOut.add(out.c.id); A.subsLeft--;
   if(np.el){ np.el.innerHTML=""; const rg=document.createElement("div");rg.className="ring A";np.el.appendChild(rg);np.el.appendChild(spriteCanvas(cand,26)); }
   recalcAuras(A);
   feed(`🔁 ${M.name}が交代! OUT:${out.c.name} → IN:<b>${cand.name}</b>(${cand.sub})`,"chance");
+  return true;
+}
+// 相手AI交代: ①負傷GKを控えGKと交代(最優先) → ②最も消耗した先発(GK除く)がwear閾値超なら控えと交代。心配性は閾値を下げ早めに。
+function aiAwaySub(M){
+  const A=M.away;
+  if(!A||!(A.bench&&A.bench.length)||(A.subsLeft||0)<=0)return;
+  const benchedOut=A.subbedOut||(A.subbedOut=new Set());
+  const onF=new Set(A.players.map(p=>p.c.id));
+  const freeBench=A.bench.filter(c=>!onF.has(c.id)&&!benchedOut.has(c.id));
+  // ① 負傷GK → 控えGKへ交代(能力半減のGKは危険なので最優先)
+  const gk=A.players.find(p=>p.role==="GK");
+  if(gk&&gk.injured){ const bg=freeBench.filter(c=>subGroup(c.sub)==="GK").sort((a,b)=>teamTotal6(b)-teamTotal6(a))[0];
+    if(bg){ _doAwaySub(M,gk,bg); return; } }
+  // ② 消耗した先発(GK除く)と控えを交代
+  const worn=A.players.filter(p=>p.role!=="GK").map(p=>({p,w:1-fatigue(p,M.min)})).sort((x,y)=>y.w-x.w)[0];
+  const wearTh=(A.personality&&A.personality.sub==="worry")?Math.max(0.3,TUNING.match.aiSubWear-0.15):TUNING.match.aiSubWear;
+  if(!worn||worn.w<wearTh)return; // まだ十分動ける
+  const cand=freeBench.filter(c=>subGroup(c.sub)!=="GK") // 外野枠にGK控えは充てない
+    .sort((a,b)=>posFitOf(b,worn.p.subRole)-posFitOf(a,worn.p.subRole)||teamTotal6(b)-teamTotal6(a))[0];
+  if(cand)_doAwaySub(M,worn.p,cand);
 }
 function closeSub(){
   document.getElementById("subModal").classList.remove("on");

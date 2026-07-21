@@ -166,7 +166,7 @@ const TUNING={
     aiSubMins:[63,75,84], aiSubMinsWorry:[50,62,72], aiSubWear:0.5, aiSubs:3, // 相手AI交代: 指定分に消耗wear超の先発を控えと交代(心配性は早め)
     styleUpdMins:[30,52,70,82]}, // 相手監督の性格によるポジ戦術(スタイル)入替の判定分
   // 相手クラブのポジション適性: Tierが低いほど稀に近接ポジの選手を起用しpen<1(弱いクラブほど編成が歪む)。
-  oppPos:{mismatchBase:0.24, perLv:0.024, min:0.04, benchN:4},
+  oppPos:{mismatchBase:0.24, perLv:0.024, min:0.04, benchN:5},
   // 起点(オリジン)レイヤー: 開放playの4チャンネル(build/overlap/feed/win)。詳細は SPEC §試合エンジン。
   origin:{
     turnoverBase:0.20,         // 奪取(カウンター)の基準率。press(D)/(press+buildSec(T)) を掛ける
@@ -199,7 +199,7 @@ const TUNING={
   cards:{ yellow:0.14, pkYellow:0.30, directRed:0.012, pkDirectRed:0.045 }, // fk=通常ファウル / pk=エリア内(重い)
   // ケガ: デュエルのたびに勝敗によらず敵味方の各選手へごく低確率で発生。負傷者は全能力×debuff。
   // 通常モードはその試合限りのデバフ。キャリアはイベント化して careerWeeks 試合持続(治療で早期回復可)。
-  injury:{ perDuel:0.0035, debuff:0.5, careerWeeks:3 },
+  injury:{ perDuel:0.0035, debuff:0.5, careerWeeks:3, gkPerTick:0.0006 }, // gkPerTick=GKはデュエルに出ないため毎ティックごく低確率で別途負傷判定
   // チームオーラ(teamChance/teamDef)の合算上限。recalcAurasが乗算スタックしていたため、複数の
   // teamDefスキル(例 マルディーニ1.3×ファンダイク1.12×…)を集めると青天井で守備が暴走していた。
   // 加算(Σ(fx-1))して上限を掛けることで、スキル1個なら従来通り・多重スタック時だけ頭打ちにする。

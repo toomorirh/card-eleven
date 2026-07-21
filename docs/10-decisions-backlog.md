@@ -19,6 +19,8 @@
 
 - **SPEC分割＋参照表の自動生成(v2.1)**: 単一SPEC.mdが97KB超に肥大し可読性・編集性が低下、かつパラレル/ロール/規律(カード)/イベント基盤/カップ報酬/監督16名/名声・施設のアカウント恒久化/背景画像/ヘルプ秘書ダイアログ等、**コードにしか無い仕様**が溜まっていた。対策として①本文をトピック別に `docs/01〜10` へ分割し `SPEC.md` を索引化(内容は逐語スライスで移設=転記ミスなし)、②選手/タイプの一覧は `data.js` を正本に `tools/gen_reference.js` で `docs/reference/*.md` へ**自動生成**(手書き転記の同期ズレを排除)、③未記載システムを各docへ追記、④スキーマ表記を v9→**v10** に、名声/施設を `cr.*`→`S.*`(全モード共有)に更新。仕様の値は一切変えていない(ドキュメント整理のみ)。
 
+- **GKの稀な負傷+相手ベンチ5枚(控えGK)対称化(v2.5)**: 相手ベンチが4枚で自チーム(`BENCH_SIZE`=5)と非対称だった(実装時の決め打ち)。`TUNING.oppPos.benchN`=5 にし `makeOppBench` を **外野4+控えGK1** に。併せてGKを負傷可能化: GKはデュエル(マッチアップ)に出ないため `injurePlayer` の GK除外を撤廃し、**毎ティック別ロール** `rollGKInjury`(`TUNING.injury.gkPerTick`=0.0006・実測≒両GK計45試合に1回=稀)を追加。負傷GKは退場せず**能力半減で立ち続ける**(数的破綻なし)ため、控えGKでの交代は任意。相手AIは `aiAwaySub` で**負傷GKを最優先で控えGKと交代**。自チームの自動編成も控えGKを1枚確保。バランス影響はごく稀なため軽微。値は `TUNING.injury.gkPerTick`/`TUNING.oppPos.benchN` で調整可。
+
 - **キャリア: 任期延長後にカップ参加不可バグ修正(v2.4.2)**: `startCup` の任期満了判定が `cr.step>=CAREER.steps`(固定48)で、延長後の `cr.stepsMax`(例72)を見ていなかった。契約延長で step が 48〜stepsMax の間だと「任期は終了しています」でエントリーが弾かれていた。`cr.step>=(cr.stepsMax||CAREER.steps)` に修正(他の任期判定は既に stepsMax 参照済み)。真の満了(step>=stepsMax)は引き続き正しくブロック。
 
 - **キャリア「①任期を締める」無反応バグ修正(v2.4.1)**: 任期満了パネルは `cr.step>=stepsMax` だけで表示していたが、`finalizeCareerIfDone` は `cr.cup||cr.contId`(カップ/大陸シーズン進行中)だと確定を保留して `false` を返す。ボタンは `finalizeCareerIfDone()||renderCareer()` のため、進行中に満了へ達すると **false→同じパネルを再描画=無反応** になっていた。パネル表示条件を `finalizeCareerIfDone` が進める条件(`&&!cr.cup&&!cr.contId`)に一致させ、進行中は通常操作(カップ/大陸の継続プレー)へフォールスルー。決着後に満了パネルが出て確定できる。

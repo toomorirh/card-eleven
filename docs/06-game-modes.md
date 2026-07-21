@@ -22,7 +22,7 @@
 - **ポジション適性(pen)**: 以前は常に `pen:1`(全員ジャスト)だったが、**Tierが低いほど稀に近接ポジの選手を起用**して `pen=posFitOf(c,枠)`<1 とする(`TUNING.oppPos`。不一致率 = `max(min, base − lv×perLv)`、GKは常に専任)。弱いクラブほど編成が歪む=自チームと同じ適性ルールが働く。
 - **キャプテン**: `teamCaptain(away)`(6ステ合計最上位)に `isCaptain` を付与し、自チーム同様に**スタミナ消耗を緩和**(`fatigue` ×`TUNING.fatigue.captain`)。
 - **プレースキッカー**: `assignAutoKickers` が PK(決定力)/FK(技+攻)/CK(力+攻)の最良選手を自動指名し `away.kickers` に格納。`pickKicker` は自チーム=編成ロール・相手=この自動指名を参照。
-- **AI交代(`aiAwaySub`)**: 相手も控え(`oppTeam` が生成する `bench`=DF/MF/MF/FW の数枚・先発よりやや弱め)を持ち、`TUNING.match.aiSubMins`(既定 63/75/84分)に**最も消耗した先発(GK除く)が wear 閾値超なら最適ポジの控えと交代**(最大 `aiSubs`=3回)。終盤の運動量維持=自チームの交代(3枠)と対称。
+- **AI交代(`aiAwaySub`)**: 相手も控え(`oppTeam` が生成する `bench`=**外野4(DF/MF/MF/FW)+控えGK1 の計5枚**・`TUNING.oppPos.benchN`=5・先発よりやや弱め=自チーム `BENCH_SIZE`=5 と対称)を持つ。①**負傷GKを控えGKと交代(最優先)** → ②`TUNING.match.aiSubMins`(既定 63/75/84分)に**最も消耗した先発(GK除く)が wear 閾値超なら最適ポジの控えと交代**(最大 `aiSubs`=3回)。終盤の運動量維持=自チームの交代(3枠)と対称。
 - **監督(`assignOppManager`)**: CPU相手はTierに応じた監督を持つ(バフ+采配+性格)。`eff` の `mgrMul` でバフ適用、`mgrCarryTac`/`mgrCbTac` は自チーム/相手どちらの采配も発火(side制限を撤廃)。
   - **Tier9-10**: **獲得可能な名将(`MANAGERS`)**が指揮(実boost/tac・シート絵アバター)。ワールドツアー相手に相当。
   - **Tier6-8**: 中バフ(全能力×1.03〜1.042)+**上位采配**(`CAREER_TACS.strong`から1つ)。
@@ -222,7 +222,7 @@
   - 🟥 **redcard**`{cardId,name,comp,left}`: レッドカードによる次節欠場(§7.13)。`comp`=リーグ/カップ名。
   - 🌿 **growthboom**`{cardId,name,left}`(成長爆発): **成長期の選手がMOM(勝利かつ最高スタッツ)獲得時に約10%**で発生。今後3試合、その選手の**成長率2倍**(`careerApplyGrowth` が growthboom で ×2)。
   - 🔥 **grit**`{left}`(不屈): **カップ途中敗退／リーグ下位終了時に20%**で発生(`gritRoll`)。今後3試合、チーム全体の**コンディション +1段階**(`careerCondition` が +0.06)。既存の不屈があれば発動しない。
-  - 🤕 **injury**`{cardId,name,left}`(負傷): **試合中のデュエルで勝敗によらず敵味方にごく低確率**(`TUNING.injury.perDuel`=0.007/デュエル・`rollDuelInjury`)で発生。負傷者は**全能力×0.5**(`eff` の `p.injured`=`TUNING.injury.debuff`)。**通常モードはその試合限り**(次戦で消える)。**キャリアは `careerWeeks`=3試合持続**する明確なデバフイベント(onEnd で `MC.injuredHome` から登録、`careerInjured(cr)` が出場時に `p.injured` を付与=除外はしない)。
+  - 🤕 **injury**`{cardId,name,left}`(負傷): **試合中のデュエルで勝敗によらず敵味方にごく低確率**(`TUNING.injury.perDuel`=0.0035/デュエル・`rollDuelInjury`)で発生。**GKはデュエルに出ない**ため別途**毎ティックごく低確率**(`TUNING.injury.gkPerTick`=0.0006・`rollGKInjury`・実測≒両GK計45試合に1回)で負傷。負傷者は**全能力×0.5**(`eff` の `p.injured`=`TUNING.injury.debuff`)で**退場せず出場継続**(GKも半減で立ち続ける=数的破綻なし。控えGKがいれば交代推奨、相手AIは負傷GKを最優先で控えGKと交代)。**通常モードはその試合限り**(次戦で消える)。**キャリアは `careerWeeks`=3試合持続**する明確なデバフイベント(onEnd で `MC.injuredHome` から登録、`careerInjured(cr)` が出場時に `p.injured` を付与=除外はしない)。
     - **治療(メディカル施設)**: `S.fac.medical`≥1 かつ負傷者がいると、キャリアの**③練習が「③治療」に変わる**(`careerCurrentActivity`/`careerScheduleList`)。治療は1ステップ消費し、各負傷を**メディカルLv×15%**で**残り週に関係なく即完治**(`careerTreat`)。施設Lvを上げるほど早期回復しやすい。
     - **秘書コメント**: 負傷発生時(`SEC_EVENT_MSG.injury`)・治療実施時(完治/未完治で文言分岐)に秘書ダイアログを表示。
 - **秘書ダイアログ連携**: 発生時は秘書メッセージ(`SEC_EVENT_MSG`)を画面中段ダイアログで提示(即時系は inline、試合結果系は `secMsgs[]` に集約して結果ボタンで順次表示)。詳細は [カードデザイン §秘書ダイアログ](08-card-design.md)。

@@ -376,7 +376,11 @@ document.getElementById("autoBtn").onclick=async()=>{
     const c=pool.shift();if(c)S.squad[i]=c.id;
   });
   const starters=new Set(Object.values(S.squad)); // 残りの上位をベンチへ自動補充
-  S.bench=S.coll.filter(c=>!starters.has(c.id)).sort((a,b)=>total(b)-total(a)).slice(0,BENCH_SIZE).map(c=>c.id);
+  const rest=S.coll.filter(c=>!starters.has(c.id)).sort((a,b)=>total(b)-total(a));
+  let benchCards=rest.slice(0,BENCH_SIZE);
+  if(!benchCards.some(c=>subGroup(c.sub)==="GK")){ const gk=rest.find(c=>subGroup(c.sub)==="GK"); // 控えGKを1枚確保(GK負傷対策)
+    if(gk)benchCards=benchCards.slice(0,BENCH_SIZE-1).concat([gk]); }
+  S.bench=benchCards.map(c=>c.id);
   await save();renderPitch();toast("自動編成完了!(ベンチ含む)");
 };
 
