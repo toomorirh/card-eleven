@@ -341,11 +341,12 @@ async function kickoffCutin(hc,ac,awayName){
   const o=document.createElement("div");o.className="cutin";
   o.innerHTML=`<div class="band"></div>
    <div class="inner">
-    <div class="side l"><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">${myName()} 主将</div></div>
+    <div class="side l"><div class="kemb"></div><div class="fph"></div><div class="fn">${hc.c.flag} ${hc.c.name}</div><div class="fst">${myName()} 主将</div></div>
     <div class="ctr"><span class="vsmark kickoff">⚽ KICK OFF</span></div>
-    <div class="side r"><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
+    <div class="side r"><div class="kemb"></div><div class="fph"></div><div class="fn">${ac.c.flag} ${ac.c.name}</div><div class="fst">${awayName} 主将</div></div>
    </div>`;
   const ph=o.querySelectorAll(".fph");ph[0].appendChild(spriteCanvas(hc.c,92));ph[1].appendChild(spriteCanvas(ac.c,92));
+  const em=o.querySelectorAll(".kemb");em[0].appendChild(teamEmblem(myName(),52));em[1].appendChild(teamEmblem(awayName,52)); // クラブエンブレム
   document.body.appendChild(o);await sleep(2300);o.remove();
 }
 // GAME SET カットイン: 中央に「GAME SET」+最終スコア(縦中央スタック)。

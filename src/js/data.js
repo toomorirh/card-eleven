@@ -126,6 +126,34 @@ function spriteCanvas(c,hgt){ // 頭部+ボディのアトラス合成
   }
   return cv;
 }
+// クラブエンブレム(クレスト): チーム名から色/形(盾/丸/角丸)/装飾(帯/斜め/シェブロン)/イニシャルを決定論生成した canvas を返す(画像不要)。
+function teamEmblem(name,size){
+  size=size||40; const s=String(name||"?");
+  let h=0; for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+  const hue=h%360, hue2=(h>>4)%360, shape=h%3, deco=(h>>3)%3;
+  const c1=`hsl(${hue},55%,40%)`, c2=`hsl(${hue2},58%,56%)`, dk=`hsl(${hue},50%,17%)`;
+  const cv=document.createElement("canvas");cv.width=size;cv.height=size;cv.className="emblem";
+  const g=cv.getContext("2d"), W=size,H=size,cx=W/2;
+  const path=()=>{ g.beginPath();
+    if(shape===1){ g.arc(cx,H/2,W*0.46,0,Math.PI*2); }
+    else if(shape===2){ const r=W*0.16,m=W*0.06; g.moveTo(m+r,m);g.arcTo(W-m,m,W-m,H-m,r);g.arcTo(W-m,H-m,m,H-m,r);g.arcTo(m,H-m,m,m,r);g.arcTo(m,m,W-m,m,r);g.closePath(); }
+    else { const m=W*0.06,r=W*0.14; g.moveTo(m+r,m);g.lineTo(W-m-r,m);g.arcTo(W-m,m,W-m,m+r,r);g.lineTo(W-m,H*0.55);g.quadraticCurveTo(W-m,H*0.82,cx,H-m);g.quadraticCurveTo(m,H*0.82,m,H*0.55);g.lineTo(m,m+r);g.arcTo(m,m,m+r,m,r);g.closePath(); } // 盾
+  };
+  g.save(); path(); g.clip();
+  g.fillStyle=c1; g.fillRect(0,0,W,H);
+  g.fillStyle=c2;
+  if(deco===0){ g.fillRect(0,H*0.40,W,H*0.16); }                                   // 横帯
+  else if(deco===1){ g.beginPath();g.moveTo(0,0);g.lineTo(W*0.55,0);g.lineTo(0,H*0.55);g.closePath();g.fill(); g.beginPath();g.moveTo(W,H);g.lineTo(W*0.45,H);g.lineTo(W,H*0.45);g.closePath();g.fill(); } // 斜め
+  else { g.beginPath();g.moveTo(0,H*0.28);g.lineTo(cx,H*0.5);g.lineTo(W,H*0.28);g.lineTo(W,H*0.44);g.lineTo(cx,H*0.66);g.lineTo(0,H*0.44);g.closePath();g.fill(); } // シェブロン
+  g.restore();
+  g.save(); path(); g.lineWidth=Math.max(1.5,size*0.06); g.strokeStyle=dk; g.stroke(); g.restore();
+  const ini=(s.replace(/[\s・･、。()\-]/g,"")[0]||"?");
+  g.fillStyle="#fff"; g.textAlign="center"; g.textBaseline="middle"; g.lineJoin="round";
+  g.font=`900 ${Math.round(size*0.46)}px 'DotGothic16',serif`;
+  g.lineWidth=Math.max(2,size*0.09); g.strokeStyle=dk;
+  g.strokeText(ini,cx,H*0.52); g.fillText(ini,cx,H*0.52);
+  return cv;
+}
 const RARS={n:"★",r:"★★",sr:"★★★",l:"LEGEND",emo:"EMOTIONAL"};
 const SELL_VALUE={n:20,r:60,sr:180,l:400,emo:1000}; // 重複カード売却額(レア別)。固有/エモーショナルは売却不可(sigで判定)。
 const STAT_LABEL={off:"攻",def:"守",pow:"力",tec:"技",spd:"速",sta:"持"};

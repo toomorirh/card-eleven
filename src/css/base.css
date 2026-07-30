@@ -376,7 +376,12 @@ canvas.sprite{image-rendering:auto}
 /* match */
 .score{display:flex;align-items:center;justify-content:space-between;background:var(--night2);
   border-radius:12px;padding:10px 14px;margin:8px 0;border:1px solid #2a3d56}
-.score .t{font-size:12px;font-weight:900;width:34%}.score .t.away{text-align:right;color:#ffb3a8}
+.score .t{font-size:12px;font-weight:900;width:34%;display:flex;align-items:center;gap:5px;min-width:0}.score .t.away{justify-content:flex-end;color:#ffb3a8}
+.score .t .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.score .emb{flex:0 0 auto;display:flex;align-items:center}
+.score .emb canvas{width:26px;height:26px;display:block;border-radius:4px}
+.cutin .kemb{display:flex;justify-content:center}
+.cutin .kemb canvas{width:52px;height:52px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))}
 .score .s{font-family:'DotGothic16';font-size:30px;color:var(--gold)}
 .clock{text-align:center;font-family:'DotGothic16';font-size:15px;color:var(--cyan);margin:4px 0}
 /* 支配率(勢い)バー: 左=自チーム(青)/右=相手(赤)。幅が支配率シェア。押し込み/押し下げを可視化。 */

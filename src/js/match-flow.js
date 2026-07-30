@@ -600,6 +600,9 @@ function _beginMatch(away,name,form,lv,idx,home0){
   document.querySelectorAll("#styleRow [data-st]").forEach(b=>b.classList.toggle("on",b.dataset.st==="center"));
   document.getElementById("mAway").textContent=name;
   document.getElementById("mHome").textContent=myName(); // 自チーム名(プロフィール)
+  { const eh=document.getElementById("embHome"), ea=document.getElementById("embAway"); // クラブエンブレム(名から決定論生成)
+    if(eh){eh.innerHTML="";eh.appendChild(teamEmblem(myName(),26));}
+    if(ea){ea.innerHTML="";ea.appendChild(teamEmblem(name,26));} }
   document.getElementById("sH").textContent=0;document.getElementById("sA").textContent=0;
   document.getElementById("feed").innerHTML="";document.getElementById("matchEnd").innerHTML="";
   const clk=document.getElementById("clock");if(clk){clk.textContent="0分";clk.classList.remove("late");}
